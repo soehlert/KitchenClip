@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | KitchenClip{% endblock %}
+
+{% block content %}
+  <div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4 text-[#194769]">{{ heading }}</h1>
+    <div class="bg-[#F7F9FA] p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
+      <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+          {% for field in form %}
+          {% if field.name != "tags" %}
+            <div>
+              <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
+                {{ field.label }}
+                {% if field.field.required %}<span class="text-[#F2855E]">*</span>{% endif %}
+              </label>
+              {{ field }}
+              {% if field.help_text %}
+                <p class="text-sm text-gray-500">{{ field.help_text }}</p>
+              {% endif %}
+              {% for error in field.errors %}
+                <p class="text-sm text-[#F2855E]">{{ error }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+        <div>
+          <label class="block text-[#194769] font-semibold mb-1">Tags</label>
+          <div id="tag-input-container" class="flex flex-wrap items-center border border-[#5B8E7D] rounded-lg p-2 bg-white min-h-[40px]">
+              <input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag..." class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
+          </div>
+          <input type="hidden" name="tags" id="hidden-tags-input" value="{{ initial_tags_csv }}">
+          <ul id="tag-suggestions" data-autocomplete-url="{% url 'recipes:tag_autocomplete' %}" class="absolute bg-white border rounded shadow z-10 mt-1" style="display:none; max-height: 150px; overflow-y: auto; left: 0; right: 0;"></ul>
+        </div>
+      </form>
+
+      <div class="flex gap-4 mt-6">
+          <button type="submit" form="recipe-form" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition">
+              {{ button_text }}
+          </button>
+
+          {% if show_delete and recipe %}
+          <form method="post" action="{% url 'recipes:delete_recipe' recipe.id %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="bg-[#F2855E] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition"
+                      onclick="return confirm('Are you sure you want to delete this recipe?')">
+                  Delete Recipe
+              </button>
+          </form>
+          {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block javascript %}
+    <script src="{% static 'recipes/js/tag_input.js' %}"></script>
+    <script>
+      window.availableTags = {{ all_tags_json|safe }};
+      window.initialTags = {{ initial_tags_json|safe }};
+      window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
+    </script>
+{% endblock %}

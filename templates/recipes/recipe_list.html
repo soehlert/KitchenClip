@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Recipes | KitchenClip{% endblock %}
+
+{% block sidebar %}
+  <div class="px-4 sm:px-6 lg:px-8 pt-8">
+    <div class="flex flex-col lg:flex-row gap-6">
+      <!-- Sidebar -->
+      <div class="w-full lg:w-1/4 xl:w-1/5 2xl:w-1/4 my-8 flex-shrink-0">
+        <div class="bg-white p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm sticky top-4">
+          <h2 class="text-lg font-semibold text-[#194769] mb-4">Filters</h2>
+          <form method="get" class="space-y-4">
+            <!-- Search Bar -->
+            <div>
+              <label for="search" class="block text-sm font-medium text-[#194769] mb-1">Search</label>
+              <input
+                type="text"
+                id="search"
+                name="search"
+                value="{{ request.GET.search }}"
+                placeholder="Recipe name or ingredient..."
+                class="w-full px-3 py-2 bg-white border border-[#5B8E7D] rounded-lg focus:ring-2 focus:ring-[#3798A9] focus:border-transparent">
+            </div>
+            <!-- Tag Filter -->
+            <div>
+              <label class="block text-sm font-medium text-[#194769] mb-2">Tags</label>
+              <div class="space-y-2 overflow-y-auto">
+                {% for tag in all_tags %}
+                  <label class="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="tags"
+                      value="{{ tag.id }}"
+                      {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
+                      class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                    <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full" style="background-color: {{ tag.color }};">
+                      {{ tag.name }}
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+            <!-- Filter Buttons -->
+            <div class="flex gap-2">
+              <button
+                type="submit"
+                class="flex-1 bg-[#194769] hover:bg-[#5B8E7D] text-white text-xs font-medium px-2 py-1 rounded shadow transition">
+                Apply
+              </button>
+              <a
+                href="{% url 'recipes:list_recipe' %}"
+                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium px-2 py-1 rounded shadow transition text-center">
+                Clear
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+{% endblock %}
+
+{% block content %}
+      <!-- Main Content Area -->
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+          <h1 class="text-xl sm:text-2xl font-bold text-[#194769]">
+            My Recipes
+            {% if page_obj.paginator.count %}
+              <span class="text-base sm:text-lg font-normal text-gray-600">({{ page_obj.paginator.count }} total)</span>
+            {% endif %}
+          </h1>
+          <a href="{% url 'recipes:add_recipe' %}" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center">
+            Add Recipe
+          </a>
+        </div>
+        {% if recipes %}
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {% for recipe in recipes %}
+              <div class="bg-[#F7F9FA] p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm hover:shadow-md transition-shadow">
+                <a href="{% url 'recipes:detail_recipe' recipe.pk %}" class="block">
+                  {% if recipe.image_url %}
+                    <div class="mb-4 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
+                      <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" class="w-full h-48 object-cover rounded-t-xl">
+                    </div>
+                  {% endif %}
+                  <h3 class="text-base sm:text-lg font-semibold text-[#194769] mb-2 hover:text-[#3798A9] transition-colors">
+                    {{ recipe.title }}
+                  </h3>
+                  <div class="flex flex-wrap gap-2 mb-3">
+                    {% for tag in recipe.tags.all %}
+                      <span class="inline-block text-white text-xs px-2 py-1 rounded-full" style="background-color: {{ tag.color }};">
+                        {{ tag.name }}
+                      </span>
+                    {% endfor %}
+                  </div>
+                  <div class="flex justify-between items-center text-sm text-gray-500">
+                    {% if recipe.prep_time or recipe.cook_time %}
+                      <div class="flex gap-2 sm:gap-3">
+                        {% if recipe.prep_time %}
+                          <span>Prep: {{ recipe.prep_time }}min</span>
+                        {% endif %}
+                        {% if recipe.cook_time %}
+                          <span>Cook: {{ recipe.cook_time }}min</span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                    {% if recipe.rating %}
+                      <div class="flex items-center">
+                        <span class="text-yellow-500">★</span>
+                        <span class="ml-1">{{ recipe.rating }}/5</span>
+                      </div>
+                    {% endif %}
+                  </div>
+                </a>
+              </div>
+            {% endfor %}
+          </div>
+          <!-- Pagination -->
+          {% if is_paginated %}
+            <div class="flex flex-wrap justify-center items-center mt-8 gap-2">
+              {% if page_obj.has_previous %}
+                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page=1"
+                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                  First
+                </a>
+                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.previous_page_number }}"
+                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                  Previous
+                </a>
+              {% endif %}
+              <span class="px-3 sm:px-4 py-2 text-sm bg-[#194769] text-white rounded-lg">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+              {% if page_obj.has_next %}
+                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.next_page_number }}"
+                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                  Next
+                </a>
+                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.paginator.num_pages }}"
+                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                  Last
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="bg-[#F7F9FA] p-6 sm:p-8 rounded-xl border border-[#D7EEF2] shadow-sm text-center">
+            <h2 class="text-lg sm:text-xl font-semibold text-[#194769] mb-2">No recipes found</h2>
+            <p class="text-gray-600 mb-4">
+              {% if request.GET.search or request.GET.tags %}
+                Try adjusting your filters or search terms.
+              {% else %}
+                Start building your recipe collection!
+              {% endif %}
+            </p>
+            {% if request.GET.search or request.GET.tags %}
+              <a href="{% url 'recipes:list_recipe' %}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition mr-4">
+                Clear Filters
+              </a>
+            {% endif %}
+            <a href="{% url 'recipes:add_recipe' %}" class="bg-[#194769] hover:bg-[#3798A9] text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition">
+              Add Your First Recipe
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
