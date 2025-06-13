@@ -36,13 +36,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY . .
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+RUN mkdir -p /app/data
 
 RUN chown -R appuser:appuser /app
 
 USER appuser
 
 EXPOSE 8000
-
-RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
 
 ENTRYPOINT ["/app/entrypoint.sh"]
