@@ -36,7 +36,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY . .
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-RUN mkdir -p /app/data
 
 RUN chown -R appuser:appuser /app
 
