@@ -4,9 +4,5 @@ services:
     ports:
       - "8888:8000"
     volumes:
-      - ./data:/app/data
+      - ./db.sqlite3:/app/db.sqlite3
     restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
