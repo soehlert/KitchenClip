@@ -1,4 +1,3 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.db import IntegrityError
 from django.urls import reverse_lazy
@@ -150,7 +149,7 @@ class RecipeCreateView(CreateView):
         return response
 
 
-class RecipeUpdateView(LoginRequiredMixin, UpdateView):
+class RecipeUpdateView(UpdateView):
     model = Recipe
     form_class = RecipeUpdateForm
     template_name = "recipes/recipe_form.html"
@@ -194,7 +193,7 @@ class RecipeUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
-class RecipeDeleteView(LoginRequiredMixin, DeleteView):
+class RecipeDeleteView(DeleteView):
     model = Recipe
     template_name = "recipes/recipe_confirm_delete.html"
     success_url = reverse_lazy("recipes:list_recipe")
