@@ -43,4 +43,6 @@ USER appuser
 
 EXPOSE 8000
 
+RUN mkdir -p /app/data && chown -R appuser:appuser /app/date
+
 ENTRYPOINT ["/app/entrypoint.sh"]
