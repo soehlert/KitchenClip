@@ -67,3 +67,39 @@ def clean_instruction_line(text):
 
     result = '\n'.join(cleaned_lines)
     return result
+
+import re
+
+def remove_instruction_headers(text):
+    """Remove common instruction header lines."""
+    if not text:
+        return text
+
+    header_patterns = [
+        r'^instructions?:?\s*$',
+        r'^directions?:?\s*$',
+        r'^steps?:?\s*$',
+        r'^method:?\s*$',
+        r'^preparation:?\s*$',
+        r'^how to make:?\s*$',
+        r'^cooking instructions?:?\s*$'
+    ]
+
+    lines = text.split('\n')
+    filtered_lines = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        is_header = False
+        for pattern in header_patterns:
+            if re.match(pattern, line, re.IGNORECASE):
+                is_header = True
+                break
+
+        if not is_header:
+            filtered_lines.append(line)
+
+    return '\n'.join(filtered_lines)
