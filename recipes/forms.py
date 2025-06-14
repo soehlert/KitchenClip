@@ -145,7 +145,7 @@ class RecipeUpdateForm(forms.ModelForm):
         recipe = super().save(commit=commit)
 
         if commit and 'ingredients_text' in self.cleaned_data:
-            recipe.recipeingredient_set.all().delete()
+            recipe.recipe_ingredients.all().delete()
 
             ingredients_text = self.cleaned_data.get('ingredients_text', '')
             for idx, line in enumerate(ingredients_text.split('\n')):
