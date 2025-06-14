@@ -2,6 +2,9 @@ from django import forms
 from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.utils import remove_instruction_headers, clean_instruction_line
 
+import ingredient_slicer
+
+
 import logging
 logger = logging.getLogger(__name__)
 
