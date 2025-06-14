@@ -137,7 +137,7 @@ class RecipeUpdateForm(forms.ModelForm):
             self.initial['tags'] = ', '.join(tags_value)
 
         if self.instance.pk:
-            existing_ingredients = self.instance.recipeingredient_set.order_by('order')
+            existing_ingredients = self.instance.recipe_ingredients.order_by('order')
             ingredients_list = [ing.raw_text for ing in existing_ingredients]
             self.initial['ingredients_text'] = '\n'.join(ingredients_list)
 
