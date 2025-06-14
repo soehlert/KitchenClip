@@ -1,6 +1,9 @@
 from django import forms
-from recipes.models import Recipe
+from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.utils import remove_instruction_headers, clean_instruction_line
+
+import logging
+logger = logging.getLogger(__name__)
 
 RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
 
@@ -42,11 +45,9 @@ class RecipeImportForm(forms.ModelForm):
 
     def clean_rating(self):
         value = self.cleaned_data['rating']
-        print("Clean Rating")
         return int(value) if value else None
 
     def clean_tags(self):
-        print("clean_tags")
         tags = self.cleaned_data.get("tags", "")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
@@ -69,6 +70,16 @@ class RecipeUpdateForm(forms.ModelForm):
             "autocomplete": "off",
             "id": "id_tags",
         })
+    )
+    ingredients_text = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "rows": 8,
+            "placeholder": "Enter each ingredient on a new line:\n1 cup flour\n2 eggs\n1/2 cup sugar"
+        }),
+        label="Ingredients",
+        help_text="Enter each ingredient on a separate line"
     )
 
     class Meta:
@@ -124,6 +135,53 @@ class RecipeUpdateForm(forms.ModelForm):
             self.initial['tags'] = ''
         elif isinstance(tags_value, list):
             self.initial['tags'] = ', '.join(tags_value)
+
+        if self.instance.pk:
+            existing_ingredients = self.instance.recipeingredient_set.order_by('order')
+            ingredients_list = [ing.raw_text for ing in existing_ingredients]
+            self.initial['ingredients_text'] = '\n'.join(ingredients_list)
+
+    def save(self, commit=True):
+        recipe = super().save(commit=commit)
+
+        if commit and 'ingredients_text' in self.cleaned_data:
+            recipe.recipeingredient_set.all().delete()
+
+            ingredients_text = self.cleaned_data.get('ingredients_text', '')
+            for idx, line in enumerate(ingredients_text.split('\n')):
+                line = line.strip()
+                if line:
+                    try:
+                        slicer = ingredient_slicer.IngredientSlicer(line)
+                        parsed = slicer.to_json()
+                        name = parsed.get("food") or line
+
+                        ingredient, _ = Ingredient.objects.get_or_create(name=name)
+                        RecipeIngredient.objects.create(
+                            recipe=recipe,
+                            ingredient=ingredient,
+                            raw_text=line,
+                            quantity=parsed.get("quantity") or "",
+                            unit=parsed.get("unit") or "",
+                            preparation=", ".join(parsed.get("prep", [])) if parsed.get("prep") else "",
+                            order=idx
+                        )
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Failed to parse ingredient: {line}, error: {e}")
+
+                        # Create a basic ingredient entry if parsing fails
+                        ingredient, _ = Ingredient.objects.get_or_create(name=line)
+                        RecipeIngredient.objects.create(
+                            recipe=recipe,
+                            ingredient=ingredient,
+                            raw_text=line,
+                            quantity="",
+                            unit="",
+                            preparation="",
+                            order=idx
+                        )
+
+        return recipe
 
     def clean_rating(self):
         value = self.cleaned_data['rating']

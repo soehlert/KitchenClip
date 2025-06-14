@@ -30,7 +30,7 @@
         <div>
           <label class="block text-[#194769] font-semibold mb-1">Tags</label>
           <div id="tag-input-container" class="flex flex-wrap items-center border border-[#5B8E7D] rounded-lg p-2 bg-white min-h-[40px]">
-              <input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag..." class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
+              <label for="tag-input"></label><input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag" class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
           </div>
           <input type="hidden" name="tags" id="hidden-tags-input" value="{{ initial_tags_csv }}">
           <ul id="tag-suggestions" data-autocomplete-url="{% url 'recipes:tag_autocomplete' %}" class="absolute bg-white border rounded shadow z-10 mt-1" style="display:none; max-height: 150px; overflow-y: auto; left: 0; right: 0;"></ul>

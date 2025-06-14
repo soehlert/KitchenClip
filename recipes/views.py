@@ -118,6 +118,11 @@ class RecipeCreateView(CreateView):
             ingredient_lines = scraper.ingredients()
         except Exception:
             self.request.session['failed_recipe_url'] = original_url
+            self.request.session['preserved_form_data'] = {
+                'rating': form.cleaned_data.get('rating'),
+                'tags': form.cleaned_data.get('tags', ''),
+                'user_notes': form.cleaned_data.get('user_notes', ''),
+            }
 
             messages.info(
                 self.request,
@@ -193,9 +198,19 @@ class RecipeManualCreateView(CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
+
         failed_url = self.request.session.pop('failed_recipe_url', None)
         if failed_url:
             initial['original_url'] = failed_url
+
+        preserved_data = self.request.session.pop('preserved_form_data', {})
+        if preserved_data:
+            initial.update({
+                'rating': preserved_data.get('rating'),
+                'tags': preserved_data.get('tags', ''),
+                'user_notes': preserved_data.get('user_notes', ''),
+            })
+
         return initial
 
 
