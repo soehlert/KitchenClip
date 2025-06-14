@@ -27,30 +27,20 @@
             </div>
           {% endif %}
         {% endfor %}
+        <!-- Tags section -->
         <div>
           <label class="block text-[#194769] font-semibold mb-1">Tags</label>
           <div id="tag-input-container" class="flex flex-wrap items-center border border-[#5B8E7D] rounded-lg p-2 bg-white min-h-[40px]">
-              <input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag..." class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
+              <label for="tag-input"></label><input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag..." class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
           </div>
           <input type="hidden" name="tags" id="hidden-tags-input" value="{{ initial_tags_csv }}">
           <ul id="tag-suggestions" data-autocomplete-url="{% url 'recipes:tag_autocomplete' %}" class="absolute bg-white border rounded shadow z-10 mt-1" style="display:none; max-height: 150px; overflow-y: auto; left: 0; right: 0;"></ul>
         </div>
       </form>
-
       <div class="flex gap-4 mt-6">
           <button type="submit" form="recipe-form" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition">
               {{ button_text }}
           </button>
-
-          {% if show_delete and recipe %}
-          <form method="post" action="{% url 'recipes:delete_recipe' recipe.id %}" class="inline">
-              {% csrf_token %}
-              <button type="submit" class="bg-[#F2855E] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition"
-                      onclick="return confirm('Are you sure you want to delete this recipe?')">
-                  Delete Recipe
-              </button>
-          </form>
-          {% endif %}
       </div>
     </div>
   </div>

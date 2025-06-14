@@ -1,5 +1,6 @@
 from django import forms
 from recipes.models import Recipe
+from recipes.utils import remove_instruction_headers, clean_instruction_line
 
 RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
 
@@ -132,3 +133,87 @@ class RecipeUpdateForm(forms.ModelForm):
         tags = self.cleaned_data.get("tags", "")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
+
+
+class RecipeManualForm(forms.ModelForm):
+    rating = forms.ChoiceField(
+        choices=[('', '—')] + RATING_CHOICES,
+        required=False,
+        label="Rating",
+        widget=forms.Select(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
+        })
+    )
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "placeholder": "e.g. quick, weeknight, dessert, appetizer",
+            "autocomplete": "off",
+            "id": "id_tags",
+        })
+    )
+    ingredients_text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "rows": 8,
+            "placeholder": "Enter each ingredient on a new line:\n1 cup flour\n2 eggs\n1/2 cup sugar"
+        }),
+        label="Ingredients",
+        help_text="Enter each ingredient on a separate line"
+    )
+    instructions_text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "rows": 10,
+            "placeholder": "Enter cooking instructions"
+        }),
+        label="Instructions"
+    )
+    image_url = forms.URLField(
+        required=False,
+        label="Image URL",
+        widget=forms.URLInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "placeholder": "https://example.com/recipe-image.jpg"
+        })
+    )
+
+    class Meta:
+        model = Recipe
+        fields = ["title", "original_url", "user_notes", "rating", "image_url"]
+        widgets = {
+            "title": forms.TextInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
+            }),
+            "original_url": forms.URLInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "readonly": True
+            }),
+            "user_notes": forms.Textarea(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "rows": 3,
+            }),
+            "instructions": forms.HiddenInput(),  # Hide the model field since we use instructions_text
+            "image_url": forms.HiddenInput(),  # Hide the model field since we use image_url custom field
+        }
+
+    def clean_rating(self):
+        value = self.cleaned_data['rating']
+        return int(value) if value else None
+
+    def clean_tags(self):
+        tags = self.cleaned_data.get("tags", "")
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        return tag_list
+
+    def save(self, commit=True):
+        recipe = super().save(commit=False)
+        raw_instructions = self.cleaned_data.get('instructions_text', '')
+        recipe.instructions = remove_instruction_headers(raw_instructions)
+
+        recipe.image_url = self.cleaned_data.get('image_url', '')
+
+        if commit:
+            recipe.save()
+        return recipe
