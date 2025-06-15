@@ -255,8 +255,6 @@ class RecipeManualForm(forms.ModelForm):
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "rows": 3,
             }),
-            "instructions": forms.HiddenInput(),  # Hide the model field since we use instructions_text
-            "image_url": forms.HiddenInput(),  # Hide the model field since we use image_url custom field
         }
 
     def clean_rating(self):

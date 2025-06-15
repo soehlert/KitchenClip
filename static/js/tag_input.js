@@ -41,7 +41,7 @@ tagInput.addEventListener("input", function() {
   const val = tagInput.value.trim().toLowerCase();
   suggestions.innerHTML = "";
   highlightedIndex = -1;
-  if (val.length >= 2) {
+  if (val.length > 2) {
     fetch(suggestions.dataset.autocompleteUrl + "?q=" + encodeURIComponent(val))
     .then(response => response.json())
     .then(data => {
@@ -119,13 +119,20 @@ document.addEventListener("click", function(e) {
   }
 });
 
+
 document.addEventListener('DOMContentLoaded', function() {
   availableTags = window.availableTags || [];
-  const initial = hiddenTagsInput.value.split(',').map(s => s.trim()).filter(Boolean);
-  selectedTags = initial.map(name => {
-    const found = availableTags.find(t => t.name.toLowerCase() === name.toLowerCase());
-    return {name, color: found ? found.color : "#888"};
-  });
+
+  if (window.initialTags && window.initialTags.length > 0) {
+    selectedTags = window.initialTags;
+  } else {
+    const initial = hiddenTagsInput.value.split(',').map(s => s.trim()).filter(Boolean);
+    selectedTags = initial.map(name => {
+      const found = availableTags.find(t => t.name.toLowerCase() === name.toLowerCase());
+      return {name, color: found ? found.color : "#888"};
+    });
+  }
+
   renderTags();
 });
 

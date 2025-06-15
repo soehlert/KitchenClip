@@ -4,6 +4,8 @@ from django.urls import reverse_lazy, reverse
 from django.db.models import Q
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseRedirect
+from functools import reduce
+import operator
 from urllib.parse import urlencode
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -31,7 +33,7 @@ class RecipeListView(ListView):
     model = Recipe
     template_name = "recipes/recipe_list.html"
     context_object_name = "recipes"
-    paginate_by = 20
+    paginate_by = 15
 
     def get_queryset(self):
         queryset = Recipe.objects.all()
@@ -44,11 +46,30 @@ class RecipeListView(ListView):
                 Q(description__icontains=search)
             ).distinct()
 
+        time_ranges = self.request.GET.getlist('time_range')
+        if time_ranges:
+            time_conditions = []
+
+            for time_range in time_ranges:
+                if time_range == '0-20':
+                    time_conditions.append(Q(total_time__lte=20))
+                elif time_range == '21-30':
+                    time_conditions.append(Q(total_time__range=(21, 30)))
+                elif time_range == '31-45':
+                    time_conditions.append(Q(total_time__range=(31, 45)))
+                elif time_range == '46-60':
+                    time_conditions.append(Q(total_time__range=(46, 60)))
+                elif time_range == '60+':
+                    time_conditions.append(Q(total_time__gt=60))
+
+            if time_conditions:
+                queryset = queryset.filter(reduce(operator.or_, time_conditions))  # Fixed: queryset not recipes
+
         tags = self.request.GET.getlist('tags')
         if tags:
             queryset = queryset.filter(tags__id__in=tags).distinct()
 
-        return queryset.order_by('-created_at')
+        return queryset.order_by('total_time')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -120,9 +141,10 @@ class RecipeCreateView(CreateView):
             self.request.session['failed_recipe_url'] = original_url
             self.request.session['preserved_form_data'] = {
                 'rating': form.cleaned_data.get('rating'),
-                'tags': form.cleaned_data.get('tags', ''),
+                'tags': form.cleaned_data.get('tags', []),
                 'user_notes': form.cleaned_data.get('user_notes', ''),
             }
+            self.request.session.save()
 
             messages.info(
                 self.request,
@@ -185,6 +207,9 @@ class RecipeManualCreateView(CreateView):
     success_url = reverse_lazy("recipes:list_recipe")
 
     def get_context_data(self, **kwargs):
+
+        preserved_data = self.request.session.get('preserved_form_data', {})
+
         context = super().get_context_data(**kwargs)
         context["title"] = "Add Recipe Manually"
         context["heading"] = "Enter Recipe Details"
@@ -192,7 +217,19 @@ class RecipeManualCreateView(CreateView):
         context["show_delete"] = False
         all_tags = RecipeTag.objects.values("name", "color")
         context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
-        context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
+
+        # Get preserved tags from session or form initial data
+        preserved_data = self.request.session.get('preserved_form_data', {})
+        preserved_tags = preserved_data.get('tags', '')
+
+        if preserved_tags:
+            initial_tags = []
+            for tag_name in preserved_tags:
+                initial_tags.append({"name": tag_name, "color": "#6B7280"})
+
+            context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
+        else:
+            context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
 
         return context
 
@@ -203,7 +240,7 @@ class RecipeManualCreateView(CreateView):
         if failed_url:
             initial['original_url'] = failed_url
 
-        preserved_data = self.request.session.pop('preserved_form_data', {})
+        preserved_data = self.request.session.get('preserved_form_data', {})
         if preserved_data:
             initial.update({
                 'rating': preserved_data.get('rating'),
@@ -212,7 +249,6 @@ class RecipeManualCreateView(CreateView):
             })
 
         return initial
-
 
     def form_valid(self, form):
         response = super().form_valid(form)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Recipes | KitchenClip{% endblock %}
 
@@ -23,8 +24,19 @@
             </div>
             <!-- Tag Filter -->
             <div>
-              <label class="block text-sm font-medium text-[#194769] mb-2">Tags</label>
-              <div class="space-y-2 overflow-y-auto">
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-[#194769]">Tags</label>
+                <button
+                  type="button"
+                  id="toggle-tags"
+                  class="text-xs text-[#3798A9] hover:text-[#194769] font-medium focus:outline-none transition-colors">
+                  <span id="toggle-text">Show</span>
+                  <svg id="toggle-icon" class="inline-block w-3 h-3 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+              </div>
+              <div id="tags-container" class="hidden space-y-2 overflow-y-auto max-h-72">
                 {% for tag in all_tags %}
                   <label class="flex items-center">
                     <input
@@ -38,6 +50,57 @@
                     </span>
                   </label>
                 {% endfor %}
+              </div>
+            </div>
+            <!-- Time Filter -->
+            <div>
+              <label class="block text-sm font-medium text-[#194769] mb-2">Total Time</label>
+              <div class="space-y-2">
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="time_range"
+                    value="0-20"
+                    {% if "0-20" in request.GET.time_range %}checked{% endif %}
+                    class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                  <span class="ml-2 text-sm text-gray-700">0-20 minutes</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="time_range"
+                    value="21-30"
+                    {% if "21-30" in request.GET.time_range %}checked{% endif %}
+                    class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                  <span class="ml-2 text-sm text-gray-700">21-30 minutes</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="time_range"
+                    value="31-45"
+                    {% if "31-45" in request.GET.time_range %}checked{% endif %}
+                    class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                  <span class="ml-2 text-sm text-gray-700">31-45 minutes</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="time_range"
+                    value="46-60"
+                    {% if "46-60" in request.GET.time_range %}checked{% endif %}
+                    class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                  <span class="ml-2 text-sm text-gray-700">46-60 minutes</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="time_range"
+                    value="60+"
+                    {% if "60+" in request.GET.time_range %}checked{% endif %}
+                    class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                  <span class="ml-2 text-sm text-gray-700">60+ minutes</span>
+                </label>
               </div>
             </div>
             <!-- Filter Buttons -->
@@ -114,34 +177,34 @@
               </div>
             {% endfor %}
           </div>
-          <!-- Pagination -->
-          {% if is_paginated %}
-            <div class="flex flex-wrap justify-center items-center mt-8 gap-2">
-              {% if page_obj.has_previous %}
-                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page=1"
-                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
-                  First
-                </a>
-                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.previous_page_number }}"
-                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
-                  Previous
-                </a>
-              {% endif %}
-              <span class="px-3 sm:px-4 py-2 text-sm bg-[#194769] text-white rounded-lg">
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-              </span>
-              {% if page_obj.has_next %}
-                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.next_page_number }}"
-                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
-                  Next
-                </a>
-                <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}page={{ page_obj.paginator.num_pages }}"
-                   class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
-                  Last
-                </a>
-              {% endif %}
-            </div>
-          {% endif %}
+            <!-- Pagination -->
+            {% if is_paginated %}
+              <div class="flex flex-wrap justify-center items-center mt-8 gap-2">
+                {% if page_obj.has_previous %}
+                  <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}{% if request.GET.time_range %}{% for time in request.GET.time_range %}time_range={{ time }}&{% endfor %}{% endif %}page=1"
+                     class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                    First
+                  </a>
+                  <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}{% if request.GET.time_range %}{% for time in request.GET.time_range %}time_range={{ time }}&{% endfor %}{% endif %}page={{ page_obj.previous_page_number }}"
+                     class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                    Previous
+                  </a>
+                {% endif %}
+                <span class="px-3 sm:px-4 py-2 text-sm bg-[#194769] text-white rounded-lg">
+                  Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                  <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}{% if request.GET.time_range %}{% for time in request.GET.time_range %}time_range={{ time }}&{% endfor %}{% endif %}page={{ page_obj.next_page_number }}"
+                     class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                    Next
+                  </a>
+                  <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.tags %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}{% endif %}{% if request.GET.time_range %}{% for time in request.GET.time_range %}time_range={{ time }}&{% endfor %}{% endif %}page={{ page_obj.paginator.num_pages }}"
+                     class="px-2 sm:px-3 py-2 text-sm bg-white border border-[#D7EEF2] rounded-lg hover:bg-[#5B8E7D] transition">
+                    Last
+                  </a>
+                {% endif %}
+              </div>
+            {% endif %}
         {% else %}
           <div class="bg-[#F7F9FA] p-6 sm:p-8 rounded-xl border border-[#D7EEF2] shadow-sm text-center">
             <h2 class="text-lg sm:text-xl font-semibold text-[#194769] mb-2">No recipes found</h2>
@@ -165,4 +228,8 @@
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block javascript %}
+    <script src="{% static 'js/sidebar.js' %}"></script>
 {% endblock %}
