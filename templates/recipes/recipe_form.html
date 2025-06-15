@@ -60,7 +60,7 @@
     <script src="{% static 'js/tag_input.js' %}"></script>
     <script>
       window.availableTags = {{ all_tags_json|safe }};
-      window.initialTags = {{ initial_tags_json|safe }};
+      window.initialTags = {{ initial_tags_json|default:"[]"|safe }};
       window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
     </script>
 {% endblock %}
