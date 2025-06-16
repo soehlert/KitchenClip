@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             tagsContainer.classList.add('hidden');
             toggleText.textContent = 'Show';
-            toggleIcon.style.transform = 'rotate(90deg)';
+            toggleIcon.style.transform = 'rotate(0deg)';
         }
     });
 });

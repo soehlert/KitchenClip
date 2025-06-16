@@ -63,13 +63,13 @@ class RecipeListView(ListView):
                     time_conditions.append(Q(total_time__gt=60))
 
             if time_conditions:
-                queryset = queryset.filter(reduce(operator.or_, time_conditions))  # Fixed: queryset not recipes
+                queryset = queryset.filter(reduce(operator.or_, time_conditions))
 
         tags = self.request.GET.getlist('tags')
         if tags:
             queryset = queryset.filter(tags__id__in=tags).distinct()
 
-        return queryset.order_by('total_time')
+        return queryset.order_by('-updated_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
