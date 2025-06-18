@@ -197,23 +197,6 @@ class RecipeUpdateForm(forms.ModelForm):
 
 
 class RecipeManualForm(forms.ModelForm):
-    rating = forms.ChoiceField(
-        choices=[('', '—')] + RATING_CHOICES,
-        required=False,
-        label="Rating",
-        widget=forms.Select(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
-        })
-    )
-    tags = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "placeholder": "e.g. quick, weeknight, dessert, appetizer",
-            "autocomplete": "off",
-            "id": "id_tags",
-        })
-    )
     ingredients_text = forms.CharField(
         widget=forms.Textarea(attrs={
             "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
@@ -231,6 +214,23 @@ class RecipeManualForm(forms.ModelForm):
         }),
         label="Instructions"
     )
+    rating = forms.ChoiceField(
+        choices=[('', '—')] + RATING_CHOICES,
+        required=False,
+        label="Rating",
+        widget=forms.Select(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
+        })
+    )
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "placeholder": "e.g. quick, weeknight, dessert, appetizer",
+            "autocomplete": "off",
+            "id": "id_tags",
+        })
+    )
     image_url = forms.URLField(
         required=False,
         label="Image URL",
@@ -242,7 +242,7 @@ class RecipeManualForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ["title", "original_url", "user_notes", "rating", "image_url"]
+        fields = ["title", "original_url", "rating", "image_url", "prep_time", "cook_time",  "total_time", "servings", "user_notes"]
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
@@ -254,6 +254,22 @@ class RecipeManualForm(forms.ModelForm):
             "user_notes": forms.Textarea(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "rows": 3,
+            }),
+            "prep_time": forms.NumberInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "min": "0"
+            }),
+            "cook_time": forms.NumberInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "min": "0"
+            }),
+            "total_time": forms.NumberInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "min": "0"
+            }),
+            "servings": forms.NumberInput(attrs={
+                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+                "min": "1"
             }),
         }
 
