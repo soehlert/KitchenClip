@@ -34,6 +34,12 @@
         {% else %}
           <span class="text-gray-500">No tags</span>
         {% endif %}
+        {% if recipe.user_notes %}
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold text-[#194769] mb-2 mt-4">Your Notes</h2>
+            <p class="bg-white rounded p-3 border border-[#D7EEF2]">{{ recipe.user_notes }}</p>
+          </div>
+      {% endif %}
       </div>
       <div class="mb-4">
         <h2 class="text-xl font-semibold text-[#194769] mb-2">Ingredients</h2>
@@ -61,12 +67,6 @@
           {% endfor %}
         </ol>
       </div>
-      {% if recipe.user_notes %}
-        <div class="mb-4">
-          <h2 class="text-xl font-semibold text-[#194769] mb-2">Your Notes</h2>
-          <p class="bg-white rounded p-3 border border-[#D7EEF2]">{{ recipe.user_notes }}</p>
-        </div>
-      {% endif %}
         <div class="grid grid-cols-2 gap-4 mt-6">
           <a href="{% url 'recipes:edit_recipe' recipe.id %}" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold py-2 px-4 rounded-lg transition text-center">Edit</a>
           <a href="{% url 'recipes:delete_recipe' recipe.id %}" class="bg-[#F2855E] hover:bg-[#5B8E7D] text-white font-semibold py-2 px-4 rounded-lg transition text-center">Delete</a>
