@@ -18,6 +18,7 @@ urlpatterns = [
 
     # Meal Plan URLs
     path("meal-plan/", views.MealPlanView.as_view(), name="meal_plan"),
+    path("meal-plan/kiosk/", views.MealPlanKioskView.as_view(), name="meal_plan_kiosk"),
     path("api/meal-plan/update/", views.update_meal_plan, name="update_meal_plan"),
     path("api/recipes/search/", views.search_recipes_api, name="search_recipes_api"),
 ]

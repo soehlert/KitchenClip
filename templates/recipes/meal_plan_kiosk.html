@@ -1,0 +1,145 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meal Plan Kiosk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .kiosk-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1.5rem;
+            height: calc(100vh - 8rem);
+        }
+
+        .day-card {
+            background: white;
+            border-radius: 2rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .day-header {
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .day-header.today {
+            background: #194769;
+            color: white;
+        }
+
+        .meal-section {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .meal-section:not(:last-child) {
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .meal-label {
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 1rem;
+        }
+
+        .meal-title {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #194769;
+            line-height: 1.3;
+        }
+
+        .custom-meal {
+            color: #5B8E7D;
+        }
+
+        .empty-meal {
+            font-style: italic;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="flex justify-between items-end mb-10 px-4">
+        <h1 class="text-5xl font-black text-[#194769]">Weekly Menu</h1>
+        <div class="text-right">
+            <div class="text-gray-400 font-black uppercase tracking-[0.3em] text-xs mb-1">KitchenClip Kiosk</div>
+            <div class="text-xl font-bold text-gray-800">{{ today|date:"F j, Y" }}</div>
+        </div>
+    </div>
+
+    <div class="kiosk-grid">
+        {% for day in weeks.0 %}
+        <div class="day-card">
+            <div class="day-header {% if day.is_today %}today{% endif %}">
+                <div class="text-xl font-black">{{ day.day_name|upper }}</div>
+                <div class="text-sm font-bold opacity-60">{{ day.date|date:"M j" }}</div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-label">Lunch</div>
+                <div class="meal-title {% if not day.lunch.recipe %}custom-meal{% endif %}">
+                    {% if day.lunch %}
+                    {% if day.lunch.recipe %}
+                    {{ day.lunch.recipe.title }}
+                    {% else %}
+                    {{ day.lunch.custom_meal }}
+                    {% endif %}
+                    {% else %}
+                    <span class="empty-meal">Not planned</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-label">Dinner</div>
+                <div class="meal-title {% if not day.dinner.recipe %}custom-meal{% endif %}">
+                    {% if day.dinner %}
+                    {% if day.dinner.recipe %}
+                    {{ day.dinner.recipe.title }}
+                    {% else %}
+                    {{ day.dinner.custom_meal }}
+                    {% endif %}
+                    {% else %}
+                    <span class="empty-meal">Not planned</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Refresh every 30 minutes
+        setTimeout(() => location.reload(), 30 * 60 * 1000);
+    </script>
+</body>
+
+</html>

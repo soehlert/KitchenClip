@@ -504,3 +504,10 @@ def search_recipes_api(request):
         })
         
     return JsonResponse({'recipes': data})
+class MealPlanKioskView(MealPlanView):
+    template_name = "recipes/meal_plan_kiosk.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['today'] = now().date()
+        return context
