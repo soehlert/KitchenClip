@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Meal Plan | KitchenClip{% endblock %}
+
+{% block extra_head %}
+<!-- Force Widescreen Override -->
+<style>
+    /* Remove white container constraints */
+    main {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .meal-slot {
+        min-height: 80px;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        background-color: #f8fafc;
+        border-radius: 12px;
+    }
+
+    .meal-slot.drag-over {
+        background-color: #f1f5f9;
+        border: 2px dashed #194769;
+    }
+
+    .week-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+        padding: 0 1rem;
+    }
+
+    @media (max-width: 1200px) {
+        .week-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .week-grid {
+            grid-template-columns: repeat(1, 1fr);
+        }
+    }
+
+    /* Floating Sidebar */
+    #sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: -320px;
+        width: 320px;
+        height: 100vh;
+        background: white;
+        z-index: 2000;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #sidebar-overlay.open {
+        transform: translateX(320px);
+    }
+
+    #sidebar-handle {
+        position: fixed;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2001;
+        background: #194769;
+        color: white;
+        padding: 1rem 0.5rem;
+        border-radius: 0 12px 12px 0;
+        cursor: pointer;
+        font-weight: 900;
+        font-size: 0.7rem;
+        writing-mode: vertical-lr;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #overlay-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(2px);
+        z-index: 1999;
+        display: none;
+    }
+
+    #overlay-backdrop.show {
+        display: block;
+    }
+
+    .sidebar-header {
+        font-size: 0.65rem;
+        font-weight: 900;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        margin: 2rem 0 1rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        list-style: none !important;
+    }
+
+    .sidebar-header::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #f1f5f9;
+    }
+
+    #toast-container {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 3000;
+    }
+
+    .toast {
+        background: #194769;
+        color: white;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-top: 0.5rem;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="sidebar-handle">Recipes & Ideas</div>
+<div id="overlay-backdrop"></div>
+
+<div id="sidebar-overlay">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-black text-[#194769]">Library</h3>
+        <button id="close-sidebar" class="text-2xl text-gray-300 hover:text-gray-600">&times;</button>
+    </div>
+
+    <div class="relative mb-4">
+        <input type="text" id="recipe-search" placeholder="Quick search..."
+            class="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#194769]">
+    </div>
+
+    <button id="add-manual"
+        class="w-full py-3 mb-6 bg-[#194769] hover:bg-[#5B8E7D] text-white font-black rounded-xl text-xs shadow-md">
+        + Custom Meal
+    </button>
+
+    <div id="sidebar-results" class="flex-1 overflow-y-auto pr-2 space-y-6">
+        <div>
+            <h4 class="sidebar-header" style="margin-top:0">My Recipes</h4>
+            <div class="space-y-2">
+                {% for recipe in saved_recipes|slice:":3" %}
+                <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
+                    draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
+                    data-image="{{ recipe.image_url|default:'' }}">
+                    {% if recipe.image_url %}
+                    <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
+                    {% else %}
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
+                        {{ recipe.title|slice:":1" }}</div>
+                    {% endif %}
+                    <span class="font-bold text-gray-700 text-xs truncate">{{ recipe.title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <h4 class="sidebar-header">Future Ideas</h4>
+            <div class="space-y-2">
+                {% for recipe in future_recipes|slice:":3" %}
+                <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
+                    draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
+                    data-image="{{ recipe.image_url|default:'' }}">
+                    {% if recipe.image_url %}
+                    <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
+                    {% else %}
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
+                        {{ recipe.title|slice:":1" }}</div>
+                    {% endif %}
+                    <span class="font-bold text-gray-700 text-xs truncate">{{ recipe.title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="p-8">
+    <h1 class="text-3xl font-black text-[#194769] mb-10">Meal Planner</h1>
+
+    {% for week in weeks %}
+    <div class="mb-12">
+        <div class="flex items-center gap-4 mb-6">
+            <span class="h-px bg-gray-200 flex-1"></span>
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                {% if forloop.first %}Current Week{% else %}Next Week{% endif %}
+            </span>
+            <span class="h-px bg-gray-200 flex-1"></span>
+        </div>
+
+        <div class="week-grid">
+            {% for day in week %}
+            <div
+                class="bg-white rounded-2xl border {% if day.is_today %}border-[#194769] ring-4 ring-[#194769] ring-opacity-10{% else %}border-gray-100{% endif %} overflow-hidden shadow-sm flex flex-col">
+                <div
+                    class="{% if day.is_today %}bg-[#194769] text-white{% else %}bg-gray-50 text-gray-500{% endif %} py-2 px-3 text-center border-b border-gray-100">
+                    <div class="text-[10px] font-black">{{ day.day_name|upper }}</div>
+                    <div class="text-[8px] font-bold opacity-60">{{ day.date|date:"M j" }}</div>
+                </div>
+
+                <div class="p-2 space-y-3 flex-1">
+                    <!-- Lunch -->
+                    <div>
+                        <div class="text-[7px] font-black text-gray-300 uppercase tracking-tighter mb-1">Lunch</div>
+                        <div class="meal-slot" data-date="{{ day.date|date:'Y-m-d' }}" data-type="LUNCH">
+                            {% if day.lunch %}
+                            <div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group"
+                                draggable="true" data-recipe-id="{{ day.lunch.recipe.id|default:'' }}"
+                                data-custom="{{ day.lunch.custom_meal }}">
+                                {% if day.lunch.recipe.image_url %}
+                                <img src="{{ day.lunch.recipe.image_url }}"
+                                    class="w-full h-12 object-cover rounded-lg mb-1">
+                                {% endif %}
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[10px] font-bold text-gray-800 leading-tight">
+                                        {% if day.lunch.recipe %}{{ day.lunch.recipe.title }}{% else %}{{                     day.lunch.custom_meal }}{% endif %}
+                                    </span>
+                                    <button
+                                        class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Dinner -->
+                    <div>
+                        <div class="text-[7px] font-black text-gray-300 uppercase tracking-tighter mb-1">Dinner</div>
+                        <div class="meal-slot" data-date="{{ day.date|date:'Y-m-d' }}" data-type="DINNER">
+                            {% if day.dinner %}
+                            <div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group"
+                                draggable="true" data-recipe-id="{{ day.dinner.recipe.id|default:'' }}"
+                                data-custom="{{ day.dinner.custom_meal }}">
+                                {% if day.dinner.recipe.image_url %}
+                                <img src="{{ day.dinner.recipe.image_url }}"
+                                    class="w-full h-12 object-cover rounded-lg mb-1">
+                                {% endif %}
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[10px] font-bold text-gray-800 leading-tight">
+                                        {% if day.dinner.recipe %}{{ day.dinner.recipe.title }}{% else %}{{                     day.dinner.custom_meal }}{% endif %}
+                                    </span>
+                                    <button
+                                        class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Manual Modal -->
+<div id="manual-modal"
+    class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[3000] flex items-center justify-center">
+    <div class="bg-white p-8 rounded-3xl w-80 shadow-2xl">
+        <h4 class="text-xl font-black mb-4">Add Meal</h4>
+        <input type="text" id="manual-text" class="w-full p-3 bg-gray-50 rounded-xl mb-6 font-bold"
+            placeholder="Pizza night?">
+        <div class="flex gap-2">
+            <button id="modal-cancel" class="flex-1 py-2 text-gray-400 font-bold">Cancel</button>
+            <button id="modal-save" class="flex-1 py-2 bg-[#194769] text-white rounded-xl font-bold">Add</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const handle = document.getElementById('sidebar-handle');
+        const overlay = document.getElementById('sidebar-overlay');
+        const backdrop = document.getElementById('overlay-backdrop');
+        const close = document.getElementById('close-sidebar');
+
+        const open = () => { overlay.classList.add('open'); backdrop.classList.add('show'); };
+        const hide = () => { overlay.classList.remove('open'); backdrop.classList.remove('show'); };
+
+        handle.addEventListener('click', open);
+        close.addEventListener('click', hide);
+        backdrop.addEventListener('click', hide);
+
+        // Sidebar and Drag-Drop Logic
+        const slots = document.querySelectorAll('.meal-slot');
+        let dragged = null;
+
+        document.addEventListener('dragstart', e => {
+            if (e.target.classList.contains('recipe-card')) {
+                dragged = { id: e.target.dataset.id, title: e.target.dataset.title, image: e.target.dataset.image, type: 'recipe' };
+            } else if (e.target.classList.contains('draggable-meal')) {
+                dragged = { id: e.target.dataset.recipeId, title: e.target.innerText.trim(), image: e.target.querySelector('img')?.src || '', type: e.target.dataset.recipeId ? 'recipe' : 'custom', custom: e.target.dataset.custom, original: e.target.parentElement };
+            }
+        });
+
+        slots.forEach(slot => {
+            slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+            slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+            slot.addEventListener('drop', async e => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                if (!dragged) return;
+
+                const date = slot.dataset.date;
+                const type = slot.dataset.type;
+
+                // Optimistic UI
+                const originalHtml = slot.innerHTML;
+                updateUI(slot, dragged);
+                if (dragged.original) dragged.original.innerHTML = '';
+
+                try {
+                    const res = await save(date, type, dragged.type === 'recipe' ? dragged.id : null, dragged.type === 'custom' ? dragged.title : '');
+                    if (!res.ok) throw 'fail';
+                    if (dragged.original) await save(dragged.original.dataset.date, dragged.original.dataset.type, null, '', 'delete');
+                } catch (e) {
+                    slot.innerHTML = originalHtml;
+                }
+                dragged = null;
+            });
+        });
+
+        function updateUI(slot, item) {
+            const img = item.image ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">` : '';
+            slot.innerHTML = `<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true" data-recipe-id="${item.id || ''}" data-custom="${item.type === 'custom' ? item.title : ''}">${img}<div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span><button class="remove-meal text-gray-300 font-bold">&times;</button></div></div>`;
+        }
+
+        async function save(date, meal_type, recipe_id, custom_meal = '', action = 'update') {
+            return fetch('/api/meal-plan/update/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ date, meal_type, recipe_id, custom_meal, action })
+            });
+        }
+
+        document.addEventListener('click', async e => {
+            if (e.target.classList.contains('remove-meal')) {
+                const meal = e.target.closest('.draggable-meal');
+                const slot = meal.parentElement;
+                slot.innerHTML = '';
+                await save(slot.dataset.date, slot.dataset.type, null, '', 'delete');
+            }
+        });
+    });
+</script>
+{% endblock %}

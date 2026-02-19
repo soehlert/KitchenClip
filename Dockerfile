@@ -11,29 +11,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip && pip install uv
+RUN python3 -m pip install --upgrade pip && python3 -m pip install uv
 
 # Copy UV files first (better caching)
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen
+RUN uv sync --frozen --no-install-project
 
 FROM python:3.13-slim
 
 RUN useradd -m -r appuser && \
     mkdir -p /app/data /app/media /app/staticfiles
 
-RUN pip install --upgrade pip && pip install uv
-
-COPY --from=builder /app/.venv /app/.venv
+RUN python3 -m pip install --upgrade pip && python3 -m pip install uv
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . .
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

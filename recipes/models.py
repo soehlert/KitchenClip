@@ -44,6 +44,7 @@ class Recipe(models.Model):
         blank=True,
         related_name='recipes'
     )
+    is_future = models.BooleanField(default=False, help_text="Is this a recipe I want to try in the future?")
 
     class Meta:
         ordering = ['-created_at']
@@ -130,3 +131,25 @@ class RecipeTag(models.Model):
         if not self.color:
             self.color = self.get_unique_tag_color()
         super().save(*args, **kwargs)
+
+class MealPlan(models.Model):
+    """Store meal plan data for specific dates and meal types."""
+    MEAL_TYPE_CHOICES = [
+        ('LUNCH', 'Lunch'),
+        ('DINNER', 'Dinner'),
+    ]
+
+    date = models.DateField()
+    meal_type = models.CharField(max_length=10, choices=MEAL_TYPE_CHOICES)
+    recipe = models.ForeignKey(Recipe, on_delete=models.SET_NULL, null=True, blank=True, related_name='meal_plans')
+    custom_meal = models.CharField(max_length=200, blank=True, help_text="Manual entry if no recipe is selected")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['date', 'meal_type']
+        unique_together = ['date', 'meal_type']
+
+    def __str__(self) -> str:
+        meal_name = self.recipe.title if self.recipe else self.custom_meal
+        return f"{self.date} {self.meal_type}: {meal_name}"

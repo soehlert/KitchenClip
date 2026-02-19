@@ -1,4 +1,6 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
+from django.utils.timezone import now
+import datetime
 from django.db import IntegrityError
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
@@ -16,8 +18,10 @@ from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 
-from recipes.models import Recipe, Ingredient, RecipeIngredient, RecipeTag
+from recipes.models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
 from recipes.forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
 from recipes.utils import clean_instruction_line, extract_servings, is_valid_ingredient
 
@@ -29,6 +33,13 @@ def tag_autocomplete(request):
     tags = RecipeTag.objects.filter(name__icontains=q).values("name", "color")
     return JsonResponse(list(tags), safe=False)
 
+def move_to_recipes(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    recipe.is_future = False
+    recipe.save()
+    messages.success(request, f'"{recipe.title}" has been saved to your recipes!')
+    return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': pk}))
+
 class RecipeListView(ListView):
     model = Recipe
     template_name = "recipes/recipe_list.html"
@@ -36,7 +47,7 @@ class RecipeListView(ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Recipe.objects.all()
+        queryset = Recipe.objects.filter(is_future=False)
 
         search = self.request.GET.get('search')
         if search:
@@ -74,6 +85,57 @@ class RecipeListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['all_tags'] = RecipeTag.objects.all().order_by('name')
+        context['page_title'] = "Recipes"
+        return context
+
+
+class FutureRecipeListView(RecipeListView):
+    def get_queryset(self):
+        queryset = Recipe.objects.filter(is_future=True)
+
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(ingredients__name__icontains=search) |
+                Q(description__icontains=search)
+            ).distinct()
+
+        # Re-use most of the logic but filter for future recipes
+        # Actually, since we inherit from RecipeListView, we can just call super().get_queryset()
+        # but we need to override the initial filter.
+
+        # Let's just implement the filtering here to be safe and clear.
+        # This is a bit redundant but cleaner for a quick implementation.
+        # (Alternatively, we could refactor RecipeListView to take an is_future param)
+
+        time_ranges = self.request.GET.getlist('time_range')
+        if time_ranges:
+            time_conditions = []
+            for time_range in time_ranges:
+                if time_range == '0-20':
+                    time_conditions.append(Q(total_time__lte=20))
+                elif time_range == '21-30':
+                    time_conditions.append(Q(total_time__range=(21, 30)))
+                elif time_range == '31-45':
+                    time_conditions.append(Q(total_time__range=(31, 45)))
+                elif time_range == '46-60':
+                    time_conditions.append(Q(total_time__range=(46, 60)))
+                elif time_range == '60+':
+                    time_conditions.append(Q(total_time__gt=60))
+
+            if time_conditions:
+                queryset = queryset.filter(reduce(operator.or_, time_conditions))
+
+        tags = self.request.GET.getlist('tags')
+        if tags:
+            queryset = queryset.filter(tags__id__in=tags).distinct()
+
+        return queryset.order_by('-updated_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Future Ideas"
         return context
 
 
@@ -334,3 +396,111 @@ class RecipeDeleteView(DeleteView):
     model = Recipe
     template_name = "recipes/recipe_confirm_delete.html"
     success_url = reverse_lazy("recipes:list_recipe")
+
+# --- Meal Plan Views ---
+
+class MealPlanView(ListView):
+    template_name = "recipes/meal_plan.html"
+    context_object_name = "meal_plans"
+
+    def get_queryset(self):
+        # We handle data fetching in get_context_data to organize by date
+        return None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Calculate the start date (the most recent Sunday)
+        today = now().date()
+        days_to_sunday = (today.weekday() + 1) % 7
+        start_date = today - datetime.timedelta(days=days_to_sunday)
+        
+        # Calculate 14 days of the plan
+        days = []
+        for i in range(14):
+            current_date = start_date + datetime.timedelta(days=i)
+            lunch = MealPlan.objects.filter(date=current_date, meal_type='LUNCH').first()
+            dinner = MealPlan.objects.filter(date=current_date, meal_type='DINNER').first()
+            
+            days.append({
+                'date': current_date,
+                'day_name': current_date.strftime('%A'),
+                'is_today': current_date == today,
+                'lunch': lunch,
+                'dinner': dinner,
+            })
+            
+        context['weeks'] = [days[0:7], days[7:14]]
+        context['page_title'] = "Meal Plan"
+        
+        # Get recipes for the sidebar picker - split by status
+        context['saved_recipes'] = Recipe.objects.filter(is_future=False).order_by('-updated_at')[:3]
+        context['future_recipes'] = Recipe.objects.filter(is_future=True).order_by('-updated_at')[:3]
+        
+        return context
+
+@csrf_exempt
+@require_POST
+def update_meal_plan(request):
+    """API endpoint to update a meal plan slot."""
+    try:
+        data = json.loads(request.body)
+        date_str = data.get('date')
+        meal_type = data.get('meal_type')
+        recipe_id = data.get('recipe_id')
+        custom_meal = data.get('custom_meal', '')
+        action = data.get('action', 'update') # update or delete
+        
+        if not date_str or not meal_type:
+            return JsonResponse({'status': 'error', 'message': 'Missing date or meal type'}, status=400)
+            
+        plan_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        if action == 'delete':
+            MealPlan.objects.filter(date=plan_date, meal_type=meal_type).delete()
+            return JsonResponse({'status': 'success'})
+            
+        recipe = None
+        if recipe_id:
+            recipe = Recipe.objects.get(id=recipe_id)
+            
+        meal_plan, created = MealPlan.objects.update_or_create(
+            date=plan_date,
+            meal_type=meal_type,
+            defaults={
+                'recipe': recipe,
+                'custom_meal': custom_meal if not recipe else ''
+            }
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'meal_id': meal_plan.id,
+            'title': recipe.title if recipe else custom_meal
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Recipe.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Recipe not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Meal plan update error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+def search_recipes_api(request):
+    """API endpoint for recipe search in the planner sidebar."""
+    query = request.GET.get('q', '')
+    recipes = Recipe.objects.filter(
+        Q(title__icontains=query) | Q(ingredients__name__icontains=query)
+    ).distinct()[:20]
+    
+    data = []
+    for r in recipes:
+        data.append({
+            'id': r.id,
+            'title': r.title,
+            'is_future': r.is_future,
+            'image_url': r.image_url
+        })
+        
+    return JsonResponse({'recipes': data})

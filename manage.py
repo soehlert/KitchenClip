@@ -1,8 +1,9 @@
-#!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
 import os
 import sys
+import warnings
 
+# Suppress harmless third-party SyntaxWarnings early
+warnings.filterwarnings("ignore", category=SyntaxWarning, message="invalid escape sequence")
 
 def main():
     """Run administrative tasks."""

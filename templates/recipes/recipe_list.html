@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Recipes | KitchenClip{% endblock %}
+{% block title %}{{ page_title }} | KitchenClip{% endblock %}
 
 {% block sidebar %}
   <div class="px-4 sm:px-6 lg:px-8 pt-8">
@@ -111,7 +111,7 @@
                 Apply
               </button>
               <a
-                href="{% url 'recipes:list_recipe' %}"
+                href="{{ request.path }}"
                 class="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium px-2 py-1 rounded shadow transition text-center">
                 Clear
               </a>
@@ -126,7 +126,7 @@
       <div class="flex-1 min-w-0">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <h1 class="text-xl sm:text-2xl font-bold text-[#194769]">
-            My Recipes
+            {{ page_title }}
             {% if page_obj.paginator.count %}
               <span class="text-base sm:text-lg font-normal text-gray-600">({{ page_obj.paginator.count }} total)</span>
             {% endif %}
@@ -215,8 +215,8 @@
                 Start building your recipe collection!
               {% endif %}
             </p>
-            {% if request.GET.search or request.GET.tags %}
-              <a href="{% url 'recipes:list_recipe' %}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition mr-4">
+            {% if request.GET.search or request.GET.tags or request.GET.time_range %}
+              <a href="{{ request.path }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition mr-4">
                 Clear Filters
               </a>
             {% endif %}

@@ -32,12 +32,12 @@ if env_file.exists():
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-fallback-key-for-local-dev-only")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(os.environ.get("DEBUG", default=0))
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS","127.0.0.1").split(",")
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1").split(",") if host.strip()]
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "https://127.0.0.1").split(",")
 USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "False") == "True"
 USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "False") == "True"
