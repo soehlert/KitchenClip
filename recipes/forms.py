@@ -1,9 +1,9 @@
 from django import forms
-from recipes.models import Recipe, Ingredient, RecipeIngredient
-from recipes.utils import remove_instruction_headers, clean_instruction_line
+from .models import Recipe, Ingredient, RecipeIngredient
+from .utils import remove_instruction_headers, clean_instruction_line
 
 import ingredient_slicer
-from recipes.ingredient_processor import process_ingredients, QuantityConverter
+from .ingredient_processor import process_ingredients, QuantityConverter
 
 
 import logging

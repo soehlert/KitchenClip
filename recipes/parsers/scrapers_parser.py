@@ -1,7 +1,7 @@
 from typing import List, Optional
 from recipe_scrapers import scrape_me
 from .base import BaseParser
-from recipes.utils import extract_servings, clean_instruction_line
+from ..utils import extract_servings, clean_instruction_line
 
 class ScrapersParser(BaseParser):
     """

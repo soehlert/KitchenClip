@@ -21,11 +21,11 @@ from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
-from recipes.models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
-from recipes.forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
-from recipes.utils import clean_instruction_line, extract_servings, is_valid_ingredient
-from recipes.parsers.registry import ParserRegistry
-from recipes.ingredient_processor import process_ingredients, QuantityConverter
+from .models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
+from .forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
+from .utils import clean_instruction_line, extract_servings, is_valid_ingredient
+from .parsers.registry import ParserRegistry
+from .ingredient_processor import process_ingredients, QuantityConverter
 
 import logging
 logger = logging.getLogger(__name__)
