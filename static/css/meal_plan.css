@@ -1,0 +1,136 @@
+/* Remove white container constraints */
+main {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.meal-slot {
+    min-height: 80px;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    background-color: #f8fafc;
+    border-radius: 12px;
+}
+
+.meal-slot.drag-over {
+    background-color: #f1f5f9;
+    border: 2px dashed #194769;
+}
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    padding: 0 1rem;
+}
+
+@media (max-width: 1200px) {
+    .week-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .week-grid {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+
+/* Floating Sidebar */
+#sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: -320px;
+    width: 320px;
+    height: 100vh;
+    background: white;
+    z-index: 2000;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar-overlay.open {
+    transform: translateX(320px);
+}
+
+#sidebar-handle {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2001;
+    background: #194769;
+    color: white;
+    padding: 1rem 0.5rem;
+    border-radius: 0 12px 12px 0;
+    cursor: pointer;
+    font-weight: 900;
+    font-size: 0.7rem;
+    writing-mode: vertical-lr;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 1999;
+    display: none;
+}
+
+#overlay-backdrop.show {
+    display: block;
+}
+
+.sidebar-header {
+    font-size: 0.65rem;
+    font-weight: 900;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin: 2rem 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    list-style: none !important;
+}
+
+.sidebar-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #f1f5f9;
+}
+
+#toast-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 3000;
+}
+
+.toast {
+    background: #194769;
+    color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
