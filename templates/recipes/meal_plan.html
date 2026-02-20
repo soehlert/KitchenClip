@@ -531,6 +531,19 @@
                 }
             });
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const manualModal = document.getElementById('manual-modal');
+                if (manualModal && !manualModal.classList.contains('hidden')) {
+                    manualModal.classList.add('hidden');
+                }
+                const recipeModal = document.getElementById('recipe-modal');
+                if (recipeModal && !recipeModal.classList.contains('hidden')) {
+                    recipeModal.classList.add('hidden');
+                }
+            }
+        });
     });
 </script>
 {% endblock %}
