@@ -3,6 +3,7 @@ from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.utils import remove_instruction_headers, clean_instruction_line
 
 import ingredient_slicer
+from recipes.ingredient_processor import process_ingredients, QuantityConverter
 
 
 import logging
@@ -157,38 +158,32 @@ class RecipeUpdateForm(forms.ModelForm):
             recipe.recipe_ingredients.all().delete()
 
             ingredients_text = self.cleaned_data.get('ingredients_text', '')
-            for idx, line in enumerate(ingredients_text.split('\n')):
-                line = line.strip()
-                if line:
-                    try:
+            try:
+                # Parse all lines
+                parsed_list = []
+                for line in ingredients_text.split('\n'):
+                    line = line.strip()
+                    if line:
                         slicer = ingredient_slicer.IngredientSlicer(line)
-                        parsed = slicer.to_json()
-                        name = parsed.get("food") or line
+                        parsed_list.append(slicer.to_json())
+                
+                # Consolidate and format
+                processed = process_ingredients(parsed_list)
 
-                        ingredient, _ = Ingredient.objects.get_or_create(name=name)
-                        RecipeIngredient.objects.create(
-                            recipe=recipe,
-                            ingredient=ingredient,
-                            raw_text=line,
-                            quantity=parsed.get("quantity") or "",
-                            unit=parsed.get("unit") or "",
-                            preparation=", ".join(parsed.get("prep", [])) if parsed.get("prep") else "",
-                            order=idx
-                        )
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"Failed to parse ingredient: {line}, error: {e}")
-
-                        # Create a basic ingredient entry if parsing fails
-                        ingredient, _ = Ingredient.objects.get_or_create(name=line)
-                        RecipeIngredient.objects.create(
-                            recipe=recipe,
-                            ingredient=ingredient,
-                            raw_text=line,
-                            quantity="",
-                            unit="",
-                            preparation="",
-                            order=idx
-                        )
+                for idx, item in enumerate(processed):
+                    name = item["food"]
+                    ingredient, _ = Ingredient.objects.get_or_create(name=name)
+                    
+                    RecipeIngredient.objects.create(
+                        recipe=recipe,
+                        ingredient=ingredient,
+                        raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
+                        quantity=item["display_quantity"],
+                        unit=item["unit"],
+                        order=idx
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to process ingredients during update: {e}")
 
         return recipe
 

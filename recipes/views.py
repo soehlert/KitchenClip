@@ -24,6 +24,8 @@ from django.views.decorators.csrf import csrf_exempt
 from recipes.models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
 from recipes.forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
 from recipes.utils import clean_instruction_line, extract_servings, is_valid_ingredient
+from recipes.parsers.registry import ParserRegistry
+from recipes.ingredient_processor import process_ingredients, QuantityConverter
 
 import logging
 logger = logging.getLogger(__name__)
@@ -185,20 +187,18 @@ class RecipeCreateView(CreateView):
         original_url = form.cleaned_data["original_url"]
 
         try:
-            scraper = scrape_me(original_url)
-            form.instance.title = scraper.title()
-            form.instance.description = getattr(scraper, "description", lambda: "")()
-            form.instance.prep_time = scraper.prep_time()
-            form.instance.cook_time = scraper.cook_time()
-            form.instance.total_time = scraper.total_time()
-            servings_raw = scraper.yields()
-            form.instance.servings = extract_servings(servings_raw)
-            raw_instructions = scraper.instructions()
-            form.instance.instructions = clean_instruction_line(raw_instructions)
-            form.instance.image_url = getattr(scraper, "image", lambda: "")()
+            parser = ParserRegistry.get_parser(original_url)
+            form.instance.title = parser.title
+            form.instance.description = parser.description
+            form.instance.prep_time = parser.prep_time
+            form.instance.cook_time = parser.cook_time
+            form.instance.total_time = parser.total_time
+            form.instance.servings = parser.servings
+            form.instance.instructions = parser.instructions
+            form.instance.image_url = parser.image_url
             form.instance.original_url = original_url
 
-            ingredient_lines = scraper.ingredients()
+            ingredient_lines = parser.ingredients
         except Exception:
             self.request.session['failed_recipe_url'] = original_url
             self.request.session['preserved_form_data'] = {
@@ -222,24 +222,29 @@ class RecipeCreateView(CreateView):
             raise
 
         try:
-            for idx, line in enumerate(ingredient_lines):
+            # Parse all lines first
+            parsed_list = []
+            for line in ingredient_lines:
                 slicer = ingredient_slicer.IngredientSlicer(line)
-                parsed = slicer.to_json()
-                name = parsed.get("food") or line
+                parsed_list.append(slicer.to_json())
+            
+            # Process (consolidate, format, normalize)
+            processed_ingredients = process_ingredients(parsed_list)
 
+            for idx, item in enumerate(processed_ingredients):
+                name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
-
+                
                 RecipeIngredient.objects.create(
                     recipe=self.object,
                     ingredient=ingredient,
-                    raw_text=line,
-                    quantity=parsed.get("quantity") or "",
-                    unit=parsed.get("unit") or "",
-                    preparation=", ".join(parsed.get("prep", [])) if parsed.get("prep") else "",
+                    raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
+                    quantity=item["display_quantity"],
+                    unit=item["unit"],
                     order=idx
                 )
-        except (ValueError, TypeError):
-            logger.exception("Ingredient processing failed")
+        except Exception:
+            logger.exception("Failed to process ingredients")
             raise
 
         try:
@@ -316,23 +321,32 @@ class RecipeManualCreateView(CreateView):
         response = super().form_valid(form)
 
         ingredients_text = form.cleaned_data.get('ingredients_text', '')
-        for idx, line in enumerate(ingredients_text.split('\n')):
-            line = line.strip()
-            if line:
-                slicer = ingredient_slicer.IngredientSlicer(line)
-                parsed = slicer.to_json()
-                name = parsed.get("food") or line
+        try:
+            # Parse all lines first
+            parsed_list = []
+            for line in ingredients_text.split('\n'):
+                line = line.strip()
+                if line:
+                    slicer = ingredient_slicer.IngredientSlicer(line)
+                    parsed_list.append(slicer.to_json())
+            
+            # Process (consolidate, format, normalize)
+            processed_ingredients = process_ingredients(parsed_list)
 
+            for idx, item in enumerate(processed_ingredients):
+                name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
+                
                 RecipeIngredient.objects.create(
                     recipe=self.object,
                     ingredient=ingredient,
-                    raw_text=line,
-                    quantity=parsed.get("quantity") or "",
-                    unit=parsed.get("unit") or "",
-                    preparation=", ".join(parsed.get("prep", [])) if parsed.get("prep") else "",
+                    raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
+                    quantity=item["display_quantity"],
+                    unit=item["unit"],
                     order=idx
                 )
+        except Exception:
+            logger.exception("Failed to process manual ingredients")
 
         raw_tags = form.cleaned_data["tags"]
         if isinstance(raw_tags, str):
