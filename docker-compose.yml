@@ -5,7 +5,7 @@ services:
     ports:
       - "8888:8000"
     environment:
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DJANGO_ALLOWED_HOSTS=*
       - PYTHONWARNINGS=ignore:invalid escape sequence:SyntaxWarning
       - DEBUG=1
     volumes:
@@ -14,4 +14,62 @@ services:
       - ./templates:/app/templates
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
+      - ./static:/app/static
+    restart: unless-stopped
+
+  redis:
+    image: "redis:alpine"
+    restart: unless-stopped
+
+  celery_worker:
+    build: .
+    command: celery -A KitchenClip worker -l info
+    depends_on:
+      - redis
+    volumes:
+      - ./recipes:/app/recipes
+      - ./KitchenClip:/app/KitchenClip
+      - ./templates:/app/templates
+      - ./manage.py:/app/manage.py
+      - ./db.sqlite3:/app/data/db.sqlite3
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DEBUG=1
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    command: celery -A KitchenClip beat -l info
+    depends_on:
+      - redis
+    volumes:
+      - ./recipes:/app/recipes
+      - ./KitchenClip:/app/KitchenClip
+      - ./templates:/app/templates
+      - ./manage.py:/app/manage.py
+      - ./db.sqlite3:/app/data/db.sqlite3
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DEBUG=1
+    restart: unless-stopped
+
+  flower:
+    build: .
+    command: celery -A KitchenClip flower --port=5566
+    ports:
+      - "5566:5566"
+    depends_on:
+      - redis
+      - celery_worker
+    volumes:
+      - ./recipes:/app/recipes
+      - ./KitchenClip:/app/KitchenClip
+      - ./templates:/app/templates
+      - ./manage.py:/app/manage.py
+      - ./db.sqlite3:/app/data/db.sqlite3
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     restart: unless-stopped
