@@ -112,6 +112,10 @@ main {
     background: #f1f5f9;
 }
 
+.sidebar-header:first-child {
+    margin-top: 0;
+}
+
 #toast-container {
     position: fixed;
     bottom: 2rem;
@@ -133,4 +137,114 @@ main {
 .toast.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* ==========================================================================
+   FLATPICKR CUSTOM THEME OVERRIDES
+   ========================================================================== */
+
+/* The main dropdown container */
+.flatpickr-calendar.hasTime.noCalendar {
+    font-family: inherit !important;
+    background: #ffffff !important;
+    border: 1px solid #f3f4f6 !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 1rem !important;
+    padding: 0.5rem !important;
+    width: auto !important;
+}
+
+/* Fix the dropdown arrow colors to match the background */
+.flatpickr-calendar.arrowTop:before {
+    border-bottom-color: #f3f4f6 !important;
+}
+
+.flatpickr-calendar.arrowTop:after {
+    border-bottom-color: #ffffff !important;
+}
+
+.flatpickr-calendar.arrowBottom:before {
+    border-top-color: #f3f4f6 !important;
+}
+
+.flatpickr-calendar.arrowBottom:after {
+    border-top-color: #ffffff !important;
+}
+
+/* Time picker row layout */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time {
+    border-top: none !important;
+    max-height: 54px !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+}
+
+/* Input wrapper sizing — float:none clears Flatpickr's float:left on numInputWrapper children */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .numInputWrapper {
+    float: none !important;
+    height: 44px !important;
+    width: 3.5rem !important;
+}
+
+/* Separator also floated by Flatpickr — reset it */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .flatpickr-time-separator {
+    float: none !important;
+}
+
+/* Hour, minute, separator, and AM/PM shared styles */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time input.flatpickr-hour,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time input.flatpickr-minute,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .flatpickr-time-separator {
+    color: #194769 !important;
+    font-weight: 900 !important;
+    font-size: 1.25rem !important;
+    height: 44px !important;
+    line-height: 44px !important;
+}
+
+/* AM/PM toggle — float:none defeats Flatpickr's float:left which breaks flex layout */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .flatpickr-am-pm {
+    float: none !important;
+    color: #194769 !important;
+    font-weight: 900 !important;
+    font-size: 1.25rem !important;
+    height: 44px !important;
+    line-height: 44px !important;
+    width: 3.5rem !important;
+    min-width: 3.5rem !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border-radius: 0.5rem !important;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+/* Hover & focus states */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time input:hover,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .flatpickr-am-pm:hover,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time input:focus,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .flatpickr-am-pm:focus {
+    background: #f9fafb !important;
+    color: #194769 !important;
+    border-radius: 0.5rem !important;
+}
+
+/* Strip Flatpickr's injected borders/rings from the altInput element */
+input.flatpickr-input[readonly] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    outline: none !important;
+}
+
+/* Hide the up/down scroll arrows for a cleaner look */
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .numInputWrapper span.arrowUp,
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time .numInputWrapper span.arrowDown {
+    display: none !important;
 }

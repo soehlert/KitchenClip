@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dragged = { id: e.target.dataset.id, title: e.target.dataset.title, image: e.target.dataset.image, type: 'recipe' };
             setTimeout(hide, 0); // Hide sidebar after drag starts
         } else if (e.target.classList.contains('draggable-meal')) {
-            dragged = { id: e.target.dataset.recipeId, title: e.target.innerText.trim(), image: e.target.querySelector('img')?.src || '', type: e.target.dataset.recipeId ? 'recipe' : 'custom', custom: e.target.dataset.custom, original: e.target.parentElement };
+            dragged = { id: e.target.dataset.recipeId, title: e.target.querySelector('span').innerText.trim(), image: e.target.querySelector('img')?.src || '', type: e.target.dataset.recipeId ? 'recipe' : 'custom', custom: e.target.dataset.custom, original: e.target.parentElement, ready_at: e.target.querySelector('.ready-at-input').value };
         }
     });
 
@@ -125,18 +125,128 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function updateUI(slot, item) {
-        const img = item.image ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">` : '';
-        slot.innerHTML = `<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true" data-recipe-id="${item.id || ''}" data-custom="${item.type === 'custom' ? item.title : ''}">${img}<div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span><button class="remove-meal text-gray-300 font-bold">&times;</button></div></div>`;
+    const fpConfig = {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: false,
+        altInput: true,
+        altFormat: "h:i K",
+        disableMobile: true,
+        position: "below center",
+        onChange: async function (selectedDates, dateStr, instance) {
+            if (!dateStr) return;
+            const input = instance.element;
+            if (input.classList.contains('ready-at-input')) {
+                const meal = input.closest('.draggable-meal');
+                if (!meal) return;
+                const slot = meal.closest('.meal-slot');
+                if (!slot) return;
+                // Mark this input as manually set so Apply All won't override it
+                input.dataset.manual = 'true';
+                const recipeId = meal.dataset.recipeId || null;
+                const custom = meal.dataset.custom || '';
+                try {
+                    await save(slot.dataset.date, slot.dataset.type, recipeId, custom, 'update', dateStr);
+                } catch (err) {
+                    console.error("Failed to save individual ready_at time", err);
+                }
+            }
+        }
+    };
+
+    // Store global time picker instances for reliable value reading
+    const globalPickers = {};
+
+    function initTimePickers(container = document) {
+        const inputs = container.querySelectorAll('.ready-at-input, #global-lunch, #global-dinner');
+        inputs.forEach(input => {
+            const instance = flatpickr(input, fpConfig);
+            if (input.id === 'global-lunch') globalPickers.lunch = instance;
+            if (input.id === 'global-dinner') globalPickers.dinner = instance;
+        });
     }
 
-    async function save(date, meal_type, recipe_id, custom_meal = '', action = 'update') {
+    // Helpers to get a time string (H:i) from a Flatpickr instance.
+    // Falls back to the raw element value if the user hasn't picked a time yet.
+    function getPickerTime(instance) {
+        if (!instance) return null;
+        if (instance.selectedDates.length) {
+            const d = instance.selectedDates[0];
+            const h = d.getHours().toString().padStart(2, '0');
+            const m = d.getMinutes().toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+        // No date picked yet — use the raw input value (initial HTML value attribute)
+        return instance.element.value || null;
+    }
+
+    // Initialize all existing time pickers
+    initTimePickers();
+
+    function updateUI(slot, item) {
+        const img = item.image ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">` : '';
+        const time = item.ready_at || '';
+        slot.innerHTML = `<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true" data-recipe-id="${item.id || ''}" data-custom="${item.type === 'custom' ? item.title : ''}">${img}<div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span><button class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button></div><div class="mt-2 pt-2 border-t border-gray-50 flex justify-end"><div class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer"><span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span><input type="text" class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20" value="${time}" required></div></div></div>`;
+
+        // Initialize flatpickr on the newly created input
+        initTimePickers(slot);
+    }
+
+    const applyGlobalTimesBtn = document.getElementById('apply-global-times');
+    if (applyGlobalTimesBtn) {
+        applyGlobalTimesBtn.addEventListener('click', async () => {
+            // Read times from the Flatpickr instances, not the hidden original inputs
+            const globalLunch = getPickerTime(globalPickers.lunch);
+            const globalDinner = getPickerTime(globalPickers.dinner);
+
+            const filledMeals = document.querySelectorAll('.draggable-meal');
+
+            const originalText = applyGlobalTimesBtn.innerHTML;
+            applyGlobalTimesBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Applying...';
+            applyGlobalTimesBtn.disabled = true;
+
+            try {
+                for (const meal of filledMeals) {
+                    const slot = meal.closest('.meal-slot');
+                    if (!slot) continue;
+
+                    const type = slot.dataset.type;
+                    const newTime = type === 'LUNCH' ? globalLunch : (type === 'DINNER' ? globalDinner : null);
+
+                    if (newTime) {
+                        const input = meal.querySelector('.ready-at-input');
+                        // Skip only meals that were MANUALLY set by the user via the picker
+                        if (input?.dataset.manual === 'true') continue;
+
+                        if (input && input._flatpickr) {
+                            input._flatpickr.setDate(newTime, false, 'H:i');
+                        } else if (input) {
+                            input.value = newTime;
+                        }
+
+                        const recipeId = meal.dataset.recipeId || null;
+                        const custom = meal.dataset.custom || '';
+                        // Await sequentially to prevent SQLite 'database is locked' errors
+                        await save(slot.dataset.date, type, recipeId, custom, 'update', newTime);
+                    }
+                }
+            } catch (err) {
+                console.error("Error saving global times:", err);
+            } finally {
+                applyGlobalTimesBtn.innerHTML = originalText;
+                applyGlobalTimesBtn.disabled = false;
+            }
+        });
+    }
+
+    async function save(date, meal_type, recipe_id, custom_meal = '', action = 'update', ready_at = null) {
         // Use the global window object for CSRFTOKEN
         const csrfToken = window.CSRF_TOKEN || '';
         return fetch('/api/meal-plan/update/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ date, meal_type, recipe_id, custom_meal, action })
+            body: JSON.stringify({ date, meal_type, recipe_id, custom_meal, action, ready_at })
         });
     }
 
@@ -146,6 +256,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const slot = meal.parentElement;
             slot.innerHTML = '';
             await save(slot.dataset.date, slot.dataset.type, null, '', 'delete');
+            return;
+        }
+
+        // Prevent opening recipe modal if clicking the time wrapper completely
+        if (e.target.closest('.ready-at-input') || e.target.closest('.time-wrapper') || e.target.closest('.flatpickr-calendar')) {
             return;
         }
 
@@ -201,17 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            const manualModal = document.getElementById('manual-modal');
-            if (manualModal && !manualModal.classList.contains('hidden')) {
-                manualModal.classList.add('hidden');
-            }
+            const modal = document.getElementById('manual-modal');
             const recipeModal = document.getElementById('recipe-modal');
-            if (recipeModal && !recipeModal.classList.contains('hidden')) {
-                recipeModal.classList.add('hidden');
-            }
+            if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
+            if (recipeModal && !recipeModal.classList.contains('hidden')) recipeModal.classList.add('hidden');
+            hide(); // also close the sidebar
         }
     });
+
 });
