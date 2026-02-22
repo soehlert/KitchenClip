@@ -143,6 +143,7 @@ class MealPlan(models.Model):
     meal_type = models.CharField(max_length=10, choices=MEAL_TYPE_CHOICES)
     recipe = models.ForeignKey(Recipe, on_delete=models.SET_NULL, null=True, blank=True, related_name='meal_plans')
     custom_meal = models.CharField(max_length=200, blank=True, help_text="Manual entry if no recipe is selected")
+    ready_at = models.TimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

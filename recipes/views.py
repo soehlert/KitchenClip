@@ -464,6 +464,7 @@ def update_meal_plan(request):
         recipe_id = data.get('recipe_id')
         custom_meal = data.get('custom_meal', '')
         action = data.get('action', 'update') # update or delete
+        ready_at = data.get('ready_at')
         
         if not date_str or not meal_type:
             return JsonResponse({'status': 'error', 'message': 'Missing date or meal type'}, status=400)
@@ -483,7 +484,8 @@ def update_meal_plan(request):
             meal_type=meal_type,
             defaults={
                 'recipe': recipe,
-                'custom_meal': custom_meal if not recipe else ''
+                'custom_meal': custom_meal if not recipe else '',
+                'ready_at': ready_at if ready_at else None
             }
         )
         
