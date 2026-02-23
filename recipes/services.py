@@ -3,30 +3,39 @@ import httpx
 from django.conf import settings
 from django.utils import timezone
 from .models import MealPlan
+from asgiref.sync import sync_to_async
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 class NotificationService:
     @staticmethod
-    async def send_daily_summary(date):
+    async def check_and_send_upcoming_meals():
         """
-        Aggregate all MealPlan items for the day, calculate start times,
-        and send a formatted message to Beacon.
+        Polls for meals today that:
+        1. Have not had their notification sent yet.
+        2. Are within (total_time + 30) minutes of their ready_at time.
+        Sends an individual notification for each and marks it as sent.
         """
-        from asgiref.sync import sync_to_async
 
-        # Fetch meal plans with recipe details in a sync context
+        now_local = timezone.localtime()
+        today = now_local.date()
+
         @sync_to_async
-        def get_meal_plans():
-            return list(MealPlan.objects.filter(date=date).select_related('recipe'))
+        def get_pending_meals():
+            return list(MealPlan.objects.filter(date=today, notification_sent=False).select_related('recipe'))
 
-        meal_plans = await get_meal_plans()
+        @sync_to_async
+        def mark_as_sent(meal):
+            meal.notification_sent = True
+            meal.save(update_fields=['notification_sent'])
+
+        meal_plans = await get_pending_meals()
         
         if not meal_plans:
-            logger.info(f"No meal plans found for {date}")
-            return False
+            return 0
 
-        message_lines = [f"*Cooking Schedule for {date}:*\n"]
+        sent_count = 0
         
         for plan in meal_plans:
             recipe = plan.recipe
@@ -35,41 +44,47 @@ class NotificationService:
             # Use provided ready_at or default
             ready_at = plan.ready_at
             if not ready_at:
-                from datetime import datetime
                 default_time_str = settings.DEFAULT_LUNCH_TIME if plan.meal_type == 'LUNCH' else settings.DEFAULT_DINNER_TIME
                 ready_at = datetime.strptime(default_time_str, "%H:%M").time()
             
-            # Calculate start time
+            # Calculate total cooking time
             total_time = 0
             if recipe:
                 total_time = recipe.total_time or (recipe.prep_time or 0) + (recipe.cook_time or 0)
             
-            from datetime import datetime, date as dt_date, timedelta
-            dummy_dt = datetime.combine(dt_date.today(), ready_at)
-            start_dt = dummy_dt - timedelta(minutes=total_time)
-            start_time = start_dt.time()
+            # Notification threshold: ready_at minus (total_time + 30 minutes buffer)
+            ready_at_dt = timezone.make_aware(datetime.combine(today, ready_at))
+            start_dt = ready_at_dt - timedelta(minutes=total_time)
+            notify_dt = start_dt - timedelta(minutes=30)
+            
+            # If current local time has passed the notification threshold, send it
+            if now_local >= notify_dt:
+                message = (
+                    f"*{plan.get_meal_type_display()}*: {name}\n"
+                    f"• Ready at: {ready_at.strftime('%I:%M %p')}\n"
+                    f"• Start cooking at: *{start_dt.strftime('%I:%M %p')}*\n"
+                    f"• Time needed: {total_time} min"
+                )
+                
+                payload = {
+                    "title": "KitchenClip Cooking Reminder",
+                    "message": message,
+                    "level": "info"
+                }
 
-            message_lines.append(
-                f"• *{plan.get_meal_type_display()}*: {name}\n"
-                f"  - Ready at: {ready_at.strftime('%H:%M')}\n"
-                f"  - Start cooking at: *{start_time.strftime('%H:%M')}* ({total_time} min total)\n"
-            )
+                if not getattr(settings, 'ENABLE_COOKING_NOTIFICATIONS', False):
+                    logger.info(f"DUMMY MODE (ENABLE_COOKING_NOTIFICATIONS=False): Would have sent reminder for {plan.meal_type} to {settings.BEACON_URL}:\n{message}")
+                    await mark_as_sent(plan)
+                    sent_count += 1
+                else:
+                    try:
+                        async with httpx.AsyncClient(follow_redirects=True) as client:
+                            response = await client.post(settings.BEACON_URL, json=payload, timeout=10.0)
+                            response.raise_for_status()
+                            await mark_as_sent(plan)
+                            sent_count += 1
+                            logger.info(f"Sent reminder for {plan.meal_type} on {today}")
+                    except Exception as e:
+                        logger.error(f"Failed to send reminder for {plan.meal_type}: {e}")
 
-        full_message = "\n".join(message_lines)
-        
-        payload = {
-            "title": "KitchenClip Daily Schedule",
-            "message": full_message,
-            "level": "info"
-        }
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(settings.BEACON_URL, json=payload, timeout=10.0)
-                response.raise_for_status()
-                logger.info(f"Notification sent to Beacon for {date}")
-                return True
-        except Exception as e:
-            logger.error(f"Failed to send notification to Beacon: {e}")
-            logger.info(f"Notification message that failed: {full_message}")
-            return False
+        return sent_count

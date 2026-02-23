@@ -1,13 +1,11 @@
 services:
   web:
-    build: .
-    image: "ghcr.io/soehlert/kitchenclip:latest"
+    image: ghcr.io/soehlert/kitchenclip:latest
     ports:
       - "8888:8000"
     environment:
       - DJANGO_ALLOWED_HOSTS=*
       - PYTHONWARNINGS=ignore:invalid escape sequence:SyntaxWarning
-      - DEBUG=1
     volumes:
       - ./recipes:/app/recipes
       - ./KitchenClip:/app/KitchenClip
@@ -15,6 +13,7 @@ services:
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
       - ./static:/app/static
+      - ./pyproject.toml:/app/pyproject.toml
     restart: unless-stopped
 
   redis:
@@ -22,7 +21,7 @@ services:
     restart: unless-stopped
 
   celery_worker:
-    build: .
+    image: ghcr.io/soehlert/kitchenclip:latest
     command: celery -A KitchenClip worker -l info
     depends_on:
       - redis
@@ -32,14 +31,14 @@ services:
       - ./templates:/app/templates
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
+      - ./pyproject.toml:/app/pyproject.toml
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - DEBUG=1
     restart: unless-stopped
 
   celery_beat:
-    build: .
+    image: ghcr.io/soehlert/kitchenclip:latest
     command: celery -A KitchenClip beat -l info
     depends_on:
       - redis
@@ -49,14 +48,14 @@ services:
       - ./templates:/app/templates
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
+      - ./pyproject.toml:/app/pyproject.toml
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - DEBUG=1
     restart: unless-stopped
 
   flower:
-    build: .
+    image: ghcr.io/soehlert/kitchenclip:latest
     command: celery -A KitchenClip flower --port=5566
     ports:
       - "5566:5566"

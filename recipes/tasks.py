@@ -1,26 +1,22 @@
 import asyncio
 from celery import shared_task
-from django.utils import timezone
 from .services import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)
 
 @shared_task
-def send_cooking_summary_task():
+def check_upcoming_meals_task():
     """
-    Celery task to send the daily cooking summary notification.
+    Celery task that runs every 5 minutes to check for upcoming meals
+    that need cooking reminders sent.
     """
-    today = timezone.now().date()
-    logger.info(f"Running send_cooking_summary_task for {today}")
+    logger.info("Running check_upcoming_meals_task")
     
     try:
         # Run the async notification service method
-        success = asyncio.run(NotificationService.send_daily_summary(today))
-        if success:
-            return f"Successfully sent cooking summary for {today}"
-        else:
-            return f"No summary sent for {today} (possibly no meals planned or Beacon unreachable)"
+        sent = asyncio.run(NotificationService.check_and_send_upcoming_meals())
+        return f"Checked upcoming meals. Sent {sent} notifications."
     except Exception as e:
-        logger.error(f"Error in send_cooking_summary_task: {e}")
+        logger.error(f"Error in check_upcoming_meals_task: {e}")
         raise
