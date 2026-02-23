@@ -1,1 +1,0 @@
-                <span class="text-gray-500 whitespace-nowrap">{ 0f forloop.first 

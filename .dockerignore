@@ -11,3 +11,6 @@ staticfiles/
 .idea/
 .vscode/
 .env
+
+tests/
+.pytest_cache/
