@@ -1,4 +1,3 @@
-import re
 from fractions import Fraction
 from typing import List, Dict, Any
 
@@ -6,12 +5,18 @@ def decimal_to_fraction(decimal_str: str) -> str:
     """Converts a decimal string to a unicode fraction if possible."""
     try:
         val = float(decimal_str)
-        if val == 0.25: return "¼"
-        if val == 0.5: return "½"
-        if val == 0.75: return "¾"
-        if val == 0.33: return "⅓"
-        if val == 0.66: return "⅔"
-        if val == 0.125: return "⅛"
+        if val == 0.25:
+            return "¼"
+        if val == 0.5:
+            return "½"
+        if val == 0.75:
+            return "¾"
+        if val == 0.33:
+            return "⅓"
+        if val == 0.66:
+            return "⅔"
+        if val == 0.125:
+            return "⅛"
         
         # Fallback to Fraction string if it's a simple denominator
         if val > 0 and val < 1:
@@ -39,7 +44,8 @@ def normalize_ounces(quantity: float, unit: str) -> (float, str):
 
 def format_quantity(quantity: float) -> str:
     """Formats a float as a string or fraction, including mixed numbers."""
-    if quantity == 0: return ""
+    if quantity == 0:
+        return ""
     if quantity.is_integer():
         return str(int(quantity))
     
@@ -71,7 +77,7 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
         
         try:
             quantity = float(QuantityConverter.to_float(quantity_str))
-        except:
+        except Exception:
             quantity = 0.0
 
         # Create a unique key for grouping (food + unit)
@@ -120,7 +126,8 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
 class QuantityConverter:
     @staticmethod
     def to_float(val_str: str) -> float:
-        if not val_str: return 0.0
+        if not val_str:
+            return 0.0
         try:
             return float(val_str)
         except ValueError:
@@ -130,5 +137,5 @@ class QuantityConverter:
                 if len(parts) == 2:
                     return float(parts[0]) + float(Fraction(parts[1]))
                 return float(Fraction(parts[0]))
-            except:
+            except Exception:
                 return 0.0

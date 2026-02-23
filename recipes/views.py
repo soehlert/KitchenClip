@@ -1,17 +1,14 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 import datetime
-from django.db import IntegrityError
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseRedirect
 from functools import reduce
 import operator
-from urllib.parse import urlencode
 from django.core.serializers.json import DjangoJSONEncoder
 
-from recipe_scrapers import scrape_me
 import ingredient_slicer
 import json
 from django.views.generic import (
@@ -23,9 +20,9 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
 from .forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
-from .utils import clean_instruction_line, extract_servings, is_valid_ingredient
+from .utils import clean_instruction_line, is_valid_ingredient
 from .parsers.registry import ParserRegistry
-from .ingredient_processor import process_ingredients, QuantityConverter
+from .ingredient_processor import process_ingredients
 
 import logging
 logger = logging.getLogger(__name__)
@@ -464,6 +461,7 @@ def update_meal_plan(request):
         recipe_id = data.get('recipe_id')
         custom_meal = data.get('custom_meal', '')
         action = data.get('action', 'update') # update or delete
+        ready_at = data.get('ready_at')
         
         if not date_str or not meal_type:
             return JsonResponse({'status': 'error', 'message': 'Missing date or meal type'}, status=400)
@@ -483,7 +481,8 @@ def update_meal_plan(request):
             meal_type=meal_type,
             defaults={
                 'recipe': recipe,
-                'custom_meal': custom_meal if not recipe else ''
+                'custom_meal': custom_meal if not recipe else '',
+                'ready_at': ready_at if ready_at else None
             }
         )
         

@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from typing import Type, List, Optional
+from typing import Type, List
 from .base import BaseParser
 from .scrapers_parser import ScrapersParser
 

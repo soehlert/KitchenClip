@@ -68,7 +68,6 @@ def clean_instruction_line(text):
     result = '\n'.join(cleaned_lines)
     return result
 
-import re
 
 def remove_instruction_headers(text):
     """Remove common instruction header lines."""

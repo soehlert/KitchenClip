@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from celery.schedules import crontab
 from pathlib import Path
 import os
 import warnings
@@ -37,7 +37,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-fallback-key-f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(os.environ.get("DEBUG", default=0))
 
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1").split(",") if host.strip()]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "https://127.0.0.1").split(",")
 USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "False") == "True"
 USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "False") == "True"
@@ -93,6 +93,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'data' / 'db.sqlite3',
+        'OPTIONS': {
+            # Wait up to 20s for a write lock before raising OperationalError
+            # This prevents 'database is locked' errors with multiple Gunicorn workers
+            'timeout': 20,
+        }
     }
 }
 
@@ -119,7 +124,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Chicago'
 USE_I18N = True
 USE_TZ = True
 
@@ -180,3 +185,24 @@ TAG_COLORS = [
     "#3e2723",  # brown
     "#795548",  # medium brown
 ]
+
+# Cooking Notifications
+DEFAULT_LUNCH_TIME = "12:00"
+DEFAULT_DINNER_TIME = "18:30"
+BEACON_URL = os.environ.get("BEACON_URL", "https://beacon.soehlert.com/homeassistant/alert")
+ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "False") == "True"
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    'check-upcoming-meals-every-15-mins': {
+        'task': 'recipes.tasks.check_upcoming_meals_task',
+        'schedule': crontab(minute='*/15'),
+    },
+}

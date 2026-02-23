@@ -1,0 +1,29 @@
+{% comment %}
+Partial for a populated meal slot card.
+Usage: {% with meal=day.lunch %}{% include "recipes/_meal_slot.html" %}{% endwith %}
+{% endcomment %}
+<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true"
+    data-recipe-id="{{ meal.recipe.id|default:'' }}" data-custom="{{ meal.custom_meal }}">
+
+    {% if meal.recipe.image_url %}
+    <img src="{{ meal.recipe.image_url }}" class="w-full h-12 object-cover rounded-lg mb-1">
+    {% endif %}
+
+    <div class="flex justify-between items-center mb-1">
+        <span class="text-[10px] font-bold text-gray-800 leading-tight">
+            {% if meal.recipe %}{{ meal.recipe.title }}{% else %}{{ meal.custom_meal }}{% endif %}
+        </span>
+        <button
+            class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button>
+    </div>
+
+    <div class="mt-2 pt-2 border-t border-gray-50 flex justify-end">
+        <div
+            class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer">
+            <span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span>
+            <input type="text"
+                class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20"
+                value="{{ meal.ready_at|time:'H:i' }}" required>
+        </div>
+    </div>
+</div>

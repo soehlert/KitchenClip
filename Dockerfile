@@ -16,7 +16,8 @@ RUN python3 -m pip install --upgrade pip && python3 -m pip install uv
 # Copy UV files first (better caching)
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-install-project
+RUN uv lock
+RUN uv sync --no-install-project
 
 FROM python:3.13-slim
 
