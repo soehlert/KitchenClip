@@ -124,7 +124,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Chicago'
 USE_I18N = True
 USE_TZ = True
 
@@ -189,7 +189,8 @@ TAG_COLORS = [
 # Cooking Notifications
 DEFAULT_LUNCH_TIME = "12:00"
 DEFAULT_DINNER_TIME = "18:30"
-BEACON_URL = os.environ.get("BEACON_URL", "http://beacon.soehlert.com/homeassistant/alert")
+BEACON_URL = os.environ.get("BEACON_URL", "https://beacon.soehlert.com/homeassistant/alert")
+ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "False") == "True"
 
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
@@ -200,12 +201,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 CELERY_BEAT_SCHEDULE = {
-    'send-cooking-summary-morning': {
-        'task': 'recipes.tasks.send_cooking_summary_task',
-        'schedule': crontab(hour=8, minute=0),
-    },
-    'send-cooking-summary-afternoon': {
-        'task': 'recipes.tasks.send_cooking_summary_task',
-        'schedule': crontab(hour=13, minute=0),
+    'check-upcoming-meals-every-15-mins': {
+        'task': 'recipes.tasks.check_upcoming_meals_task',
+        'schedule': crontab(minute='*/15'),
     },
 }
