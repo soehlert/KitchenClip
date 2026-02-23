@@ -7,16 +7,20 @@ from recipes.services import NotificationService
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
+@patch('recipes.services.timezone.localtime')
 @patch('recipes.services.httpx.AsyncClient.post')
-async def test_check_and_send_upcoming_meals_dummy_mode(mock_post, settings):
+async def test_check_and_send_upcoming_meals_dummy_mode(mock_post, mock_localtime, settings):
     # Setup dummy mode
     settings.ENABLE_COOKING_NOTIFICATIONS = False
     
-    today = timezone.localtime().date()
+    # Fix time to noon to prevent midnight wraparound flakes in CI
+    fixed_now = timezone.now().astimezone(timezone.get_current_timezone()).replace(hour=12, minute=0, second=0, microsecond=0)
+    mock_localtime.return_value = fixed_now
+    today = fixed_now.date()
     
     # Create a meal plan exactly at the notification threshold
     # Total time 0 means we notify exactly 30 minutes before ready_at
-    ready_time = (timezone.localtime() + timedelta(minutes=30)).time()
+    ready_time = (fixed_now + timedelta(minutes=30)).time()
     
     recipe = await Recipe.objects.acreate(title="Dummy Recipe", original_url="http://dummy.local")
     plan = await MealPlan.objects.acreate(
@@ -40,8 +44,9 @@ async def test_check_and_send_upcoming_meals_dummy_mode(mock_post, settings):
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
+@patch('recipes.services.timezone.localtime')
 @patch('recipes.services.httpx.AsyncClient')
-async def test_check_and_send_upcoming_meals_live_mode(mock_client_class, settings):
+async def test_check_and_send_upcoming_meals_live_mode(mock_client_class, mock_localtime, settings):
     # Setup live mode and mock the context manager httpx post response
     settings.ENABLE_COOKING_NOTIFICATIONS = True
     settings.BEACON_URL = "http://testserver.local"
@@ -52,12 +57,15 @@ async def test_check_and_send_upcoming_meals_live_mode(mock_client_class, settin
     mock_client.post.return_value = mock_post
     mock_client_class.return_value.__aenter__.return_value = mock_client
     
-    today = timezone.localtime().date()
+    # Fix time to noon to prevent midnight wraparound flakes in CI
+    fixed_now = timezone.now().astimezone(timezone.get_current_timezone()).replace(hour=12, minute=0, second=0, microsecond=0)
+    mock_localtime.return_value = fixed_now
+    today = fixed_now.date()
     
     # 45 min prep + 15 min cook = 60 min total
     # If ready_at is 2 hours from now, threshold is ready_at - 60m - 30m = 1.5 hours before ready_at.
     # Therefore, 2 hours > 1.5 hours => notify_dt hasn't arrived yet.
-    future_ready_time = (timezone.localtime() + timedelta(hours=2)).time()
+    future_ready_time = (fixed_now + timedelta(hours=2)).time()
     
     recipe = await Recipe.objects.acreate(title="Future Recipe", prep_time=45, cook_time=15, original_url="http://live.local")
     plan = await MealPlan.objects.acreate(
@@ -75,16 +83,15 @@ async def test_check_and_send_upcoming_meals_live_mode(mock_client_class, settin
     mock_client.post.assert_not_called()
     
     # Fast forward time to force the threshold
-    future_time = timezone.localtime() + timedelta(hours=1)
-    with patch('recipes.services.timezone.localtime') as mock_localtime:
-        mock_localtime.return_value = future_time
-        
-        sent_count = await NotificationService.check_and_send_upcoming_meals()
-        
-        # Now it should be sent
-        assert sent_count == 1
-        mock_client.post.assert_called_once()
-        
-        # Ensure db was updated
-        await plan.arefresh_from_db()
-        assert plan.notification_sent is True
+    future_time = fixed_now + timedelta(hours=1)
+    mock_localtime.return_value = future_time
+    
+    sent_count = await NotificationService.check_and_send_upcoming_meals()
+    
+    # Now it should be sent
+    assert sent_count == 1
+    mock_client.post.assert_called_once()
+    
+    # Ensure db was updated
+    await plan.arefresh_from_db()
+    assert plan.notification_sent is True
