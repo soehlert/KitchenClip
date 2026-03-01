@@ -445,10 +445,85 @@ class MealPlanView(ListView):
         context['page_title'] = "Meal Plan"
         
         # Get recipes for the sidebar picker - split by status
-        context['saved_recipes'] = Recipe.objects.filter(is_future=False).order_by('-updated_at')[:3]
-        context['future_recipes'] = Recipe.objects.filter(is_future=True).order_by('-updated_at')[:3]
+        context.update(get_sidebar_context(request=self.request))
         
         return context
+
+def get_sidebar_context(request, saved_page=1, future_page=1):
+    """Helper to get paginated sidebar recipes."""
+    from django.core.paginator import Paginator
+    
+    saved_qs = Recipe.objects.filter(is_future=False, is_on_menu=True).order_by('-updated_at')
+    future_qs = Recipe.objects.filter(is_future=True, is_on_menu=True).order_by('-updated_at')
+    
+    saved_paginator = Paginator(saved_qs, 7)
+    future_paginator = Paginator(future_qs, 7)
+    
+    saved_recipes = saved_paginator.get_page(saved_page)
+    future_recipes = future_paginator.get_page(future_page)
+    
+    return {
+        'saved_recipes': saved_recipes,
+        'future_recipes': future_recipes,
+        'saved_has_next': saved_recipes.has_next(),
+        'saved_has_prev': saved_recipes.has_previous(),
+        'saved_page_num': saved_recipes.number,
+        'future_has_next': future_recipes.has_next(),
+        'future_has_prev': future_recipes.has_previous(),
+        'future_page_num': future_recipes.number,
+    }
+
+@csrf_exempt
+@require_POST
+def toggle_menu_status(request):
+    """API endpoint to add/remove a recipe from the menu sidebar."""
+    try:
+        data = json.loads(request.body)
+        recipe_id = data.get('recipe_id')
+        if not recipe_id:
+            return JsonResponse({'status': 'error', 'message': 'Missing recipe_id'}, status=400)
+            
+        recipe = get_object_or_404(Recipe, id=recipe_id)
+        recipe.is_on_menu = not recipe.is_on_menu
+        recipe.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'is_on_menu': recipe.is_on_menu,
+            'title': recipe.title
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+def sidebar_pagination_api(request):
+    """API endpoint to get paginated sidebar sections."""
+    saved_page = request.GET.get('saved_page', 1)
+    future_page = request.GET.get('future_page', 1)
+    
+    context = get_sidebar_context(request, saved_page, future_page)
+    
+    from django.template.loader import render_to_string
+    
+    saved_html = render_to_string('recipes/partials/_sidebar_section.html', {
+        'recipes': context['saved_recipes'],
+        'has_next': context['saved_has_next'],
+        'has_prev': context['saved_has_prev'],
+        'page_num': context['saved_page_num'],
+        'type': 'saved'
+    }, request=request)
+    
+    future_html = render_to_string('recipes/partials/_sidebar_section.html', {
+        'recipes': context['future_recipes'],
+        'has_next': context['future_has_next'],
+        'has_prev': context['future_has_prev'],
+        'page_num': context['future_page_num'],
+        'type': 'future'
+    }, request=request)
+    
+    return JsonResponse({
+        'saved_html': saved_html,
+        'future_html': future_html
+    })
 
 @csrf_exempt
 @require_POST
@@ -513,6 +588,7 @@ def search_recipes_api(request):
             'id': r.id,
             'title': r.title,
             'is_future': r.is_future,
+            'is_on_menu': r.is_on_menu,
             'image_url': r.image_url
         })
         

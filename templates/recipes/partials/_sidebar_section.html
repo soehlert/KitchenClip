@@ -1,0 +1,50 @@
+<div id="sidebar-section-{{ type }}" class="space-y-4">
+    <div class="space-y-2">
+        {% for recipe in recipes %}
+        <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
+            draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
+            data-image="{{ recipe.image_url|default:'' }}">
+
+            {% if recipe.image_url %}
+            <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
+            {% else %}
+            <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
+                {{ recipe.title|slice:":1" }}
+            </div>
+            {% endif %}
+
+            <span class="font-bold text-gray-700 text-xs truncate flex-1">{{ recipe.title }}</span>
+
+            <button
+                class="remove-from-menu opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold px-1 transition-opacity"
+                data-id="{{ recipe.id }}" title="Remove from Menu">&times;</button>
+        </div>
+        {% empty %}
+        <div class="text-[10px] text-gray-400 py-4 text-center font-medium">No recipes on menu</div>
+        {% endfor %}
+    </div>
+
+    {% if has_next or has_prev %}
+    <div class="flex justify-between items-center px-1">
+        <button
+            class="sidebar-page-btn {% if not has_prev %}opacity-0 pointer-events-none{% endif %} flex items-center gap-1 text-[10px] font-black text-gray-400 hover:text-[#194769] transition-colors"
+            data-type="{{ type }}" data-page="{{ page_num|add:'-1' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+            </svg>
+            PREV
+        </button>
+        <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest">Page {{ page_num }}</span>
+        <button
+            class="sidebar-page-btn {% if not has_next %}opacity-0 pointer-events-none{% endif %} flex items-center gap-1 text-[10px] font-black text-gray-400 hover:text-[#194769] transition-colors"
+            data-type="{{ type }}" data-page="{{ page_num|add:'1' }}">
+            NEXT
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+</div>

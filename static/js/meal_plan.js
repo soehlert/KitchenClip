@@ -11,14 +11,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (close) close.addEventListener('click', hide);
     if (backdrop) backdrop.addEventListener('click', hide);
 
-    // Sidebar and Drag-Drop Logic
     const slots = document.querySelectorAll('.meal-slot');
     let dragged = null;
+
+    // Sidebar Pagination and Removal Logic
+    const refreshSidebar = async (savedPage = 1, futurePage = 1) => {
+        const savedContainer = document.getElementById('section-saved-container');
+        const futureContainer = document.getElementById('section-future-container');
+
+        if (savedContainer) savedContainer.classList.add('opacity-50');
+        if (futureContainer) futureContainer.classList.add('opacity-50');
+
+        try {
+            const res = await fetch(`/api/recipes/sidebar/?saved_page=${savedPage}&future_page=${futurePage}`);
+            if (!res.ok) throw new Error('Refresh failed');
+            const data = await res.json();
+
+            if (savedContainer) {
+                savedContainer.innerHTML = data.saved_html;
+                savedContainer.classList.remove('opacity-50');
+            }
+            if (futureContainer) {
+                futureContainer.innerHTML = data.future_html;
+                futureContainer.classList.remove('opacity-50');
+            }
+        } catch (err) {
+            console.error("Failed to refresh sidebar", err);
+        }
+    };
 
     document.addEventListener('dragstart', e => {
         if (e.target.classList.contains('recipe-card')) {
             dragged = { id: e.target.dataset.id, title: e.target.dataset.title, image: e.target.dataset.image, type: 'recipe' };
-            setTimeout(hide, 0); // Hide sidebar after drag starts
+            setTimeout(hide, 0);
         } else if (e.target.classList.contains('draggable-meal')) {
             dragged = { id: e.target.dataset.recipeId, title: e.target.querySelector('span').innerText.trim(), image: e.target.querySelector('img')?.src || '', type: e.target.dataset.recipeId ? 'recipe' : 'custom', custom: e.target.dataset.custom, original: e.target.parentElement, ready_at: e.target.querySelector('.ready-at-input').value };
         }
@@ -35,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = slot.dataset.date;
             const type = slot.dataset.type;
 
-            // Optimistic UI
             const originalHtml = slot.innerHTML;
             updateUI(slot, dragged);
             if (dragged.original) dragged.original.innerHTML = '';
@@ -51,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Custom Meal Modal Logic
     const modal = document.getElementById('manual-modal');
     const manualText = document.getElementById('manual-text');
     let currentSlot = null;
@@ -92,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Search Logic
     const searchInput = document.getElementById('recipe-search');
     let searchTimeout;
     if (searchInput) {
@@ -142,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!meal) return;
                 const slot = meal.closest('.meal-slot');
                 if (!slot) return;
-                // Mark this input as manually set so Apply All won't override it
                 input.dataset.manual = 'true';
                 const recipeId = meal.dataset.recipeId || null;
                 const custom = meal.dataset.custom || '';
@@ -155,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Store global time picker instances for reliable value reading
     const globalPickers = {};
 
     function initTimePickers(container = document) {
@@ -167,8 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Helpers to get a time string (H:i) from a Flatpickr instance.
-    // Falls back to the raw element value if the user hasn't picked a time yet.
     function getPickerTime(instance) {
         if (!instance) return null;
         if (instance.selectedDates.length) {
@@ -177,31 +195,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const m = d.getMinutes().toString().padStart(2, '0');
             return `${h}:${m}`;
         }
-        // No date picked yet — use the raw input value (initial HTML value attribute)
         return instance.element.value || null;
     }
 
-    // Initialize all existing time pickers
     initTimePickers();
 
     function updateUI(slot, item) {
         const img = item.image ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">` : '';
         const time = item.ready_at || '';
         slot.innerHTML = `<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true" data-recipe-id="${item.id || ''}" data-custom="${item.type === 'custom' ? item.title : ''}">${img}<div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span><button class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button></div><div class="mt-2 pt-2 border-t border-gray-50 flex justify-end"><div class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer"><span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span><input type="text" class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20" value="${time}" required></div></div></div>`;
-
-        // Initialize flatpickr on the newly created input
         initTimePickers(slot);
     }
 
     const applyGlobalTimesBtn = document.getElementById('apply-global-times');
     if (applyGlobalTimesBtn) {
         applyGlobalTimesBtn.addEventListener('click', async () => {
-            // Read times from the Flatpickr instances, not the hidden original inputs
             const globalLunch = getPickerTime(globalPickers.lunch);
             const globalDinner = getPickerTime(globalPickers.dinner);
-
             const filledMeals = document.querySelectorAll('.draggable-meal');
-
             const originalText = applyGlobalTimesBtn.innerHTML;
             applyGlobalTimesBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Applying...';
             applyGlobalTimesBtn.disabled = true;
@@ -210,24 +221,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const meal of filledMeals) {
                     const slot = meal.closest('.meal-slot');
                     if (!slot) continue;
-
                     const type = slot.dataset.type;
                     const newTime = type === 'LUNCH' ? globalLunch : (type === 'DINNER' ? globalDinner : null);
-
                     if (newTime) {
                         const input = meal.querySelector('.ready-at-input');
-                        // Skip only meals that were MANUALLY set by the user via the picker
                         if (input?.dataset.manual === 'true') continue;
-
                         if (input && input._flatpickr) {
                             input._flatpickr.setDate(newTime, false, 'H:i');
                         } else if (input) {
                             input.value = newTime;
                         }
-
                         const recipeId = meal.dataset.recipeId || null;
                         const custom = meal.dataset.custom || '';
-                        // Await sequentially to prevent SQLite 'database is locked' errors
                         await save(slot.dataset.date, type, recipeId, custom, 'update', newTime);
                     }
                 }
@@ -241,7 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function save(date, meal_type, recipe_id, custom_meal = '', action = 'update', ready_at = null) {
-        // Use the global window object for CSRFTOKEN
         const csrfToken = window.CSRF_TOKEN || '';
         return fetch('/api/meal-plan/update/', {
             method: 'POST',
@@ -251,6 +255,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('click', async e => {
+        // Sidebar Pagination
+        const pageBtn = e.target.closest('.sidebar-page-btn');
+        if (pageBtn) {
+            const type = pageBtn.dataset.type;
+            const page = pageBtn.dataset.page;
+            const otherType = type === 'saved' ? 'future' : 'saved';
+            const otherPageSpan = document.querySelector(`#sidebar-section-${otherType} span`);
+            const otherPage = otherPageSpan ? otherPageSpan.innerText.replace('Page ', '') : 1;
+            if (type === 'saved') {
+                refreshSidebar(page, otherPage);
+            } else {
+                refreshSidebar(otherPage, page);
+            }
+            return;
+        }
+
+        // Remove from Menu (sidebar cross)
+        const removeMenuBtn = e.target.closest('.remove-from-menu');
+        if (removeMenuBtn) {
+            const id = removeMenuBtn.dataset.id;
+            try {
+                const res = await fetch('/api/recipes/toggle-menu/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN },
+                    body: JSON.stringify({ recipeId: id })
+                });
+                if (res.ok) refreshSidebar();
+            } catch (err) {
+                console.error("Failed to remove from menu", err);
+            }
+            return;
+        }
+
         if (e.target.closest('.remove-meal')) {
             const meal = e.target.closest('.draggable-meal');
             const slot = meal.parentElement;
@@ -259,24 +296,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Prevent opening recipe modal if clicking the time wrapper completely
-        if (e.target.closest('.ready-at-input') || e.target.closest('.time-wrapper') || e.target.closest('.flatpickr-calendar')) {
+        if (e.target.closest('.ready-at-input') || e.target.closest('.time-wrapper') ||
+            e.target.closest('.flatpickr-calendar') || e.target.closest('.sidebar-page-btn') ||
+            e.target.closest('.remove-from-menu')) {
             return;
         }
 
-        // Recipe Modal Logic
-        const recipeEl = e.target.closest('.recipe-card') || e.target.closest('.draggable-meal');
+        const toggleMenuBtn = e.target.closest('.toggle-menu-btn');
+        if (toggleMenuBtn) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === "disabled" && !toggleMenuBtn.disabled) {
+                        refreshSidebar();
+                        observer.disconnect();
+                    }
+                });
+            });
+            observer.observe(toggleMenuBtn, { attributes: true });
+            return;
+        }
 
+        const recipeEl = e.target.closest('.recipe-card') || e.target.closest('.draggable-meal');
         if (recipeEl && !e.target.closest('.remove-meal')) {
             const id = recipeEl.dataset.id || recipeEl.dataset.recipeId;
             const recipeModal = document.getElementById('recipe-modal');
             const contentContainer = document.getElementById('recipe-modal-content');
-
             if (recipeModal && contentContainer) {
                 if (id) {
                     recipeModal.classList.remove('hidden');
                     contentContainer.innerHTML = `<div class="flex justify-center items-center h-40"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#194769]"></div></div>`;
-
                     try {
                         const res = await fetch(`/${id}/`);
                         if (!res.ok) throw new Error('Network response was not ok');
@@ -284,7 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(text, 'text/html');
                         const content = doc.querySelector('.max-w-2xl');
-
                         if (content) {
                             contentContainer.innerHTML = '';
                             contentContainer.appendChild(content);
@@ -296,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         contentContainer.innerHTML = '<div class="p-8 text-center text-red-500">Error loading recipe.</div>';
                     }
                 } else {
-                    // It's a custom meal without an ID
                     recipeModal.classList.remove('hidden');
                     contentContainer.innerHTML = '<div class="p-8 text-center text-gray-500 font-bold text-xl mt-12">Custom meals do not have recipe details.</div>';
                 }
@@ -307,14 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recipeModal = document.getElementById('recipe-modal');
     const closeRecipeModalBtn = document.getElementById('close-recipe-modal');
     if (closeRecipeModalBtn && recipeModal) {
-        closeRecipeModalBtn.addEventListener('click', () => {
-            recipeModal.classList.add('hidden');
-        });
-        recipeModal.addEventListener('click', (e) => {
-            if (e.target === recipeModal) {
-                recipeModal.classList.add('hidden');
-            }
-        });
+        closeRecipeModalBtn.addEventListener('click', () => { recipeModal.classList.add('hidden'); });
+        recipeModal.addEventListener('click', (e) => { if (e.target === recipeModal) recipeModal.classList.add('hidden'); });
     }
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -322,8 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const recipeModal = document.getElementById('recipe-modal');
             if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
             if (recipeModal && !recipeModal.classList.contains('hidden')) recipeModal.classList.add('hidden');
-            hide(); // also close the sidebar
+            hide();
         }
     });
-
 });

@@ -30,43 +30,17 @@
         + Custom Meal
     </button>
 
-    <div id="sidebar-results" class="flex-1 overflow-y-auto pr-2 space-y-6">
+    <div id="sidebar-results" class="flex-1 overflow-y-auto pr-2 space-y-8">
         <div>
             <h4 class="sidebar-header">My Recipes</h4>
-            <div class="space-y-2">
-                {% for recipe in saved_recipes|slice:":3" %}
-                <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
-                    draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
-                    data-image="{{ recipe.image_url|default:'' }}">
-                    {% if recipe.image_url %}
-                    <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
-                    {% else %}
-                    <div
-                        class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
-                        {{ recipe.title|slice:":1" }}</div>
-                    {% endif %}
-                    <span class="font-bold text-gray-700 text-xs truncate">{{ recipe.title }}</span>
-                </div>
-                {% endfor %}
+            <div id="section-saved-container">
+                {% include "recipes/partials/_sidebar_section.html" with recipes=saved_recipes has_next=saved_has_next has_prev=saved_has_prev page_num=saved_page_num type="saved" %}
             </div>
         </div>
         <div>
             <h4 class="sidebar-header">Future Ideas</h4>
-            <div class="space-y-2">
-                {% for recipe in future_recipes|slice:":3" %}
-                <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
-                    draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
-                    data-image="{{ recipe.image_url|default:'' }}">
-                    {% if recipe.image_url %}
-                    <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
-                    {% else %}
-                    <div
-                        class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
-                        {{ recipe.title|slice:":1" }}</div>
-                    {% endif %}
-                    <span class="font-bold text-gray-700 text-xs truncate">{{ recipe.title }}</span>
-                </div>
-                {% endfor %}
+            <div id="section-future-container">
+                {% include "recipes/partials/_sidebar_section.html" with recipes=future_recipes has_next=future_has_next has_prev=future_has_prev page_num=future_page_num type="future" %}
             </div>
         </div>
     </div>
@@ -172,8 +146,6 @@
             <button id="modal-save" class="flex-1 py-2 bg-[#194769] text-white rounded-xl font-bold">Add</button>
         </div>
     </div>
-</div>
-
 </div>
 
 <!-- Recipe Detail Modal -->
