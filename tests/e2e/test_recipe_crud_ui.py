@@ -45,7 +45,7 @@ def test_recipe_view_edit_delete(page: Page, live_server):
     
     # 1. View
     page.goto(f"{live_server.url}/{recipe.id}/")
-    expect(page.locator("h1", has_text="Initial Delete Me Recipe")).to_be_visible()
+    expect(page.locator("h1").filter(has_text="Initial Delete Me Recipe")).to_be_visible()
     
     # 2. Edit
     page.click("text=Edit")
@@ -58,7 +58,7 @@ def test_recipe_view_edit_delete(page: Page, live_server):
     
     # Wait for redirect back to details page
     page.wait_for_url(f"{live_server.url}/{recipe.id}/")
-    expect(page.locator("h1", has_text="Edited Recipe Title")).to_be_visible()
+    expect(page.locator("h1").filter(has_text="Edited Recipe Title")).to_be_visible()
     
     recipe.refresh_from_db()
     assert recipe.title == "Edited Recipe Title"
