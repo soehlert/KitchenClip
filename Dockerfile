@@ -19,33 +19,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv lock
 RUN uv sync --no-install-project
 
-FROM python:3.13-slim
-
-RUN useradd -m -r appuser && \
-    mkdir -p /app/data /app/media /app/staticfiles
-
-RUN python3 -m pip install --upgrade pip && python3 -m pip install uv
-
-WORKDIR /app
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-COPY . .
-COPY --from=builder /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
-
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 8000
-
-ENTRYPOINT ["/app/entrypoint.sh"]
-
 # --- Test stage (not shipped to production) ---
 FROM python:3.13-slim AS test
 
@@ -76,3 +49,31 @@ USER appuser
 
 # Install the chromium browser binary into /home/appuser/.cache (as appuser so it's accessible)
 RUN playwright install chromium
+
+# --- Production stage (default: docker build .) ---
+FROM python:3.13-slim AS production
+
+RUN useradd -m -r appuser && \
+    mkdir -p /app/data /app/media /app/staticfiles
+
+RUN python3 -m pip install --upgrade pip && python3 -m pip install uv
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY . .
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+ENTRYPOINT ["/app/entrypoint.sh"]
