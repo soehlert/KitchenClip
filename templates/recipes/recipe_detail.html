@@ -76,6 +76,14 @@
       </a>
     </div>
     {% endif %}
+    <div class="mb-4">
+      <button
+        class="toggle-menu-btn w-full font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all border-2 
+        {% if recipe.is_on_menu %}bg-[#5B8E7D] text-white border-[#5B8E7D] hover:bg-[#194769] hover:border-[#194769]{% else %}text-[#194769] border-[#194769] hover:bg-[#194769] hover:text-white{% endif %}"
+        data-id="{{ recipe.id }}">
+        {% if recipe.is_on_menu %}Remove from Menu{% else %}+ Add to Menu{% endif %}
+      </button>
+    </div>
     <div class="grid grid-cols-2 gap-4 mt-6">
       <a href="{% url 'recipes:edit_recipe' recipe.id %}"
         class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold py-2 px-4 rounded-lg transition text-center">Edit</a>

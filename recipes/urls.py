@@ -21,4 +21,6 @@ urlpatterns = [
     path("meal-plan/kiosk/", views.MealPlanKioskView.as_view(), name="meal_plan_kiosk"),
     path("api/meal-plan/update/", views.update_meal_plan, name="update_meal_plan"),
     path("api/recipes/search/", views.search_recipes_api, name="search_recipes_api"),
+    path("api/recipes/toggle-menu/", views.toggle_menu_status, name="toggle_menu_status"),
+    path("api/recipes/sidebar/", views.sidebar_pagination_api, name="sidebar_pagination_api"),
 ]

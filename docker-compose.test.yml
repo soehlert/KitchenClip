@@ -1,0 +1,20 @@
+services:
+  test:
+    build:
+      context: .
+      target: test
+    volumes:
+      - ./recipes:/app/recipes
+      - ./KitchenClip:/app/KitchenClip
+      - ./templates:/app/templates
+      - ./tests:/app/tests
+      - ./manage.py:/app/manage.py
+      - ./static:/app/static
+      - ./pyproject.toml:/app/pyproject.toml
+    environment:
+      - DJANGO_ALLOWED_HOSTS=*
+      - DJANGO_SECRET_KEY=dummy-secret-key-for-testing
+      - DJANGO_SETTINGS_MODULE=KitchenClip.settings
+      - DJANGO_ALLOW_ASYNC_UNSAFE=true
+      - ENABLE_COOKING_NOTIFICATIONS=False
+    command: ["pytest", "--browser", "chromium", "-v"]

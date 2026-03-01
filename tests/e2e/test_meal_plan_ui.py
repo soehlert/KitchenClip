@@ -31,7 +31,7 @@ def test_meal_plan_drag_and_drop(page: Page, live_server):
     from django.utils import timezone
     from recipes.models import MealPlan
     
-    recipe = Recipe.objects.create(title="Drag Me Recipe")
+    recipe = Recipe.objects.create(title="Drag Me Recipe", is_on_menu=True)
     today = timezone.localtime().date().isoformat()
     
     page.goto(f"{live_server.url}/meal-plan/")

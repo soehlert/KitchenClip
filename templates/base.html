@@ -14,7 +14,7 @@
 
 <body class="bg-gray-50 font-sans m-0 p-0">
     <header>
-        <nav class="bg-gray-800 text-white px-8 py-4 flex justify-between items-center">
+        <nav class="bg-gray-800 text-white px-8 py-4 flex justify-between items-center relative">
             <!-- Logo -->
             <a href="{% url 'recipes:list_recipe' %}"
                 class="flex items-center gap-2 hover:text-gray-300 transition-colors">
@@ -26,15 +26,72 @@
                 </svg>
                 <span class="text-lg font-semibold">KitchenClip</span>
             </a>
-            <!-- Navigation Links -->
-            <div class="flex gap-6">
+
+            <!-- Desktop Navigation Links -->
+            <div class="hidden md:flex gap-6">
                 <a href="{% url 'recipes:list_recipe' %}" class="hover:text-gray-300 transition-colors">Recipes</a>
-                <a href="{% url 'recipes:future_recipes' %}" class="hover:text-gray-300 transition-colors">Future
-                    Ideas</a>
+                <a href="{% url 'recipes:future_recipes' %}" class="hover:text-gray-300 transition-colors">Future Ideas</a>
                 <a href="{% url 'recipes:meal_plan' %}" class="hover:text-gray-300 transition-colors">Meal Plan</a>
                 <a href="{% url 'recipes:add_recipe' %}" class="hover:text-gray-300 transition-colors">Add Recipe</a>
             </div>
+
+            <!-- Hamburger Button (mobile only) -->
+            <button id="nav-hamburger" class="md:hidden flex flex-col gap-1.5 p-2 rounded hover:bg-gray-700 transition-colors" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu">
+                <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-1"></span>
+                <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-2"></span>
+                <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-3"></span>
+            </button>
         </nav>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-menu" class="hidden bg-gray-700 text-white md:hidden">
+            <div class="flex flex-col px-8 py-2">
+                <a href="{% url 'recipes:list_recipe' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Recipes</a>
+                <a href="{% url 'recipes:future_recipes' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Future Ideas</a>
+                <a href="{% url 'recipes:meal_plan' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Meal Plan</a>
+                <a href="{% url 'recipes:add_recipe' %}" class="py-3 hover:text-gray-300 transition-colors">Add Recipe</a>
+            </div>
+        </div>
+
+        <script>
+            (function () {
+                var btn = document.getElementById('nav-hamburger');
+                var menu = document.getElementById('mobile-menu');
+                var line1 = document.getElementById('hamburger-line-1');
+                var line2 = document.getElementById('hamburger-line-2');
+                var line3 = document.getElementById('hamburger-line-3');
+                var open = false;
+
+                btn.addEventListener('click', function () {
+                    open = !open;
+                    btn.setAttribute('aria-expanded', open);
+                    if (open) {
+                        menu.classList.remove('hidden');
+                        // Animate to X
+                        line1.style.transform = 'translateY(8px) rotate(45deg)';
+                        line2.style.opacity = '0';
+                        line3.style.transform = 'translateY(-8px) rotate(-45deg)';
+                    } else {
+                        menu.classList.add('hidden');
+                        line1.style.transform = '';
+                        line2.style.opacity = '';
+                        line3.style.transform = '';
+                    }
+                });
+
+                // Close menu when clicking a link
+                menu.querySelectorAll('a').forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        menu.classList.add('hidden');
+                        btn.setAttribute('aria-expanded', false);
+                        line1.style.transform = '';
+                        line2.style.opacity = '';
+                        line3.style.transform = '';
+                        open = false;
+                    });
+                });
+            })();
+        </script>
     </header>
     {% block sidebar %}{% endblock %}
     <main class="max-w-7xl mx-auto w-full my-8 bg-white p-8 rounded-lg shadow">
@@ -55,6 +112,7 @@
         {% block content %}{% endblock %}
     </main>
     <script src="{% static 'js/messages.js' %}"></script>
+    <script src="{% static 'js/recipes_ui.js' %}"></script>
     {% block javascript %}{% endblock %}
 </body>
 
