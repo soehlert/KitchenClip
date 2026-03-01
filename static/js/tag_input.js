@@ -52,8 +52,13 @@ tagInput.addEventListener("input", function() {
       if (filtered.length > 0) {
         filtered.forEach((tag, idx) => {
           const li = document.createElement("li");
-          li.innerHTML = `<span class="inline-block text-white text-xs px-2 py-1 rounded-full mr-2 mb-2" style="background:${tag.color};">${tag.name}</span>`;
+          // Build the color swatch imperatively to avoid inline style injection
+          const swatch = document.createElement('span');
+          swatch.className = 'inline-block text-white text-xs px-2 py-1 rounded-full mr-2 mb-2';
+          swatch.style.backgroundColor = tag.color;
+          swatch.textContent = tag.name;
           li.className = "px-3 py-2 cursor-pointer flex items-center";
+          li.appendChild(swatch);
           li.onclick = function() {
             addTag(tag.name, tag.color);
             tagInput.focus();
@@ -64,14 +69,21 @@ tagInput.addEventListener("input", function() {
       } else {
         suggestions.style.display = "none";
       }
+    })
+    .catch(() => {
+      // Autocomplete fetch failed silently — tag entry still works manually
+      suggestions.style.display = "none";
     });
   } else {
     suggestions.style.display = "none";
   }
 });
 
+// Single merged keydown handler: navigation + creation + backspace deletion
 tagInput.addEventListener('keydown', function(e) {
   const items = suggestions.querySelectorAll("li");
+
+  // --- Dropdown navigation ---
   if (suggestions.style.display === "block" && items.length > 0) {
     if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
       e.preventDefault();
@@ -95,6 +107,8 @@ tagInput.addEventListener('keydown', function(e) {
       return;
     }
   }
+
+  // --- Create tag from typed value ---
   if ((e.key === 'Enter' || e.key === ',') && (highlightedIndex === -1 || items.length === 0)) {
     e.preventDefault();
     const val = tagInput.value.trim();
@@ -102,10 +116,10 @@ tagInput.addEventListener('keydown', function(e) {
       const found = availableTags.find(t => t.name.toLowerCase() === val.toLowerCase());
       addTag(val, found ? found.color : "#888");
     }
+    return;
   }
-});
 
-tagInput.addEventListener('keydown', function(e) {
+  // --- Backspace removes last tag when input is empty ---
   if (e.key === 'Backspace' && !tagInput.value && selectedTags.length) {
     selectedTags.pop();
     renderTags();
@@ -136,7 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
   renderTags();
 });
 
-document.querySelector('form').addEventListener('submit', function(e) {
+// Use getElementById to avoid grabbing the wrong form if multiple exist on page
+document.getElementById('recipe-form').addEventListener('submit', function(e) {
   const val = tagInput.value.trim();
   if (val) {
     const found = availableTags.find(t => t.name.toLowerCase() === val.toLowerCase());

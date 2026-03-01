@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.innerHTML = 'Remove from Menu';
                 }
             } else {
-                btn.innerHTML = btn.classList.contains('w-full') ? '+ Add to Menu' : '+ Add to Menu';
+                btn.innerHTML = '+ Add to Menu';
                 btn.className = originalClasses.replace(/bg-\[#5B8E7D\]|text-white|border-\[#5B8E7D\]|hover:bg-\[#194769\]|hover:border-\[#194769\]/g, '').trim();
 
                 if (btn.classList.contains('w-full')) {
@@ -47,14 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Show toast if available (assuming some toast utility might exist or just alert)
-            console.log(`${data.title} ${data.is_on_menu ? 'added to' : 'removed from'} menu`);
-
         } catch (err) {
             console.error(err);
             btn.innerHTML = originalHtml;
             btn.className = originalClasses;
-            alert('Could not update menu status. Please try again.');
+            showToast('Could not update menu status. Please try again.', 'error');
         } finally {
             btn.disabled = false;
         }
@@ -62,17 +59,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper to get CSRF token
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
+        return document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))?.[1] ?? null;
+    }
+
+    // Non-blocking toast for error feedback
+    function showToast(message, type = 'error') {
+        const div = document.createElement('div');
+        const colorClass = type === 'error'
+            ? 'bg-red-50 text-red-800 border border-red-200'
+            : 'bg-green-50 text-green-800 border border-green-200';
+        div.className = `message-item fixed top-4 right-4 z-50 rounded-lg px-6 py-4 shadow-lg ${colorClass}`;
+        div.textContent = message;
+        document.body.appendChild(div);
+        fadeOutMessage(div);
     }
 });
