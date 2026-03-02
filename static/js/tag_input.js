@@ -79,11 +79,11 @@ tagInput.addEventListener("input", function() {
   }
 });
 
-// Single merged keydown handler: navigation + creation + backspace deletion
+// Navigation + creation + backspace deletion
 tagInput.addEventListener('keydown', function(e) {
   const items = suggestions.querySelectorAll("li");
 
-  // --- Dropdown navigation ---
+  // Dropdown navigation
   if (suggestions.style.display === "block" && items.length > 0) {
     if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
       e.preventDefault();

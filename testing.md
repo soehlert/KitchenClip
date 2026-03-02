@@ -59,23 +59,25 @@ These tests use Django's Test Client to simulate HTTP GET/POST requests.
 ## 3. Frontend E2E Testing
 Frontend testing utilizes `pytest-playwright` running against a local Django test server via the `live_server` fixture.
 
+> **Important:** E2E tests must run inside the `test` Docker stage (defined in `docker-compose.test.yml`), **not** the production `web` container. The production container does not have Playwright or Chromium installed.
+
 ### What is the `page` fixture?
 In Playwright, `page` represents a single tab in a browser. It is incredibly powerful and provides the core API to interact with the DOM—such as navigating (`page.goto()`), filling out inputs (`page.fill()`), clicking buttons (`page.click()`), and extracting text or states. Pytest automatically injects this fully-configured browser context into your function whenever you request it as an argument.
 
 ### Executing Frontend Tests
 Run the entire E2E test suite:
 ```bash
-docker compose exec -e DJANGO_ALLOW_ASYNC_UNSAFE=true web uv run pytest tests/e2e/
+docker compose -f docker-compose.test.yml run --rm test
 ```
 
 Run a specific E2E test file:
 ```bash
-docker compose exec -e DJANGO_ALLOW_ASYNC_UNSAFE=true web uv run pytest tests/e2e/test_meal_plan_ui.py
+docker compose -f docker-compose.test.yml run --rm test pytest tests/e2e/test_meal_plan_ui.py --browser chromium -v
 ```
 
 Run one specific E2E test function:
 ```bash
-docker compose exec -e DJANGO_ALLOW_ASYNC_UNSAFE=true web uv run pytest tests/e2e/test_meal_plan_ui.py::test_meal_plan_page_load
+docker compose -f docker-compose.test.yml run --rm test pytest tests/e2e/test_meal_plan_ui.py::test_meal_plan_page_load --browser chromium -v
 ```
 
 ### Individual E2E Tests

@@ -205,11 +205,38 @@ document.addEventListener('DOMContentLoaded', () => {
     initTimePickers();
 
     function updateUI(slot, item) {
-        const img = item.image ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">` : '';
+        const img = item.image
+            ? `<img src="${item.image}" class="w-full h-12 object-cover rounded-lg mb-1">`
+            : '';
         const time = item.ready_at || '';
-        slot.innerHTML = `<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true" data-recipe-id="${item.id || ''}" data-custom="${item.type === 'custom' ? item.title : ''}">${img}<div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span><button class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button></div><div class="mt-2 pt-2 border-t border-gray-50 flex justify-end"><div class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer"><span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span><input type="text" class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20" value="${time}"></div></div></div>`;
-        initTimePickers(slot);
 
+        const timeWidget = `
+            <div class="mt-2 pt-2 border-t border-gray-50 flex justify-end">
+                <div class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100
+                            transition-colors rounded-lg border border-gray-200 px-3 py-1.5
+                            focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769]
+                            cursor-pointer">
+                    <span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span>
+                    <input type="text"
+                           class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20"
+                           value="${time}">
+                </div>
+            </div>`;
+
+        slot.innerHTML = `
+            <div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group"
+                 draggable="true"
+                 data-recipe-id="${item.id || ''}"
+                 data-custom="${item.type === 'custom' ? item.title : ''}">
+                ${img}
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-[10px] font-bold text-gray-800 leading-tight">${item.title}</span>
+                    <button class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button>
+                </div>
+                ${timeWidget}
+            </div>`;
+
+        initTimePickers(slot);
     }
 
     const applyGlobalTimesBtn = document.getElementById('apply-global-times');
@@ -309,15 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleMenuBtn = e.target.closest('.toggle-menu-btn');
         if (toggleMenuBtn) {
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.attributeName === "disabled" && !toggleMenuBtn.disabled) {
-                        refreshSidebar();
-                        observer.disconnect();
-                    }
-                });
-            });
-            observer.observe(toggleMenuBtn, { attributes: true });
+            // recipes_ui.js dispatches a 'menuToggled' event on the button when the API call
+            // completes. Listen once so we refresh the sidebar exactly once per toggle.
+            toggleMenuBtn.addEventListener('menuToggled', () => refreshSidebar(), { once: true });
+
             return;
         }
 

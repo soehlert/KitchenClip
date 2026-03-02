@@ -78,9 +78,11 @@
     {% endif %}
     <div class="mb-4">
       <button
-        class="toggle-menu-btn w-full font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all border-2 
+        class="toggle-menu-btn w-full font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all border-2
         {% if recipe.is_on_menu %}bg-[#5B8E7D] text-white border-[#5B8E7D] hover:bg-[#194769] hover:border-[#194769]{% else %}text-[#194769] border-[#194769] hover:bg-[#194769] hover:text-white{% endif %}"
-        data-id="{{ recipe.id }}">
+        data-id="{{ recipe.id }}"
+        data-on-classes="bg-[#5B8E7D] text-white border-[#5B8E7D] hover:bg-[#194769] hover:border-[#194769]"
+        data-off-classes="text-[#194769] border-[#194769] hover:bg-[#194769] hover:text-white">
         {% if recipe.is_on_menu %}Remove from Menu{% else %}+ Add to Menu{% endif %}
       </button>
     </div>

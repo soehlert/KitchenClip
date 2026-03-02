@@ -43,3 +43,9 @@ DJANGO_SETTINGS_MODULE = "KitchenClip.settings"
 python_files = ["test_*.py", "*_test.py"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+addopts = "-v -W ignore::django.utils.deprecation.RemovedInDjango60Warning"
+filterwarnings = [
+    # Message-based filter is often more robust for SyntaxWarnings occurring at import time
+    "ignore:invalid escape sequence:SyntaxWarning",
+    "ignore::django.utils.deprecation.RemovedInDjango60Warning",
+]

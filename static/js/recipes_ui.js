@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Visual feedback
         const originalHtml = btn.innerHTML;
-        const originalClasses = btn.className;
         btn.innerHTML = '<span class="animate-pulse">Updating...</span>';
         btn.disabled = true;
 
@@ -27,42 +26,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
 
-            // Update button state
-            if (data.is_on_menu) {
-                btn.innerHTML = 'On Menu';
-                btn.className = originalClasses.replace(/text-gray-400|border-gray-200|hover:border-\[#194769\]|hover:text-\[#194769\]|text-\[#194769\]|border-\[#194769\]/g, '').trim() + ' bg-[#5B8E7D] text-white border-[#5B8E7D]';
-                // Also handle the hover state for detail view button
-                if (btn.classList.contains('w-full')) {
-                    btn.classList.add('hover:bg-[#194769]', 'hover:border-[#194769]');
-                    btn.innerHTML = 'Remove from Menu';
-                }
-            } else {
-                btn.innerHTML = '+ Add to Menu';
-                btn.className = originalClasses.replace(/bg-\[#5B8E7D\]|text-white|border-\[#5B8E7D\]|hover:bg-\[#194769\]|hover:border-\[#194769\]/g, '').trim();
+            // Swap classes using data attributes set in the template
+            const onClasses = (btn.dataset.onClasses || '').split(' ').filter(Boolean);
+            const offClasses = (btn.dataset.offClasses || '').split(' ').filter(Boolean);
 
-                if (btn.classList.contains('w-full')) {
-                    btn.classList.add('text-[#194769]', 'border-[#194769]', 'hover:bg-[#194769]', 'hover:text-white');
-                } else {
-                    btn.classList.add('text-gray-400', 'border-gray-200', 'hover:border-[#194769]', 'hover:text-[#194769]');
-                }
+            if (data.is_on_menu) {
+                btn.classList.remove(...offClasses);
+                btn.classList.add(...onClasses);
+                btn.textContent = btn.classList.contains('w-full') ? 'Remove from Menu' : 'On Menu';
+            } else {
+                btn.classList.remove(...onClasses);
+                btn.classList.add(...offClasses);
+                btn.textContent = '+ Add to Menu';
             }
+
+            // Notify meal_plan.js (or any other listener) that the menu status changed
+            btn.dispatchEvent(new CustomEvent('menuToggled', {
+                bubbles: true,
+                detail: { recipe_id: recipeId, is_on_menu: data.is_on_menu }
+            }));
 
         } catch (err) {
             console.error(err);
             btn.innerHTML = originalHtml;
-            btn.className = originalClasses;
             showToast('Could not update menu status. Please try again.', 'error');
         } finally {
             btn.disabled = false;
         }
     });
 
-    // Helper to get CSRF token
+    // Helper to get CSRF token from cookie
     function getCookie(name) {
         return document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))?.[1] ?? null;
     }
 
-    // Non-blocking toast for error feedback
+    // Non-blocking toast for error feedback (reuses message-item CSS already in base.html)
     function showToast(message, type = 'error') {
         const div = document.createElement('div');
         const colorClass = type === 'error'

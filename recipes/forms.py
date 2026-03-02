@@ -15,6 +15,7 @@ class RecipeImportForm(forms.ModelForm):
     original_url = forms.URLField(
         label="Recipe URL",
         required=True,
+        assume_scheme='https',
         widget=forms.URLInput(attrs={
             "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
         })
@@ -235,6 +236,7 @@ class RecipeManualForm(forms.ModelForm):
     image_url = forms.URLField(
         required=False,
         label="Image URL",
+        assume_scheme='https',
         widget=forms.URLInput(attrs={
             "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
             "placeholder": "https://example.com/recipe-image.jpg"
