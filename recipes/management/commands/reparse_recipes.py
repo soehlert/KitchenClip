@@ -91,6 +91,12 @@ class Command(BaseCommand):
             if not parsed_item.get("food"):
                 continue
 
+            # Extract prep information
+            prep_list = parsed_item.get("prep") or []
+            if not prep_list and parsed_item.get("parenthesis_content"):
+                prep_list = parsed_item.get("parenthesis_content")
+            
+            parsed_item["prep"] = ", ".join(prep_list) if prep_list else ""
             parsed_list.append(parsed_item)
 
         # Process (consolidate, format, normalize)
@@ -114,8 +120,9 @@ class Command(BaseCommand):
             
             self.stdout.write("  - Ingredients:")
             for item in processed_ingredients:
+                prep = f" ({item['prep']})" if item.get('prep') else ""
                 parts = [str(item['display_quantity']), str(item['unit']), item['food']]
-                self.stdout.write(f"    * {' '.join(p for p in parts if p).strip()}")
+                self.stdout.write(f"    * {' '.join(p for p in parts if p).strip()}{prep}")
             return
 
         # Apply changes
@@ -134,8 +141,9 @@ class Command(BaseCommand):
                 name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
                 
+                prep = f" ({item['prep']})" if item.get('prep') else ""
                 parts = [str(item['display_quantity']), str(item['unit']), name]
-                raw_text = " ".join(p for p in parts if p).strip()
+                raw_text = f"{' '.join(p for p in parts if p).strip()}{prep}"
                 
                 RecipeIngredient.objects.create(
                     recipe=recipe,
@@ -143,6 +151,7 @@ class Command(BaseCommand):
                     raw_text=raw_text,
                     quantity=item["display_quantity"],
                     unit=item["unit"],
+                    preparation=item.get("prep", ""),
                     order=idx
                 )
             

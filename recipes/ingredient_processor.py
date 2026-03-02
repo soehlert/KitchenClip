@@ -83,8 +83,9 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         except Exception:
             quantity = 0.0
 
-        # Create a unique key for grouping (food + unit)
-        key = (food, unit)
+        # Create a unique key for grouping (food + unit + prep)
+        prep = (item.get("prep") or "").strip().lower()
+        key = (food, unit, prep)
         
         if key in consolidated:
             consolidated[key]["quantity"] += quantity
@@ -93,6 +94,7 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
                 "food": food,
                 "unit": unit,
                 "quantity": quantity,
+                "prep": prep,
             }
 
     # Second pass: normalize and format
@@ -132,7 +134,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             "food": f.capitalize(),
             "unit": u,
             "quantity": q,
-            "display_quantity": display_q
+            "display_quantity": display_q,
+            "prep": data.get("prep", "")
         })
         
     return results
