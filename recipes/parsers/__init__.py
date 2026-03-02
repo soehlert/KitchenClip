@@ -1,5 +1,16 @@
+import pkgutil
+import importlib
 from .registry import ParserRegistry, register_parser
+from .base import BaseParser
 from .scrapers_parser import ScrapersParser
 from .demo_parser import DemoParser
+
+# Automatically discover and register all parsers in this package
+def discover_parsers():
+    for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
+        if module_name not in ["registry", "base", "scrapers_parser", "demo_parser"]:
+            importlib.import_module(f".{module_name}", __package__)
+
+discover_parsers()
 
 __all__ = ["ParserRegistry", "register_parser", "ScrapersParser", "DemoParser"]

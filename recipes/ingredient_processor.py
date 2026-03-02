@@ -1,5 +1,6 @@
 from fractions import Fraction
 from typing import List, Dict, Any
+import re   
 
 def decimal_to_fraction(decimal_str: str) -> str:
     """Converts a decimal string to a unicode fraction if possible."""
@@ -38,8 +39,7 @@ def normalize_ounces(quantity: float, unit: str) -> (float, str):
         remaining_oz = quantity % 16
         if remaining_oz == 0:
             return lbs, "lb"
-        return quantity, unit # Keep as is for now, or return a complex string? 
-        # Actually the prompt says "20 ounces should be in lbs and ounces"
+        return quantity, unit
     return quantity, unit
 
 def format_quantity(quantity: float) -> str:
@@ -73,6 +73,10 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
             continue
             
         unit = (item.get("unit") or "").strip().lower()
+        
+        # Clean units like "of an onion", "of pepper", etc.
+        unit = re.sub(r'\b(of|an|a|the|of an|of a)\b', '', unit).strip()
+        
         quantity_str = str(item.get("quantity") or "0")
         
         try:
@@ -99,6 +103,17 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
         u = data["unit"]
         f = data["food"]
         
+        # Prevent "onion onion" redundancy or "onion yellow onion"
+        # If the unit is a word already present in the food name, we drop it.
+        if u and f:
+            u_words = u.split()
+            f_words = f.lower().split()
+            # If all words in the unit are already in the food name, clear the unit
+            if all(uw in f_words or uw == f.lower() for uw in u_words):
+                u = ""
+            elif u in f.lower() or f.lower() in u:
+                u = ""
+        
         display_q = format_quantity(q)
         
         # Normalize Ounces to Lbs
@@ -124,18 +139,44 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
     return results
 
 class QuantityConverter:
+    UNICODE_FRACTIONS = {
+        '½': 0.5, '⅓': 0.333, '⅔': 0.666, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8,
+        '⅙': 0.166, '⅚': 0.833, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+    }
+
     @staticmethod
     def to_float(val_str: str) -> float:
         if not val_str:
             return 0.0
+            
+        val_str = val_str.strip()
+        
+        # Handle unicode fractions
+        for char, decimal in QuantityConverter.UNICODE_FRACTIONS.items():
+            if char in val_str:
+                val_str = val_str.replace(char, f" {decimal}").strip()
+                try:
+                    parts = val_str.split()
+                    return sum(float(p) for p in parts)
+                except ValueError:
+                    return decimal
+
         try:
             return float(val_str)
         except ValueError:
             try:
-                # Handle fractions like "1 1/2"
                 parts = val_str.split()
                 if len(parts) == 2:
                     return float(parts[0]) + float(Fraction(parts[1]))
                 return float(Fraction(parts[0]))
             except Exception:
                 return 0.0
+
+def format_time_h_m(minutes: int | None) -> str:
+    """Format minutes into HH:MM."""
+    if minutes is None:
+        return ""
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours:02d}:{mins:02d}"
+

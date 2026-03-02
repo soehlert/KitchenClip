@@ -10,10 +10,19 @@ INGREDIENT_STARTERS = [
     "milliliter", "ml", "quart", "qt", "pint", "pt", "gallon", "gal"
 ]
 
+UNICODE_FRACTIONS_CHARS = {
+    '½', '⅓', '⅔', '¼', '¾', '⅕', '⅖', '⅗', '⅘', '⅙', '⅚', '⅛', '⅜', '⅝', '⅞'
+}
+
 def check_value(val):
     if not val:
         return False
     q = str(val).strip().lower()
+    
+    # Check for unicode fractions
+    if any(char in q for char in UNICODE_FRACTIONS_CHARS):
+        return True
+
     try:
         if float(q) > 0:
             return True

@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from typing import Type, List
+
 from .base import BaseParser
 from .scrapers_parser import ScrapersParser
 
@@ -9,10 +9,10 @@ class ParserRegistry:
     Checks for domain-specific parsers and falls back to ScrapersParser.
     """
     
-    _parsers: List[Type[BaseParser]] = []
+    _parsers: list[type[BaseParser]] = []
 
     @classmethod
-    def register(cls, parser_class: Type[BaseParser]):
+    def register(cls, parser_class: type[BaseParser]):
         """Register a new custom parser class."""
         if parser_class not in cls._parsers:
             cls._parsers.append(parser_class)
