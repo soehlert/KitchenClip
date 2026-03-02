@@ -1,5 +1,4 @@
 from fractions import Fraction
-from typing import List, Dict, Any
 import re   
 
 def decimal_to_fraction(decimal_str: str) -> str:
@@ -60,7 +59,7 @@ def format_quantity(quantity: float) -> str:
         return str(quantity)
     return frac_str
 
-def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[str, any]]:
     """
     Consolidates identical ingredients and normalizes quantities/units.
     Each dict in parsed_ingredients should have: quantity, unit, food.
@@ -74,8 +73,8 @@ def process_ingredients(parsed_ingredients: List[Dict[str, Any]]) -> List[Dict[s
             
         unit = (item.get("unit") or "").strip().lower()
         
-        # Clean units like "of an onion", "of pepper", etc.
-        unit = re.sub(r'\b(of|an|a|the|of an|of a)\b', '', unit).strip()
+        # Clean units like "of an onion", "of pepper", etc. and "Unit" string
+        unit = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', unit, flags=re.IGNORECASE).strip()
         
         quantity_str = str(item.get("quantity") or "0")
         

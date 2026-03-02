@@ -88,8 +88,8 @@ class BaseParser(ABC):
         return None
 
     @property
-    def servings(self) -> str | None:
-        """Return servings/yield as a string."""
+    def servings(self) -> int | None:
+        """Return servings/yield as an integer."""
         return None
 
     @property

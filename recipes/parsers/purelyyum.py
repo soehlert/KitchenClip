@@ -6,6 +6,7 @@ import ingredient_slicer
 
 from .base import BaseParser
 from .registry import register_parser
+from ..utils import extract_servings
 from recipes.ingredient_processor import process_ingredients, format_time_h_m
 
 def parse_iso_duration(duration_str: str) -> int | None:
@@ -115,12 +116,12 @@ class PurelyYumParser(BaseParser):
         return format_time_h_m(self.total_time)
 
     @property
-    def servings(self) -> str | None:
+    def servings(self) -> int | None:
         if self._recipe_data and 'recipeYield' in self._recipe_data:
             yield_data = self._recipe_data['recipeYield']
             if isinstance(yield_data, list) and len(yield_data) > 0:
-                return str(yield_data[0])
-            return str(yield_data)
+                return extract_servings(str(yield_data[0]))
+            return extract_servings(str(yield_data))
         return None
 
     @property
