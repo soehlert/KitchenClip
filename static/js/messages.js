@@ -17,8 +17,3 @@ function fadeOutMessage(element) {
         element.remove();
     }, 500);
 }
-
-function dismissMessage(button) {
-    const message = button.closest('.message-item');
-    fadeOutMessage(message);
-}
