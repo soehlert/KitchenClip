@@ -1,7 +1,6 @@
 import pkgutil
 import importlib
 from .registry import ParserRegistry, register_parser
-from .base import BaseParser
 from .scrapers_parser import ScrapersParser
 from .demo_parser import DemoParser
 

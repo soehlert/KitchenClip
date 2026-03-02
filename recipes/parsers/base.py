@@ -21,7 +21,6 @@ class BaseParser(ABC):
 
     def _fetch_html(self, url: str) -> str | None:
         """Fetch HTML content from the URL with robust headers."""
-        session = requests.Session()
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
