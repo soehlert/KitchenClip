@@ -1,4 +1,4 @@
-from typing import List
+
 from .base import BaseParser
 from .registry import register_parser
 
@@ -14,7 +14,7 @@ class DemoParser(BaseParser):
         return "Custom Scraped Recipe from Example.com"
 
     @property
-    def ingredients(self) -> List[str]:
+    def ingredients(self) -> list[str]:
         return [
             "1.5 cups flour",
             "0.5 cup sugar",

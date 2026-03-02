@@ -3,6 +3,7 @@ from django.utils.text import slugify
 from django.utils.html import format_html
 
 import random
+from .ingredient_processor import format_time_h_m
 
 from django.urls import reverse
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -56,17 +57,26 @@ class Recipe(models.Model):
         return reverse('recipes:detail_recipe', kwargs={'pk': self.pk})
 
     @property
+    def prep_time_display(self) -> str | None:
+        """Return formatted prep time (HH:MM if > 60m)."""
+        return format_time_h_m(self.prep_time) if self.prep_time else None
+
+    @property
+    def cook_time_display(self) -> str | None:
+        """Return formatted cook time (HH:MM if > 60m)."""
+        return format_time_h_m(self.cook_time) if self.cook_time else None
+
+    @property
     def total_time_display(self) -> str | None:
-        """Return formatted total time or calculate from prep + cook time."""
-        if self.total_time:
-            return f"{self.total_time} min"
-        elif self.prep_time and self.cook_time:
-            return f"{self.prep_time + self.cook_time} min"
-        elif self.prep_time:
-            return f"{self.prep_time} min (prep)"
-        elif self.cook_time:
-            return f"{self.cook_time} min (cook)"
-        return None
+        """Return formatted total time (HH:MM if > 60m) or calculate from components."""
+        
+        minutes = self.total_time
+        if not minutes and self.prep_time and self.cook_time:
+            minutes = self.prep_time + self.cook_time
+        elif not minutes:
+            minutes = self.prep_time or self.cook_time
+            
+        return format_time_h_m(minutes) if minutes else None
 
 
 class RecipeIngredient(models.Model):

@@ -10,30 +10,47 @@
     {% if recipe.image_url %}
     <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" class="rounded-lg mb-6 w-full object-cover max-h-96">
     {% endif %}
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      {% if recipe.prep_time %}
-      <div><span class="font-semibold text-[#194769]">Prep Time:</span> {{ recipe.prep_time }} min</div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-2 mb-6 text-sm sm:text-base">
+      {% if recipe.prep_time_display %}
+      <div class="flex items-center">
+        <span class="w-24 inline-block font-semibold text-[#194769]">Prep Time:</span>
+        <span class="text-gray-700">{{ recipe.prep_time_display }}</span>
+      </div>
       {% endif %}
-      {% if recipe.cook_time %}
-      <div><span class="font-semibold text-[#194769]">Cook Time:</span> {{ recipe.cook_time }} min</div>
+      {% if recipe.cook_time_display %}
+      <div class="flex items-center">
+        <span class="w-24 inline-block font-semibold text-[#194769]">Cook Time:</span>
+        <span class="text-gray-700">{{ recipe.cook_time_display }}</span>
+      </div>
       {% endif %}
       {% if recipe.total_time_display %}
-      <div><span class="font-semibold text-[#194769]">Total Time:</span> {{ recipe.total_time_display }}</div>
+      <div class="flex items-center">
+        <span class="w-24 inline-block font-bold text-[#194769]">Total Time:</span>
+        <span class="font-bold text-[#194769]">{{ recipe.total_time_display }}</span>
+      </div>
       {% endif %}
       {% if recipe.servings %}
-      <div><span class="font-semibold text-[#194769]">Servings:</span> {{ recipe.servings }}</div>
+      <div class="flex items-center">
+        <span class="w-24 inline-block font-semibold text-[#194769]">Servings:</span>
+        <span class="text-gray-700">{{ recipe.servings }}</span>
+      </div>
       {% endif %}
-      <div><span class="font-semibold text-[#194769]">Rating:</span> {{ recipe.rating|default:"—" }}</div>
+      <div class="flex items-center">
+        <span class="w-24 inline-block font-semibold text-[#194769]">Rating:</span>
+        <span class="text-gray-700">{{ recipe.rating|default:"—" }}</span>
+      </div>
     </div>
-    <div class="mb-4">
-      <span class="font-semibold text-[#194769]">Tags:</span>
+    <div class="mb-6">
+      <span class="font-semibold text-[#194769] mr-2">Tags:</span>
       {% if recipe.tags.all %}
-      {% for tag in recipe.tags.all %}
-      <span class="inline-block text-white text-xs px-2 py-1 rounded-full mr-2"
-        style="background-color: {{ tag.color }}">{{ tag.name }}</span>
-      {% endfor %}
+      <div class="inline-flex flex-wrap gap-2">
+        {% for tag in recipe.tags.all %}
+        <span class="inline-block text-white text-xs px-2.5 py-1 rounded-full shadow-sm"
+          style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">{{ tag.name }}</span>
+        {% endfor %}
+      </div>
       {% else %}
-      <span class="text-gray-500">No tags</span>
+      <span class="text-gray-500 italic">No tags</span>
       {% endif %}
       {% if recipe.user_notes %}
       <div class="mb-4">

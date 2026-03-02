@@ -37,7 +37,7 @@
                 <input type="checkbox" name="tags" value="{{ tag.id }}" {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
                   class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full"
-                  style="background-color: {{ tag.color }};">
+                  style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
                   {{ tag.name }}
                 </span>
               </label>
@@ -104,8 +104,8 @@
       <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {% for recipe in recipes %}
         <div
-          class="bg-[#F7F9FA] p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm hover:shadow-md transition-shadow">
-          <a href="{% url 'recipes:detail_recipe' recipe.pk %}" class="block">
+          class="bg-[#F7F9FA] p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+          <a href="{% url 'recipes:detail_recipe' recipe.pk %}" class="flex flex-col flex-grow">
             {% if recipe.image_url %}
             <div class="mb-4 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
               <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" class="w-full h-48 object-cover rounded-t-xl">
@@ -117,26 +117,28 @@
             <div class="flex flex-wrap gap-2 mb-3">
               {% for tag in recipe.tags.all %}
               <span class="inline-block text-white text-xs px-2 py-1 rounded-full"
-                style="background-color: {{ tag.color }};">
+                style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
                 {{ tag.name }}
               </span>
               {% endfor %}
             </div>
-            <div class="flex justify-between items-center text-sm text-gray-500">
-              {% if recipe.prep_time or recipe.cook_time %}
-              <div class="flex gap-2 sm:gap-3">
-                {% if recipe.prep_time %}
-                <span>Prep: {{ recipe.prep_time }}min</span>
-                {% endif %}
-                {% if recipe.cook_time %}
-                <span>Cook: {{ recipe.cook_time }}min</span>
-                {% endif %}
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-sm mb-3 mt-auto">
+              {% if recipe.prep_time_display %}
+              <div class="flex">
+                <span class="w-12 inline-block text-gray-500">Prep:</span>
+                <span class="text-gray-700">{{ recipe.prep_time_display }}</span>
               </div>
               {% endif %}
-              {% if recipe.rating %}
-              <div class="flex items-center">
-                <span class="text-yellow-500">★</span>
-                <span class="ml-1">{{ recipe.rating }}/5</span>
+              {% if recipe.cook_time_display %}
+              <div class="flex">
+                <span class="w-12 inline-block text-gray-500">Cook:</span>
+                <span class="text-gray-700">{{ recipe.cook_time_display }}</span>
+              </div>
+              {% endif %}
+              {% if recipe.total_time_display %}
+              <div class="flex col-span-2">
+                <span class="w-12 inline-block font-bold text-[#194769]">Total:</span>
+                <span class="font-bold text-[#194769]">{{ recipe.total_time_display }}</span>
               </div>
               {% endif %}
             </div>
