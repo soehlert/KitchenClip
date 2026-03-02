@@ -8,6 +8,8 @@ from django.http import JsonResponse, HttpResponseRedirect
 from functools import reduce
 import operator
 from django.core.serializers.json import DjangoJSONEncoder
+from django.template.loader import render_to_string
+from django.core.paginator import Paginator
 
 import ingredient_slicer
 import json
@@ -451,7 +453,6 @@ class MealPlanView(ListView):
 
 def get_sidebar_context(request, saved_page=1, future_page=1):
     """Helper to get paginated sidebar recipes."""
-    from django.core.paginator import Paginator
     
     saved_qs = Recipe.objects.filter(is_future=False, is_on_menu=True).order_by('-updated_at')
     future_qs = Recipe.objects.filter(is_future=True, is_on_menu=True).order_by('-updated_at')
@@ -502,7 +503,6 @@ def sidebar_pagination_api(request):
     
     context = get_sidebar_context(request, saved_page, future_page)
     
-    from django.template.loader import render_to_string
     
     saved_html = render_to_string('recipes/partials/_sidebar_section.html', {
         'recipes': context['saved_recipes'],

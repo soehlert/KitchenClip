@@ -1,4 +1,4 @@
-from typing import List, Optional
+
 from recipe_scrapers import scrape_me
 from .base import BaseParser
 from ..utils import extract_servings, clean_instruction_line
@@ -9,7 +9,7 @@ class ScrapersParser(BaseParser):
     Acts as a fallback for domains without custom parsers.
     """
     
-    def __init__(self, url: str, html: Optional[str] = None):
+    def __init__(self, url: str, html: str | None = None):
         super().__init__(url, html)
         self.scraper = scrape_me(url)
 
@@ -18,7 +18,7 @@ class ScrapersParser(BaseParser):
         return self.scraper.title()
 
     @property
-    def ingredients(self) -> List[str]:
+    def ingredients(self) -> list[str]:
         return self.scraper.ingredients()
 
     @property
@@ -35,18 +35,18 @@ class ScrapersParser(BaseParser):
         return getattr(self.scraper, "image", lambda: "")()
 
     @property
-    def prep_time(self) -> Optional[int]:
+    def prep_time(self) -> int | None:
         return self.scraper.prep_time()
 
     @property
-    def cook_time(self) -> Optional[int]:
+    def cook_time(self) -> int | None:
         return self.scraper.cook_time()
 
     @property
-    def total_time(self) -> Optional[int]:
+    def total_time(self) -> int | None:
         return self.scraper.total_time()
 
     @property
-    def servings(self) -> Optional[str]:
+    def servings(self) -> str | None:
         servings_raw = self.scraper.yields()
         return str(extract_servings(servings_raw)) if servings_raw else None
