@@ -47,6 +47,6 @@ class ScrapersParser(BaseParser):
         return self.scraper.total_time()
 
     @property
-    def servings(self) -> str | None:
+    def servings(self) -> int | None:
         servings_raw = self.scraper.yields()
-        return str(extract_servings(servings_raw)) if servings_raw else None
+        return extract_servings(servings_raw) if servings_raw else None
