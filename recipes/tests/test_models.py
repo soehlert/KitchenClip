@@ -12,7 +12,7 @@ def test_recipe_creation():
         cook_time=45
     )
     assert recipe.title == "Spaghetti Bolognese"
-    assert recipe.total_time_display == "60 min"
+    assert recipe.total_time_display == "01:00"
 
 @pytest.mark.django_db
 def test_total_time_display_with_explicit_total():
@@ -21,7 +21,7 @@ def test_total_time_display_with_explicit_total():
         original_url="http://snack.local",
         total_time=10
     )
-    assert recipe.total_time_display == "10 min"
+    assert recipe.total_time_display == "00:10"
 
 @pytest.mark.django_db
 def test_meal_plan_creation():
