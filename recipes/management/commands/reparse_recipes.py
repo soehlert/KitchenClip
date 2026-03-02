@@ -100,7 +100,7 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write("[Dry Run] Proposed changes:")
             if metadata:
-                self.stdout.write("- Metadata:")
+                self.stdout.write("  - Metadata:")
                 for key, val in metadata.items():
                     old_val = getattr(recipe, key, None)
                     display_old = old_val
@@ -111,12 +111,12 @@ class Command(BaseCommand):
                     
                     is_changed = old_val != val
                     status = "(Changed)" if is_changed else "(Unchanged)"
-                    self.stdout.write(f"* {key}: {display_old} -> {display_new} {status}")
+                    self.stdout.write(f"    * {key}: {display_old} -> {display_new} {status}")
             
-            self.stdout.write("- Ingredients:")
+            self.stdout.write("  - Ingredients:")
             for item in processed_ingredients:
                 parts = [str(item['display_quantity']), str(item['unit']), item['food']]
-                self.stdout.write(f"* {' '.join(p for p in parts if p).strip()}")
+                self.stdout.write(f"    * {' '.join(p for p in parts if p).strip()}")
             return
 
         # Apply changes
