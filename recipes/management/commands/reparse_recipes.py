@@ -73,7 +73,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No ingredients found to process."))
             return
 
-        # Parse all lines
         parsed_list = []
         for line in ingredient_lines:
             if not line.strip():
@@ -81,12 +80,28 @@ class Command(BaseCommand):
             slicer = ingredient_slicer.IngredientSlicer(line)
             parsed_item = slicer.to_json()
 
-            # Clean "unit" out of food name if it's there (often from ingredient-slicer)
+            # Clean "unit" out of food name if it's there
             food = (parsed_item.get("food") or "").strip()
             if food:
+                # Restore "or" if it was stripped from the food name
+                original_lower = line.lower()
+                if " or " in original_lower and " or " not in food.lower():
+                    # Try inserting "or" between each word in 'food' until a match is found in the original line
+                    food_words = food.lower().split()
+                    if len(food_words) >= 2:
+                        for i in range(1, len(food_words)):
+                            # Reconstruct food with "or" at this position
+                            # e.g. ["tortilla", "chips", "crackers"] -> "tortilla chips or crackers" at i=2
+                            before = " ".join(food_words[:i])
+                            after = " ".join(food_words[i:])
+                            candidate = f"{before} or {after}"
+                            if candidate in original_lower:
+                                food = candidate
+                                break
+
                 food = re.sub(r'\bunit\b', '', food, flags=re.IGNORECASE).strip()
                 parsed_item["food"] = food
-            
+    
             # If food becomes empty after cleaning, skip this item
             if not parsed_item.get("food"):
                 continue
@@ -125,9 +140,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"    * {' '.join(p for p in parts if p).strip()}{prep}")
             return
 
-        # Apply changes
         with transaction.atomic():
-            # Update metadata if available
             if metadata:
                 for key, val in metadata.items():
                     if val is not None:
