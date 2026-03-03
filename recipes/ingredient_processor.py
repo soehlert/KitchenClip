@@ -1,5 +1,71 @@
+import re
+import ingredient_slicer
 from fractions import Fraction
-import re   
+
+def parse_ingredient_line(line: str) -> dict:
+    """
+    Centralized parsing for a single ingredient line.
+    Includes metric multiplication fix and "or" restoration.
+    """
+    slicer = ingredient_slicer.IngredientSlicer(line)
+    parsed_item = slicer.to_json()
+
+    # 1. Metric Multiplication Fix
+    # Detect if Slicer multiplied count by metric mass (e.g. 6 eggs (305g) -> 1830g)
+    quantity = 0.0
+    try:
+        quantity = float(parsed_item.get("quantity") or 0)
+    except (ValueError, TypeError):
+        pass
+        
+    sec_quantity = 0.0
+    try:
+        sec_quantity = float(parsed_item.get("secondary_quantity") or 0)
+    except (ValueError, TypeError):
+        pass
+
+    if sec_quantity > 0 and quantity > sec_quantity:
+        parents = parsed_item.get("parenthesis_content") or []
+        for p in parents:
+            nums = re.findall(r"[-+]?\d*\.\d+|\d+", p)
+            for n in nums:
+                try:
+                    if abs(sec_quantity * float(n) - quantity) < 0.1:
+                        parsed_item["quantity"] = str(sec_quantity)
+                        # Clear unit if it was derived from mass in parentheses
+                        u = parsed_item.get("unit") or ""
+                        if u and u.lower() in p.lower():
+                            parsed_item["unit"] = ""
+                        break
+                except ValueError:
+                    continue
+
+    # 2. "Or" Restoration
+    food = (parsed_item.get("food") or "").strip()
+    if food:
+        original_lower = line.lower()
+        if " or " in original_lower and " or " not in food.lower():
+            food_words = food.lower().split()
+            if len(food_words) >= 2:
+                for i in range(1, len(food_words)):
+                    before = " ".join(food_words[:i])
+                    after = " ".join(food_words[i:])
+                    candidate = f"{before} or {after}"
+                    if candidate in original_lower:
+                        food = candidate
+                        break
+        # Clean rogue "unit"
+        food = re.sub(r'\bunit\b', '', food, flags=re.IGNORECASE).strip()
+        parsed_item["food"] = food
+
+    # 3. Prep Extraction/Heuristic
+    # If prep is empty, try pulling from parentheses (common for "chopped", etc.)
+    prep_list = parsed_item.get("prep") or []
+    if not prep_list and parsed_item.get("parenthesis_content"):
+        prep_list = parsed_item.get("parenthesis_content")
+    parsed_item["prep"] = prep_list
+
+    return parsed_item
 
 def decimal_to_fraction(decimal_str: str) -> str:
     """Converts a decimal string to a unicode fraction if possible."""

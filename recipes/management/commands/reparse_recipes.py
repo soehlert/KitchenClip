@@ -1,11 +1,9 @@
 import logging
-import re
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.parsers.registry import ParserRegistry
-from recipes.ingredient_processor import process_ingredients, format_time_h_m
-import ingredient_slicer
+from recipes.ingredient_processor import process_ingredients, format_time_h_m, parse_ingredient_line
 
 logger = logging.getLogger(__name__)
 
@@ -77,41 +75,13 @@ class Command(BaseCommand):
         for line in ingredient_lines:
             if not line.strip():
                 continue
-            slicer = ingredient_slicer.IngredientSlicer(line)
-            parsed_item = slicer.to_json()
-
-            # Clean "unit" out of food name if it's there
-            food = (parsed_item.get("food") or "").strip()
-            if food:
-                # Restore "or" if it was stripped from the food name
-                original_lower = line.lower()
-                if " or " in original_lower and " or " not in food.lower():
-                    # Try inserting "or" between each word in 'food' until a match is found in the original line
-                    food_words = food.lower().split()
-                    if len(food_words) >= 2:
-                        for i in range(1, len(food_words)):
-                            # Reconstruct food with "or" at this position
-                            # e.g. ["tortilla", "chips", "crackers"] -> "tortilla chips or crackers" at i=2
-                            before = " ".join(food_words[:i])
-                            after = " ".join(food_words[i:])
-                            candidate = f"{before} or {after}"
-                            if candidate in original_lower:
-                                food = candidate
-                                break
-
-                food = re.sub(r'\bunit\b', '', food, flags=re.IGNORECASE).strip()
-                parsed_item["food"] = food
-    
+            # Use centralized parsing logic
+            parsed_item = parse_ingredient_line(line)
+            
             # If food becomes empty after cleaning, skip this item
             if not parsed_item.get("food"):
                 continue
 
-            # Extract prep information
-            prep_list = parsed_item.get("prep") or []
-            if not prep_list and parsed_item.get("parenthesis_content"):
-                prep_list = parsed_item.get("parenthesis_content")
-            
-            parsed_item["prep"] = ", ".join(prep_list) if prep_list else ""
             parsed_list.append(parsed_item)
 
         # Process (consolidate, format, normalize)

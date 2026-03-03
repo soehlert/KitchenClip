@@ -11,7 +11,6 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.template.loader import render_to_string
 from django.core.paginator import Paginator
 
-import ingredient_slicer
 import json
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -24,7 +23,7 @@ from .models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
 from .forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
 from .utils import clean_instruction_line, is_valid_ingredient
 from .parsers.registry import ParserRegistry
-from .ingredient_processor import process_ingredients
+from .ingredient_processor import process_ingredients, parse_ingredient_line
 
 import logging
 logger = logging.getLogger(__name__)
@@ -224,8 +223,8 @@ class RecipeCreateView(CreateView):
             # Parse all lines first
             parsed_list = []
             for line in ingredient_lines:
-                slicer = ingredient_slicer.IngredientSlicer(line)
-                parsed_list.append(slicer.to_json())
+                parsed_item = parse_ingredient_line(line)
+                parsed_list.append(parsed_item)
             
             # Process (consolidate, format, normalize)
             processed_ingredients = process_ingredients(parsed_list)
@@ -326,8 +325,8 @@ class RecipeManualCreateView(CreateView):
             for line in ingredients_text.split('\n'):
                 line = line.strip()
                 if line:
-                    slicer = ingredient_slicer.IngredientSlicer(line)
-                    parsed_list.append(slicer.to_json())
+                    parsed_item = parse_ingredient_line(line)
+                    parsed_list.append(parsed_item)
             
             # Process (consolidate, format, normalize)
             processed_ingredients = process_ingredients(parsed_list)

@@ -78,3 +78,27 @@ def test_process_ingredients_with_prep_list():
     ]
     results = process_ingredients(parsed_items)
     assert results[0]["prep"] == "chopped, diced"
+
+def test_parse_ingredient_line_metric_multiplier_fix():
+    """Test the heuristic that reverses rogue metric multiplication."""
+    from recipes.ingredient_processor import parse_ingredient_line
+    
+    # 6 eggs (305g) -> 1830g is what Slicer usually produces
+    line = "6 large eggs (305g)"
+    parsed = parse_ingredient_line(line)
+    
+    # Should be reverted to 6
+    assert float(parsed["quantity"]) == 6.0
+    # Unit should be cleared since 'g' was from the parens
+    assert parsed["unit"] == ""
+    assert parsed["food"] == "eggs"
+
+def test_parse_ingredient_line_clove_fix():
+    """Test another case with cloves and mass."""
+    from recipes.ingredient_processor import parse_ingredient_line
+    line = "2 cloves garlic (10g)"
+    parsed = parse_ingredient_line(line)
+    
+    assert float(parsed["quantity"]) == 2.0
+    assert parsed["unit"] == ""
+    assert "garlic" in parsed["food"]
