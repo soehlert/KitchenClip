@@ -154,7 +154,7 @@ class RecipeDetailView(DetailView):
 
         ingredients_with_confidence = []
         for i in recipe.recipe_ingredients.all():
-            is_confident = is_valid_ingredient(i.quantity, i.unit, i.ingredient)
+            is_confident = is_valid_ingredient(i.quantity, i.unit, i.ingredient, raw_text=i.raw_text)
             ingredients_with_confidence.append({
                 "ingredient": i,
                 "is_confident": is_confident

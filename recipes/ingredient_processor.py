@@ -84,7 +84,11 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             quantity = 0.0
 
         # Create a unique key for grouping (food + unit + prep)
-        prep = (item.get("prep") or "").strip().lower()
+        prep_val = item.get("prep") or ""
+        if isinstance(prep_val, list):
+            prep = ", ".join(prep_val).strip().lower()
+        else:
+            prep = str(prep_val).strip().lower()
         key = (food, unit, prep)
         
         if key in consolidated:
