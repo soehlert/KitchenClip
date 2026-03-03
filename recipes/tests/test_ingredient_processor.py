@@ -1,4 +1,3 @@
-import pytest
 import re
 import ingredient_slicer
 from recipes.ingredient_processor import process_ingredients
@@ -11,7 +10,7 @@ def parse_with_logic(line):
     # Clean "unit" out of food name (the logic in reparse_recipes.py)
     food = (parsed_item.get("food") or "").strip()
     if food:
-        # NEW LOGIC: Restore "or" if it was stripped from the food name
+        # Restore "or" if it was stripped from the food name
         original_lower = line.lower()
         if " or " in original_lower and " or " not in food.lower():
             food_words = food.lower().split()
@@ -38,7 +37,6 @@ def parse_with_logic(line):
 def test_or_conjunction_restoration_simulation():
     """
     Test that 'or' is preserved in the food name.
-    Currently, this test is expected to FAIL until we apply the fix.
     """
     line = "Tortilla chips or crackers"
     parsed = parse_with_logic(line)
