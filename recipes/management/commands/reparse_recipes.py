@@ -1,11 +1,9 @@
 import logging
-import re
-from django.core.management.base import BaseCommand
+=from django.core.management.base import BaseCommand
 from django.db import transaction
 from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.parsers.registry import ParserRegistry
 from recipes.ingredient_processor import process_ingredients, format_time_h_m, parse_ingredient_line
-import ingredient_slicer
 
 logger = logging.getLogger(__name__)
 

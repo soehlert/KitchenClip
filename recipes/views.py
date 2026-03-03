@@ -11,7 +11,6 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.template.loader import render_to_string
 from django.core.paginator import Paginator
 
-import ingredient_slicer
 import json
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
