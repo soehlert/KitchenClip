@@ -1,5 +1,5 @@
 import logging
-=from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand
 from django.db import transaction
 from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.parsers.registry import ParserRegistry
