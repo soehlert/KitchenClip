@@ -37,9 +37,22 @@ def check_value(val):
         return True
     return False
 
-def is_valid_ingredient(quantity, unit, ingredient):
+def is_valid_ingredient(quantity, unit, ingredient, raw_text=None):
     if check_value(quantity) or check_value(unit):
         return True
+
+    # If we have no quantity/unit, check if the raw text even started with a number or unit
+    if raw_text:
+        text = str(raw_text).strip()
+        if text:
+            first_word = text.split()[0].lower()
+            # If the first word doesn't have a digit and isn't a known unit/starter,
+            # then it's likely just a named ingredient like "Salt" or "Tortilla chips" 
+            # and we are "confident" even without a quantity.
+            is_numeric = any(char.isdigit() for char in first_word)
+            is_fraction = any(char in UNICODE_FRACTIONS_CHARS for char in first_word)
+            if not is_numeric and not is_fraction and first_word not in INGREDIENT_STARTERS:
+                return True
 
     if ingredient:
         i = str(ingredient).strip().lower()
