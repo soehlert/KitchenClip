@@ -1,44 +1,82 @@
+from fractions import Fraction
 import re
 import ingredient_slicer
-from fractions import Fraction
+
+def _safe_float(value) -> float:
+    """Internal helper to safely convert values to a float."""
+    if not value:
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+def _extract_numbers(text: str) -> list[float]:
+    """Internal helper to extract all numbers from a string as floats."""
+    extracted_floats = []
+    # Regex finds digits, optionally followed by a decimal point and more digits
+    number_matches = re.findall(r"(\d+(?:\.\d+)?)", text)
+    
+    for match in number_matches:
+        # We can use standard float() here because the regex guarantees it's a valid number format
+        extracted_floats.append(float(match))
+        
+    return extracted_floats
+
 
 def parse_ingredient_line(line: str) -> dict:
     """
     Centralized parsing for a single ingredient line.
-    Includes metric multiplication fix and "or" restoration.
+    Reconciles IngredientSlicer output with the raw text to prevent
+    parenthetical weights from hijacking the primary quantity.
     """
     slicer = ingredient_slicer.IngredientSlicer(line)
     parsed_item = slicer.to_json()
 
-    # 1. Metric Multiplication Fix
-    # Detect if Slicer multiplied count by metric mass (e.g. 6 eggs (305g) -> 1830g)
-    quantity = 0.0
-    try:
-        quantity = float(parsed_item.get("quantity") or 0)
-    except (ValueError, TypeError):
-        pass
-        
-    sec_quantity = 0.0
-    try:
-        sec_quantity = float(parsed_item.get("secondary_quantity") or 0)
-    except (ValueError, TypeError):
-        pass
+    # 1. Metric Multiplication & "Sliding" Quantity Fix
+    # IngredientSlicer often gets confused by weights in parentheses:
+    # - Multiplication: 6 eggs (305g) -> quantity=1830
+    # - Hijacking: 4 scallions (60g) -> quantity=60
 
-    if sec_quantity > 0 and quantity > sec_quantity:
-        parents = parsed_item.get("parenthesis_content") or []
-        for p in parents:
-            nums = re.findall(r"[-+]?\d*\.\d+|\d+", p)
-            for n in nums:
-                try:
-                    if abs(sec_quantity * float(n) - quantity) < 0.1:
-                        parsed_item["quantity"] = str(sec_quantity)
-                        # Clear unit if it was derived from mass in parentheses
-                        u = parsed_item.get("unit") or ""
-                        if u and u.lower() in p.lower():
-                            parsed_item["unit"] = ""
-                        break
-                except ValueError:
-                    continue
+    qty = _safe_float(parsed_item.get("quantity"))
+    sec_qty = _safe_float(parsed_item.get("secondary_quantity"))
+    
+    # Extract "Safe" numbers (outside parentheses)
+    line_no_parens = re.sub(r'\(.*?\)', '', line)
+    safe_nums = _extract_numbers(line_no_parens)
+    
+    # Extract "Danger" numbers (inside parentheses)
+    # We find everything inside parens and get all numbers from there
+    paren_matches = re.findall(r'\((.*?)\)', line)
+    danger_nums = []
+    for p_content in paren_matches:
+        danger_nums.extend(_extract_numbers(p_content))
+    
+    # RECONCILIATION HEURISTIC:
+    # If the parser's quantity is NOT found in the 'Safe' zone but IS found
+    # in the 'Danger' zone (either directly or as a product), we revert.
+    
+    reverted = False
+    if qty > 0 and qty not in safe_nums:
+        # Check Case A: Multiplication (6 * 305 = 1830)
+        if sec_qty in safe_nums and danger_nums:
+            for dn in danger_nums:
+                if abs(sec_qty * dn - qty) < 0.1:
+                    parsed_item["quantity"] = str(sec_qty)
+                    reverted = True
+                    break
+        
+        # Check Case B: Pure Hijacking (4 scallions (60g) -> 60)
+        if not reverted and qty in danger_nums and safe_nums:
+            # We assume the first safe number is the intended count
+            parsed_item["quantity"] = str(safe_nums[0])
+            reverted = True
+
+    # If we reverted, we should also clear any unit that was likely hijacked from the parens
+    if reverted:
+        u = (parsed_item.get("unit") or "").lower()
+        if u and any(u in p_c.lower() for p_c in paren_matches):
+            parsed_item["unit"] = ""
 
     # 2. "Or" Restoration
     food = (parsed_item.get("food") or "").strip()
