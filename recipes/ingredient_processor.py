@@ -82,9 +82,40 @@ def parse_ingredient_line(line: str) -> dict:
 
     # If we reverted, we should also clear any unit that was likely hijacked from the parens
     if reverted:
-        u = (parsed_item.get("unit") or "").lower()
-        if u and any(u in p_c.lower() for p_c in paren_matches):
+        u_temp = (parsed_item.get("unit") or "").lower()
+        if u_temp and any(u_temp in p_c.lower() for p_c in paren_matches):
             parsed_item["unit"] = ""
+
+    # 1.5 Generic Rogue Unit Heuristics
+    # ingredient_slicer has no spatial awareness and will frequently:
+    # 1. Hijack unit words from preparation phrases ("seeds and ribs removed" -> unit: ribs)
+    # 2. Split compound nouns ("hoagie rolls" -> unit: rolls, food: hoagie)
+    # Genuine English units almost always precede the food noun ("1 cup sugar").
+    
+    u_current = (parsed_item.get("unit") or "").lower().strip()
+    food_current = (parsed_item.get("food") or "").strip()
+    
+    if u_current and food_current:
+        # If the unit is already part of the food name ("yellow onion" & "onion"), just clear the unit
+        if u_current in food_current.lower().split() or u_current == food_current.lower():
+            parsed_item["unit"] = ""
+        else:
+            u_idx = line_to_parse.lower().find(u_current)
+            f_words = food_current.lower().split()
+            f_idx = line_to_parse.lower().find(f_words[0]) if f_words else -1
+            
+            # If the parsed unit appears AFTER the food noun in the raw string...
+            if u_idx > f_idx and f_idx != -1:
+                # Check if there is a deliberate separation (comma, parenthesis) between them
+                text_between = line_to_parse.lower()[f_idx:u_idx]
+                if ',' in text_between or '(' in text_between:
+                    # Hijacked from prep (e.g. "2 green bell peppers, ... ribs removed")
+                    parsed_item["unit"] = ""
+                else:
+                    # Split noun phrase (e.g. "4 hoagie rolls")
+                    # Exception: unless it's a size modifier like "chunks" in "tomatoes, chunks" without comma
+                    parsed_item["food"] = f"{food_current} {u_current}".strip()
+                    parsed_item["unit"] = ""
 
     # 2. "Or" Restoration
     food = (parsed_item.get("food") or "").strip()
@@ -220,16 +251,9 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         u = data["unit"]
         f = data["food"]
         
-        # Prevent "onion onion" redundancy or "onion yellow onion"
-        # If the unit is a word already present in the food name, we drop it.
-        if u and f:
-            u_words = u.split()
-            f_words = f.lower().split()
-            # If all words in the unit are already in the food name, clear the unit
-            if all(uw in f_words or uw == f.lower() for uw in u_words):
-                u = ""
-            elif u in f.lower() or f.lower() in u:
-                u = ""
+        # Prevent unit/food redundancy (e.g., unit "onion" & food "yellow onion")
+        if u and f and (set(u.split()) & set(f.split())):
+            u = ""
         
         display_q = format_quantity(q)
         
