@@ -1,5 +1,5 @@
 
-from recipe_scrapers import scrape_me
+from recipe_scrapers import scrape_me, scrape_html
 from .base import BaseParser
 from ..utils import extract_servings, clean_instruction_line
 
@@ -11,7 +11,10 @@ class ScrapersParser(BaseParser):
     
     def __init__(self, url: str, html: str | None = None):
         super().__init__(url, html)
-        self.scraper = scrape_me(url)
+        if self.html:
+            self.scraper = scrape_html(self.html, org_url=self.url)
+        else:
+            self.scraper = scrape_me(self.url)
 
     @property
     def title(self) -> str:

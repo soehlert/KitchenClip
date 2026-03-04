@@ -27,10 +27,19 @@ def _extract_numbers(text: str) -> list[float]:
 def parse_ingredient_line(line: str) -> dict:
     """
     Centralized parsing for a single ingredient line.
-    Reconciles IngredientSlicer output with the raw text to prevent
-    parenthetical weights from hijacking the primary quantity.
     """
-    slicer = ingredient_slicer.IngredientSlicer(line)
+    
+    # 0. Prevent Conflicting "Or" Options
+    # If the line contains "or", we only parse the first half so the slicer
+    or_split = re.split(r'(?:\s+|,)\s*or\s+', line, maxsplit=1, flags=re.IGNORECASE)
+    if len(or_split) > 1:
+        line_to_parse = or_split[0]
+        or_remainder = " or " + or_split[1]
+    else:
+        line_to_parse = line
+        or_remainder = ""
+
+    slicer = ingredient_slicer.IngredientSlicer(line_to_parse)
     parsed_item = slicer.to_json()
 
     # 1. Metric Multiplication & "Sliding" Quantity Fix
@@ -41,13 +50,12 @@ def parse_ingredient_line(line: str) -> dict:
     qty = _safe_float(parsed_item.get("quantity"))
     sec_qty = _safe_float(parsed_item.get("secondary_quantity"))
     
-    # Extract "Safe" numbers (outside parentheses)
-    line_no_parens = re.sub(r'\(.*?\)', '', line)
+    # Extract "Safe" numbers (outside parentheses) from the parsed half
+    line_no_parens = re.sub(r'\(.*?\)', '', line_to_parse)
     safe_nums = _extract_numbers(line_no_parens)
     
-    # Extract "Danger" numbers (inside parentheses)
-    # We find everything inside parens and get all numbers from there
-    paren_matches = re.findall(r'\((.*?)\)', line)
+    # Extract "Danger" numbers (inside parentheses) from the parsed half
+    paren_matches = re.findall(r'\((.*?)\)', line_to_parse)
     danger_nums = []
     for p_content in paren_matches:
         danger_nums.extend(_extract_numbers(p_content))
@@ -62,14 +70,14 @@ def parse_ingredient_line(line: str) -> dict:
         if sec_qty in safe_nums and danger_nums:
             for dn in danger_nums:
                 if abs(sec_qty * dn - qty) < 0.1:
-                    parsed_item["quantity"] = str(sec_qty)
+                    qty = sec_qty
                     reverted = True
                     break
         
         # Check Case B: Pure Hijacking (4 scallions (60g) -> 60)
         if not reverted and qty in danger_nums and safe_nums:
             # We assume the first safe number is the intended count
-            parsed_item["quantity"] = str(safe_nums[0])
+            qty = safe_nums[0]
             reverted = True
 
     # If we reverted, we should also clear any unit that was likely hijacked from the parens
@@ -81,19 +89,11 @@ def parse_ingredient_line(line: str) -> dict:
     # 2. "Or" Restoration
     food = (parsed_item.get("food") or "").strip()
     if food:
-        original_lower = line.lower()
-        if " or " in original_lower and " or " not in food.lower():
-            food_words = food.lower().split()
-            if len(food_words) >= 2:
-                for i in range(1, len(food_words)):
-                    before = " ".join(food_words[:i])
-                    after = " ".join(food_words[i:])
-                    candidate = f"{before} or {after}"
-                    if candidate in original_lower:
-                        food = candidate
-                        break
         # Clean rogue "unit"
         food = re.sub(r'\bunit\b', '', food, flags=re.IGNORECASE).strip()
+        # Append the "or" remainder we stripped earlier
+        if or_remainder:
+            food = f"{food}{or_remainder}".strip()
         parsed_item["food"] = food
 
     # 3. Prep Extraction/Heuristic
@@ -102,25 +102,38 @@ def parse_ingredient_line(line: str) -> dict:
     if not prep_list and parsed_item.get("parenthesis_content"):
         prep_list = parsed_item.get("parenthesis_content")
     parsed_item["prep"] = prep_list
+    
+    # Clean units like "of an onion", "of pepper", etc. and "Unit" string
+    u = parsed_item.get("unit") or ""
+    if u:
+        parsed_item["unit"] = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', u, flags=re.IGNORECASE).strip()
 
+    # Let's ensure quantity is always returned as a float, never a string
+    parsed_item["quantity"] = qty
+    
+    # 4. Filter Junk Headers (e.g. "Ingredients", "Finish")
+    # If the quantity is 0 and the food is just a section header, empty it so it gets skipped
+    food = parsed_item.get("food", "").lower().strip()
+    if qty == 0.0 and food in {"ingredients", "finish", "sauce", "garnish", "for the", "serve with", "to serve", "marinade", "dressing"}:
+        parsed_item["food"] = ""
+        
     return parsed_item
+
+FRACTION_MAP = {
+    0.5: '½', 0.333: '⅓', 0.666: '⅔', 0.25: '¼', 0.75: '¾', 
+    0.2: '⅕', 0.4: '⅖', 0.6: '⅗', 0.8: '⅘', 0.166: '⅙', 
+    0.833: '⅚', 0.125: '⅛', 0.375: '⅜', 0.625: '⅝', 0.875: '⅞'
+}
 
 def decimal_to_fraction(decimal_str: str) -> str:
     """Converts a decimal string to a unicode fraction if possible."""
     try:
         val = float(decimal_str)
-        if val == 0.25:
-            return "¼"
-        if val == 0.5:
-            return "½"
-        if val == 0.75:
-            return "¾"
-        if val == 0.33:
-            return "⅓"
-        if val == 0.66:
-            return "⅔"
-        if val == 0.125:
-            return "⅛"
+        
+        # Check standard unicode fractions (allowing slight floating point variance)
+        for dec_val, frac_char in FRACTION_MAP.items():
+            if abs(val - dec_val) < 0.01:
+                return frac_char
         
         # Fallback to Fraction string if it's a simple denominator
         if val > 0 and val < 1:
@@ -147,7 +160,7 @@ def normalize_ounces(quantity: float, unit: str) -> (float, str):
 
 def format_quantity(quantity: float) -> str:
     """Formats a float as a string or fraction, including mixed numbers."""
-    if quantity == 0:
+    if quantity == 0.0:
         return ""
     if quantity.is_integer():
         return str(int(quantity))
@@ -155,12 +168,14 @@ def format_quantity(quantity: float) -> str:
     whole = int(quantity)
     fractional = quantity - whole
     
+    # We pass the float string to decimal_to_fraction.
+    # It will either return a unicode character or fallback to the string format.
     frac_str = decimal_to_fraction(str(round(fractional, 3)))
     
     if whole > 0:
-        if "/" in frac_str or frac_str in ["¼", "½", "¾", "⅓", "⅔", "⅛"]:
+        if "/" in frac_str or frac_str in FRACTION_MAP.values():
             return f"{whole}{frac_str}"
-        return str(quantity)
+        return str(round(quantity, 3))
     return frac_str
 
 def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[str, any]]:
@@ -177,15 +192,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             
         unit = (item.get("unit") or "").strip().lower()
         
-        # Clean units like "of an onion", "of pepper", etc. and "Unit" string
-        unit = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', unit, flags=re.IGNORECASE).strip()
-        
-        quantity_str = str(item.get("quantity") or "0")
-        
-        try:
-            quantity = float(QuantityConverter.to_float(quantity_str))
-        except Exception:
-            quantity = 0.0
+        # Quantity is now guaranteed to be a float from parse_ingredient_line
+        quantity = item.get("quantity", 0.0)
 
         # Create a unique key for grouping (food + unit + prep)
         prep_val = item.get("prep") or ""
@@ -248,40 +256,6 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         
     return results
 
-class QuantityConverter:
-    UNICODE_FRACTIONS = {
-        '½': 0.5, '⅓': 0.333, '⅔': 0.666, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8,
-        '⅙': 0.166, '⅚': 0.833, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
-    }
-
-    @staticmethod
-    def to_float(val_str: str) -> float:
-        if not val_str:
-            return 0.0
-            
-        val_str = val_str.strip()
-        
-        # Handle unicode fractions
-        for char, decimal in QuantityConverter.UNICODE_FRACTIONS.items():
-            if char in val_str:
-                val_str = val_str.replace(char, f" {decimal}").strip()
-                try:
-                    parts = val_str.split()
-                    return sum(float(p) for p in parts)
-                except ValueError:
-                    return decimal
-
-        try:
-            return float(val_str)
-        except ValueError:
-            try:
-                parts = val_str.split()
-                if len(parts) == 2:
-                    return float(parts[0]) + float(Fraction(parts[1]))
-                return float(Fraction(parts[0]))
-            except Exception:
-                return 0.0
-
 def format_time_h_m(minutes: int | None) -> str:
     """Format minutes into HH:MM."""
     if minutes is None:
@@ -289,4 +263,4 @@ def format_time_h_m(minutes: int | None) -> str:
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours:02d}:{mins:02d}"
-
+    
