@@ -1,4 +1,3 @@
-
 from .base import BaseParser
 from .registry import register_parser
 
@@ -19,7 +18,7 @@ class DemoParser(BaseParser):
             "1.5 cups flour",
             "0.5 cup sugar",
             "16 ounces milk",
-            "4 ounces milk" # Combined test
+            "4 ounces milk"
         ]
 
     @property

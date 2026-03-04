@@ -4,6 +4,7 @@ from django.db import transaction
 from recipes.models import Recipe, Ingredient, RecipeIngredient
 from recipes.parsers.registry import ParserRegistry
 from recipes.ingredient_processor import process_ingredients, format_time_h_m, parse_ingredient_line
+from recipes.utils import clean_instruction_line
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,11 @@ class Command(BaseCommand):
                 for key, val in metadata.items():
                     if val is not None:
                         setattr(recipe, key, val)
-                recipe.save()
+
+            if recipe.instructions:
+                recipe.instructions = clean_instruction_line(recipe.instructions)
+                
+            recipe.save()
 
             # Replace ingredients
             recipe.recipe_ingredients.all().delete()
