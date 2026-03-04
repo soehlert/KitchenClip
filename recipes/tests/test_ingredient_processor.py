@@ -1,6 +1,8 @@
 import re
 import ingredient_slicer
 from recipes.ingredient_processor import process_ingredients
+from recipes.ingredient_processor import parse_ingredient_line
+
 
 def parse_with_logic(line):
     # This simulates the logic currently in reparse_recipes.py
@@ -81,7 +83,6 @@ def test_process_ingredients_with_prep_list():
 
 def test_parse_ingredient_line_metric_multiplier_fix():
     """Test the heuristic that reverses rogue metric multiplication."""
-    from recipes.ingredient_processor import parse_ingredient_line
     
     # 6 eggs (305g) -> 1830g is what Slicer usually produces
     line = "6 large eggs (305g)"
@@ -95,7 +96,6 @@ def test_parse_ingredient_line_metric_multiplier_fix():
 
 def test_parse_ingredient_line_clove_fix():
     """Test another case with cloves and mass."""
-    from recipes.ingredient_processor import parse_ingredient_line
     line = "2 cloves garlic (10g)"
     parsed = parse_ingredient_line(line)
     
