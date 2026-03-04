@@ -316,6 +316,7 @@ class RecipeManualCreateView(CreateView):
         return initial
 
     def form_valid(self, form):
+        form.instance.instructions = clean_instruction_line(form.instance.instructions)
         response = super().form_valid(form)
 
         ingredients_text = form.cleaned_data.get('ingredients_text', '')

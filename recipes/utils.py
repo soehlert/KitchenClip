@@ -80,9 +80,14 @@ def clean_instruction_line(text):
     lines = text.split('\n')
     cleaned_lines = []
     for i, line in enumerate(lines):
-        stripped_line = re.sub(r'^[^A-Za-z]+', '', line.strip())
-        bullet_free_line = re.sub(r'[•◦▪▫]\s*', '', stripped_line)
-        cleaned_line = re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', bullet_free_line)
+        line = line.strip()
+        
+        # Remove ALL leading item markers like "1. ", "1) ", "Step 2:", "• " recursively
+        # This prevents "1. 1. Gather" if a user pastes a numbered list that already has numbers
+        pattern = r'^(?:(?:Step\s+\d+[:.)-]*\s*)|(?:\(?\d+[.)\]:-]\s+)|(?:[•◦▪▫*-]\s*))+'
+        line = re.sub(pattern, '', line, flags=re.IGNORECASE)
+        
+        cleaned_line = re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', line)
 
         if cleaned_line:
             cleaned_lines.append(cleaned_line)
