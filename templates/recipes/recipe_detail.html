@@ -85,7 +85,7 @@
         {% endfor %}
       </ol>
     </div>
-    {% if recipe.is_future %}
+    {% if recipe.is_future and not request.is_readonly %}
     <div class="mb-4">
       <a href="{% url 'recipes:move_to_recipes' recipe.id %}"
         class="block w-full bg-[#5B8E7D] hover:bg-[#194769] text-white font-bold py-3 px-4 rounded-lg transition text-center shadow-sm">
@@ -93,6 +93,7 @@
       </a>
     </div>
     {% endif %}
+    {% if not request.is_readonly %}
     <div class="mb-4">
       <button
         class="toggle-menu-btn w-full font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all border-2
@@ -109,6 +110,7 @@
       <a href="{% url 'recipes:delete_recipe' recipe.id %}"
         class="bg-[#F2855E] hover:bg-[#D73A49] text-white font-semibold py-2 px-4 rounded-lg transition text-center">Delete</a>
     </div>
+    {% endif %}
     {% if recipe.original_url %}
     <div class="mt-3 text-center">
       <a href="{{ recipe.original_url }}" target="_blank" class="underline text-[#194769] font-semibold">View Original

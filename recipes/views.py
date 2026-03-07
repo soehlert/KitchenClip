@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
+from .mixins import AdminRequiredMixin, require_admin
 from .forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
 from .utils import clean_instruction_line, is_valid_ingredient
 from .parsers.registry import ParserRegistry
@@ -33,6 +34,8 @@ def tag_autocomplete(request):
     tags = RecipeTag.objects.filter(name__icontains=q).values("name", "color")
     return JsonResponse(list(tags), safe=False)
 
+@require_POST
+@require_admin
 def move_to_recipes(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
     recipe.is_future = False
@@ -181,6 +184,11 @@ class RecipeCreateView(CreateView):
 
         return context
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
+        return kwargs
+
     def form_valid(self, form):
         original_url = form.cleaned_data["original_url"]
 
@@ -195,6 +203,10 @@ class RecipeCreateView(CreateView):
             form.instance.instructions = parser.instructions
             form.instance.image_url = parser.image_url
             form.instance.original_url = original_url
+
+            if getattr(self.request, 'is_readonly', False):
+                form.instance.is_future = True
+                form.instance.is_on_menu = False
 
             ingredient_lines = parser.ingredients
         except Exception:
@@ -298,6 +310,11 @@ class RecipeManualCreateView(CreateView):
 
         return context
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
+        return kwargs
+
     def get_initial(self):
         initial = super().get_initial()
 
@@ -317,6 +334,11 @@ class RecipeManualCreateView(CreateView):
 
     def form_valid(self, form):
         form.instance.instructions = clean_instruction_line(form.instance.instructions)
+        
+        if getattr(self.request, 'is_readonly', False):
+            form.instance.is_future = True
+            form.instance.is_on_menu = False
+            
         response = super().form_valid(form)
 
         ingredients_text = form.cleaned_data.get('ingredients_text', '')
@@ -363,7 +385,7 @@ class RecipeManualCreateView(CreateView):
         return response
 
 
-class RecipeUpdateView(UpdateView):
+class RecipeUpdateView(AdminRequiredMixin, UpdateView):
     model = Recipe
     form_class = RecipeUpdateForm
     template_name = "recipes/recipe_form.html"
@@ -405,14 +427,14 @@ class RecipeUpdateView(UpdateView):
         return response
 
 
-class RecipeDeleteView(DeleteView):
+class RecipeDeleteView(AdminRequiredMixin, DeleteView):
     model = Recipe
     template_name = "recipes/recipe_confirm_delete.html"
     success_url = reverse_lazy("recipes:list_recipe")
 
 # --- Meal Plan Views ---
 
-class MealPlanView(ListView):
+class MealPlanView(AdminRequiredMixin, ListView):
     template_name = "recipes/meal_plan.html"
     context_object_name = "meal_plans"
 
@@ -476,6 +498,7 @@ def get_sidebar_context(request, saved_page=1, future_page=1):
 
 @csrf_exempt
 @require_POST
+@require_admin
 def toggle_menu_status(request):
     """API endpoint to add/remove a recipe from the menu sidebar."""
     try:
@@ -527,6 +550,7 @@ def sidebar_pagination_api(request):
 
 @csrf_exempt
 @require_POST
+@require_admin
 def update_meal_plan(request):
     """API endpoint to update a meal plan slot."""
     try:

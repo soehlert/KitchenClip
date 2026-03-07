@@ -11,10 +11,15 @@ class ScrapersParser(BaseParser):
     
     def __init__(self, url: str, html: str | None = None):
         super().__init__(url, html)
-        if self.html:
-            self.scraper = scrape_html(self.html, org_url=self.url)
-        else:
+        try:
+            # Try recipe-scrapers' custom downloader first (best for JSON-LD/dynamic sites)
             self.scraper = scrape_me(self.url)
+        except Exception:
+            # Fallback to the HTML that BaseParser downloaded with custom headers
+            if self.html:
+                self.scraper = scrape_html(self.html, org_url=self.url)
+            else:
+                raise
 
     @property
     def title(self) -> str:

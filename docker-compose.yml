@@ -3,6 +3,8 @@ services:
     image: ghcr.io/soehlert/kitchenclip:latest
     ports:
       - "8888:8000"
+    env_file:
+      - .env
     environment:
       - DJANGO_ALLOWED_HOSTS=*
       - PYTHONWARNINGS=ignore:invalid escape sequence:SyntaxWarning
@@ -32,6 +34,8 @@ services:
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
       - ./pyproject.toml:/app/pyproject.toml
+    env_file:
+      - .env
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
@@ -49,6 +53,8 @@ services:
       - ./manage.py:/app/manage.py
       - ./db.sqlite3:/app/data/db.sqlite3
       - ./pyproject.toml:/app/pyproject.toml
+    env_file:
+      - .env
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1

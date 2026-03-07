@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from celery.schedules import crontab
 from pathlib import Path
 import os
+import json
 import warnings
 
 # This package is required by recipe-scrapers but not ready for python3.13 ignore the log lines, nothings broken
@@ -143,6 +144,44 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Authentication
+if os.environ.get("CLOUDFLARE_ENABLED"):
+    auth_index = MIDDLEWARE.index(
+        "django.contrib.auth.middleware.AuthenticationMiddleware"
+    )
+    MIDDLEWARE.insert(
+        auth_index + 1,
+        "KitchenClip.middleware.cloudflare.CloudflareLoginMiddleware",
+    )
+    AUTHENTICATION_BACKENDS = [
+        "recipes.backends.cloudflare.CloudflareAccessBackend"
+    ]
+
+ACCESS_ROLE_MAP = json.loads(os.environ.get('ACCESS_ROLE_MAP', '{}'))
+TRUSTED_LOCAL_SUBNETS = json.loads(os.environ.get('TRUSTED_LOCAL_SUBNETS', '[]'))
+LOCAL_ADMIN_EMAIL = os.environ.get('LOCAL_ADMIN_EMAIL', '')
+
+# Cooking Notifications
+DEFAULT_LUNCH_TIME = "12:00"
+DEFAULT_DINNER_TIME = "18:30"
+BEACON_URL = os.environ.get("BEACON_URL", "https://beacon.soehlert.com/homeassistant/alert")
+ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "False") == "True"
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    'check-upcoming-meals-every-15-mins': {
+        'task': 'recipes.tasks.check_upcoming_meals_task',
+        'schedule': crontab(minute='*/15'),
+    },
+}
+
 TAG_COLORS = [
     "#1abc9c",  # teal
     "#2ecc71",  # green
@@ -185,24 +224,3 @@ TAG_COLORS = [
     "#3e2723",  # brown
     "#795548",  # medium brown
 ]
-
-# Cooking Notifications
-DEFAULT_LUNCH_TIME = "12:00"
-DEFAULT_DINNER_TIME = "18:30"
-BEACON_URL = os.environ.get("BEACON_URL", "https://beacon.soehlert.com/homeassistant/alert")
-ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "False") == "True"
-
-# Celery Configuration
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-
-CELERY_BEAT_SCHEDULE = {
-    'check-upcoming-meals-every-15-mins': {
-        'task': 'recipes.tasks.check_upcoming_meals_task',
-        'schedule': crontab(minute='*/15'),
-    },
-}
