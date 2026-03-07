@@ -6,12 +6,26 @@
 {% block content %}
   <div class="max-w-xl mx-auto">
     <h1 class="text-2xl font-bold mb-4 text-[#194769]">{{ heading }}</h1>
-    <div class="bg-[#F7F9FA] p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
+    <div class="bg-[#F7F9FA] p-4 md:p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
       <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
         {% csrf_token %}
         {{ form.non_field_errors }}
           {% for field in form %}
-          {% if field.name != "tags" %}
+          {% if field.name == 'is_future' %}
+            <div>
+              {{ field }}
+              <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mt-1">
+                Suggestion
+                {% if field.field.required %}<span class="text-[#F2855E]">*</span>{% endif %}
+              </label>
+              {% if field.help_text %}
+                <p class="text-sm text-gray-500">{{ field.help_text }}</p>
+              {% endif %}
+              {% for error in field.errors %}
+                <p class="text-sm text-[#F2855E]">{{ error }}</p>
+              {% endfor %}
+            </div>
+          {% elif field.name != "tags" %}
             <div>
               <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
                 {{ field.label }}
@@ -37,7 +51,7 @@
         </div>
       </form>
 
-      <div class="flex gap-4 mt-6">
+      <div class="flex flex-wrap gap-4 mt-6">
           <button type="submit" form="recipe-form" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition">
               {{ button_text }}
           </button>
