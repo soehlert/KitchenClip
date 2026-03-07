@@ -143,6 +143,7 @@
               {% endif %}
             </div>
           </a>
+          {% if not request.is_readonly %}
           <div class="mt-4 pt-4 border-t border-gray-100 flex justify-end">
             <button
               class="toggle-menu-btn text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all {% if recipe.is_on_menu %}bg-[#5B8E7D] text-white border-[#5B8E7D]{% else %}text-gray-400 border-gray-200 hover:border-[#194769] hover:text-[#194769]{% endif %}"
@@ -152,6 +153,7 @@
               {% if recipe.is_on_menu %}On Menu{% else %}+ Add to Menu{% endif %}
             </button>
           </div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

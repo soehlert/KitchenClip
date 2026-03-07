@@ -60,6 +60,12 @@ class RecipeImportForm(forms.ModelForm):
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
 
+    def __init__(self, *args, **kwargs):
+        self.is_readonly = kwargs.pop('is_readonly', False)
+        super().__init__(*args, **kwargs)
+        if self.is_readonly and 'is_future' in self.fields:
+            del self.fields['is_future']
+
 
 class RecipeUpdateForm(forms.ModelForm):
     rating = forms.ChoiceField(
@@ -298,3 +304,9 @@ class RecipeManualForm(forms.ModelForm):
         if commit:
             recipe.save()
         return recipe
+
+    def __init__(self, *args, **kwargs):
+        self.is_readonly = kwargs.pop('is_readonly', False)
+        super().__init__(*args, **kwargs)
+        if self.is_readonly and 'is_future' in self.fields:
+            del self.fields['is_future']

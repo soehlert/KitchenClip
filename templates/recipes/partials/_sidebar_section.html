@@ -15,9 +15,11 @@
 
             <span class="font-bold text-gray-700 text-xs truncate flex-1">{{ recipe.title }}</span>
 
+            {% if not request.is_readonly %}
             <button
                 class="remove-from-menu opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold px-1 transition-opacity"
                 data-id="{{ recipe.id }}" title="Remove from Menu">&times;</button>
+            {% endif %}
         </div>
         {% empty %}
         <div class="text-[10px] text-gray-400 py-4 text-center font-medium">No recipes on menu</div>
