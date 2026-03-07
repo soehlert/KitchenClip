@@ -34,6 +34,8 @@ def tag_autocomplete(request):
     tags = RecipeTag.objects.filter(name__icontains=q).values("name", "color")
     return JsonResponse(list(tags), safe=False)
 
+@require_POST
+@require_admin
 def move_to_recipes(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
     recipe.is_future = False
