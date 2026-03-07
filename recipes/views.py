@@ -434,7 +434,7 @@ class RecipeDeleteView(AdminRequiredMixin, DeleteView):
 
 # --- Meal Plan Views ---
 
-class MealPlanView(ListView):
+class MealPlanView(AdminRequiredMixin, ListView):
     template_name = "recipes/meal_plan.html"
     context_object_name = "meal_plans"
 

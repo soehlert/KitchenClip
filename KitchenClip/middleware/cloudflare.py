@@ -17,39 +17,33 @@ class CloudflareLoginMiddleware:
         if not request.user.is_authenticated:
             remote_ip = request.META.get("REMOTE_ADDR", "")
             trusted_subnets = getattr(settings, "TRUSTED_LOCAL_SUBNETS", [])
-            print(f"DEBUG: REMOTE_ADDR={remote_ip}")
-            print(f"DEBUG: TRUSTED_LOCAL_SUBNETS={trusted_subnets}")
-            print(f"DEBUG: user authenticated={request.user.is_authenticated}")
 
             on_local_network = any(
                 ipaddress.ip_address(remote_ip) in ipaddress.ip_network(subnet, strict=False)
                 for subnet in trusted_subnets
             )
-            print(f"DEBUG: on_local_network={on_local_network}")
-
             if on_local_network:
                 # Bypass CF auth, treat as admin
                 local_admin_email = getattr(settings, "LOCAL_ADMIN_EMAIL", "")
-                print(f"DEBUG: LOCAL_ADMIN_EMAIL={local_admin_email}")
 
                 user, created = User.objects.get_or_create(
                     username=local_admin_email,
                     defaults={"email": local_admin_email, "is_active": True},
                 )
-                print(f"DEBUG: user={user}, created={created}")
 
                 login(
                     request,
                     user,
                     backend="recipes.backends.cloudflare.CloudflareAccessBackend",
                 )
-                print(f"DEBUG: login called successfully")
+                request.user = user
 
             else:
                 user = authenticate(request)
                 if user:
                     # Log user into session
                     login(request, user)
+                    request.user = user
                 else:
                     # No header gets 403
                     return HttpResponseForbidden("No access.")
@@ -57,10 +51,15 @@ class CloudflareLoginMiddleware:
         role_map = getattr(settings, 'ACCESS_ROLE_MAP', {})
         # read Cf-Access-Authenticated-User-Email header
         email = request.META.get('HTTP_CF_ACCESS_AUTHENTICATED_USER_EMAIL')
-
+        
+        # Fallback to the logged in user's email for local testing
+        if not email and request.user.is_authenticated:
+            email = getattr(request.user, "email", "") or getattr(request.user, "username", "")
+            
         # get the value from the role_map where the email is the key
-        role_map = role_map.get(email)
-        if role_map == "readonly":
+        role_value = role_map.get(email)
+        
+        if role_value == "readonly":
             request.is_readonly = True
         else:
             request.is_readonly = False
