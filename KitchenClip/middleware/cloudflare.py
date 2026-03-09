@@ -15,7 +15,12 @@ class CloudflareLoginMiddleware:
 
     def __call__(self, request):
         if not request.user.is_authenticated:
-            remote_ip = request.META.get("REMOTE_ADDR", "")
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                remote_ip = x_forwarded_for.split(',')[0].strip()
+            else:
+                remote_ip = request.META.get("REMOTE_ADDR", "")
+            
             trusted_subnets = getattr(settings, "TRUSTED_LOCAL_SUBNETS", [])
 
             on_local_network = any(
