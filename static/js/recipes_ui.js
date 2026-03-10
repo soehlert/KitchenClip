@@ -33,11 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.is_on_menu) {
                 btn.classList.remove(...offClasses);
                 btn.classList.add(...onClasses);
-                btn.textContent = btn.classList.contains('w-full') ? 'Remove from Menu' : 'On Menu';
+                btn.textContent = 'Remove from Menu';
             } else {
                 btn.classList.remove(...onClasses);
                 btn.classList.add(...offClasses);
-                btn.textContent = '+ Add to Menu';
+                btn.textContent = 'Add to Menu';
             }
 
             // Notify meal_plan.js (or any other listener) that the menu status changed
