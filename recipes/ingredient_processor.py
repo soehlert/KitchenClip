@@ -189,11 +189,17 @@ def normalize_ounces(quantity: float, unit: str) -> (float, str):
         return quantity, unit
     return quantity, unit
 
-def format_quantity(quantity: float) -> str:
+def format_quantity(quantity: float | str) -> str:
     """Formats a float as a string or fraction, including mixed numbers."""
+    try:
+        if isinstance(quantity, str):
+            quantity = float(quantity)
+    except (ValueError, TypeError):
+        return str(quantity)
+
     if quantity == 0.0:
         return ""
-    if quantity.is_integer():
+    if hasattr(quantity, 'is_integer') and quantity.is_integer():
         return str(int(quantity))
     
     whole = int(quantity)
@@ -223,8 +229,15 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             
         unit = (item.get("unit") or "").strip().lower()
         
-        # Quantity is now guaranteed to be a float from parse_ingredient_line
-        quantity = item.get("quantity", 0.0)
+        # Quantity is now guaranteed to be a float or converted to float
+        raw_quantity = item.get("quantity", 0.0)
+        try:
+            if isinstance(raw_quantity, str):
+                quantity = float(raw_quantity)
+            else:
+                quantity = float(raw_quantity)
+        except (ValueError, TypeError):
+            quantity = 0.0
 
         # Create a unique key for grouping (food + unit + prep)
         prep_val = item.get("prep") or ""

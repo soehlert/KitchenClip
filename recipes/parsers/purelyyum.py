@@ -137,12 +137,19 @@ class PurelyYumParser(BaseParser):
         for ing_str in raw_ingredients:
             try:
                 parsed = ingredient_slicer.IngredientSlicer(ing_str)
-                parsed_ingredients.append(parsed.to_json())
+                p_data = parsed.to_json()
+                # Ensure quantity is a float
+                if 'quantity' in p_data and isinstance(p_data['quantity'], str):
+                    try:
+                        p_data['quantity'] = float(p_data['quantity'])
+                    except ValueError:
+                        p_data['quantity'] = 0.0
+                parsed_ingredients.append(p_data)
             except Exception:
                 # Fallback to appending a dummy dict to preserve something or skip
                 parsed_ingredients.append({
                     "food": ing_str,
-                    "quantity": "0",
+                    "quantity": 0.0,
                     "unit": ""
                 })
 

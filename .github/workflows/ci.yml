@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       DJANGO_ALLOW_ASYNC_UNSAFE: "true"
       DJANGO_SECRET_KEY: "dummy-key-for-github-actions"
       ENABLE_COOKING_NOTIFICATIONS: "False"
