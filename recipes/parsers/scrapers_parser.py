@@ -1,9 +1,11 @@
 import logging
-from recipe_scrapers import scrape_me, scrape_html
+
+from recipe_scrapers import scrape_html, scrape_me
+
+from ..utils import clean_instruction_line, extract_servings
 from .base import BaseParser
 
 logger = logging.getLogger(__name__)
-from ..utils import extract_servings, clean_instruction_line
 
 class ScrapersParser(BaseParser):
     """

@@ -1,28 +1,21 @@
-import json
-import re
-import logging
 import html
-from bs4 import BeautifulSoup
+import json
+import logging
+import re
 
-logger = logging.getLogger(__name__)
-import ingredient_slicer
 from recipe_scrapers import scrape_me
 
+from recipes.ingredient_processor import (format_time_h_m,
+                                          parse_ingredient_line,
+                                          process_ingredients)
+
+from ..utils import extract_servings
 from .base import BaseParser
 from .registry import register_parser
-from ..utils import extract_servings
-from recipes.ingredient_processor import process_ingredients, format_time_h_m
+from .utils import get_soup, parse_iso_duration
 
-def parse_iso_duration(duration_str: str) -> int | None:
-    if not duration_str:
-        return None
-    match = re.match(r'P(?:T(?:(\d+)H)?(?:(\d+)M)?)?', duration_str)
-    if match:
-        hours = int(match.group(1)) if match.group(1) else 0
-        minutes = int(match.group(2)) if match.group(2) else 0
-        total = hours * 60 + minutes
-        return total if total > 0 else None
-    return None
+logger = logging.getLogger(__name__)
+
 
 @register_parser
 class AllrecipesParser(BaseParser):
@@ -52,7 +45,7 @@ class AllrecipesParser(BaseParser):
         if not self.html:
             return
             
-        soup = BeautifulSoup(self.html, 'html.parser')
+        soup = get_soup(self.html)
         scripts = soup.find_all('script', type='application/ld+json')
         
         for script in scripts:
@@ -194,7 +187,6 @@ class AllrecipesParser(BaseParser):
         
         for ing_str in raw_ingredients:
             try:
-                from recipes.ingredient_processor import parse_ingredient_line
                 parsed_item = parse_ingredient_line(str(ing_str))
                 parsed_ingredients.append(parsed_item)
             except Exception as e:

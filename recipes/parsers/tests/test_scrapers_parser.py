@@ -1,5 +1,6 @@
 from recipes.parsers.scrapers_parser import ScrapersParser
 
+
 def test_scrapers_parser_fallback(load_fixture):
     # Use the shared fixture loader
     mock_html = load_fixture("mock_recipe.html")

@@ -1,6 +1,7 @@
 from .base import BaseParser
 from .registry import register_parser
 
+
 @register_parser
 class DemoParser(BaseParser):
     """

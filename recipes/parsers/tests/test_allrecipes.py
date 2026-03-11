@@ -1,5 +1,5 @@
-import pytest
 from recipes.parsers.allrecipes import AllrecipesParser
+
 
 def test_allrecipes_parsing(load_fixture):
     # Use the shared fixture loader

@@ -1,7 +1,10 @@
+import logging
 from urllib.parse import urlparse
 
 from .base import BaseParser
 from .scrapers_parser import ScrapersParser
+
+logger = logging.getLogger(__name__)
 
 class ParserRegistry:
     """
@@ -31,9 +34,11 @@ class ParserRegistry:
             # Check if parser has a list of supported domains
             supported_domains = getattr(parser_class, "SUPPORTED_DOMAINS", [])
             if domain in supported_domains:
+                logger.info(f"ParserRegistry: Found custom parser {parser_class.__name__} for {url}")
                 return parser_class(url)
 
         # Fallback to the general scraper
+        logger.info(f"ParserRegistry: Falling back to ScrapersParser for {url}")
         return ScrapersParser(url)
 
 # Helper decorator for easy registration

@@ -209,7 +209,8 @@ class RecipeCreateView(CreateView):
                 form.instance.is_on_menu = False
 
             ingredient_lines = parser.ingredients
-        except Exception:
+        except Exception as e:
+            logger.exception(f"RecipeCreateView: Parsing failed for {original_url}")
             self.request.session['failed_recipe_url'] = original_url
             self.request.session['preserved_form_data'] = {
                 'rating': form.cleaned_data.get('rating'),
