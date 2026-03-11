@@ -1,32 +1,31 @@
-from django.shortcuts import get_object_or_404
-from django.utils.timezone import now
 import datetime
-from django.urls import reverse_lazy, reverse
-from django.db.models import Q
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponseRedirect
-from functools import reduce
-import operator
-from django.core.serializers.json import DjangoJSONEncoder
-from django.template.loader import render_to_string
-from django.core.paginator import Paginator
-
 import json
-from django.views.generic import (
-    ListView, DetailView, CreateView, UpdateView, DeleteView
-)
-from django.core.exceptions import ValidationError
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
-
-from .models import Recipe, Ingredient, RecipeIngredient, RecipeTag, MealPlan
-from .mixins import AdminRequiredMixin, require_admin
-from .forms import RecipeImportForm, RecipeUpdateForm, RecipeManualForm
-from .utils import clean_instruction_line, is_valid_ingredient
-from .parsers.registry import ParserRegistry
-from .ingredient_processor import process_ingredients, parse_ingredient_line
-
 import logging
+import operator
+from functools import reduce
+
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Q
+from django.http import HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.urls import reverse, reverse_lazy
+from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
+
+from .forms import RecipeImportForm, RecipeManualForm, RecipeUpdateForm
+from .ingredient_processor import parse_ingredient_line, process_ingredients
+from .mixins import AdminRequiredMixin, require_admin
+from .models import Ingredient, MealPlan, Recipe, RecipeIngredient, RecipeTag
+from .parsers.registry import ParserRegistry
+from .utils import clean_instruction_line, is_valid_ingredient
+
 logger = logging.getLogger(__name__)
 
 def tag_autocomplete(request):
@@ -209,7 +208,7 @@ class RecipeCreateView(CreateView):
                 form.instance.is_on_menu = False
 
             ingredient_lines = parser.ingredients
-        except Exception as e:
+        except Exception:
             logger.exception(f"RecipeCreateView: Parsing failed for {original_url}")
             self.request.session['failed_recipe_url'] = original_url
             self.request.session['preserved_form_data'] = {
