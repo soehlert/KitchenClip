@@ -1,8 +1,10 @@
-import pkgutil
 import importlib
+import pkgutil
+
+from .demo_parser import DemoParser
 from .registry import ParserRegistry, register_parser
 from .scrapers_parser import ScrapersParser
-from .demo_parser import DemoParser
+
 
 # Automatically discover and register all parsers in this package
 def discover_parsers():

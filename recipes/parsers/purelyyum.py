@@ -1,13 +1,15 @@
 import json
 import re
 
-from bs4 import BeautifulSoup
 import ingredient_slicer
+from bs4 import BeautifulSoup
 
+from recipes.ingredient_processor import format_time_h_m, process_ingredients
+
+from ..utils import extract_servings
 from .base import BaseParser
 from .registry import register_parser
-from ..utils import extract_servings
-from recipes.ingredient_processor import process_ingredients, format_time_h_m
+
 
 def parse_iso_duration(duration_str: str) -> int | None:
     if not duration_str:

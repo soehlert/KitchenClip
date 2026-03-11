@@ -1,6 +1,8 @@
-from abc import ABC, abstractmethod
-import requests
 import logging
+from abc import ABC, abstractmethod
+
+import httpx
+
 from recipes.ingredient_processor import format_time_h_m
 
 logger = logging.getLogger(__name__)
@@ -20,12 +22,12 @@ class BaseParser(ABC):
             self.html = html
 
     def _fetch_html(self, url: str) -> str | None:
-        """Fetch HTML content from the URL with robust headers."""
+        """Fetch HTML content from the URL with robust headers using httpx."""
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate',
             'Referer': 'https://www.google.com/',
             'DNT': '1',
             'Connection': 'keep-alive',
@@ -37,9 +39,17 @@ class BaseParser(ABC):
             'Cache-Control': 'max-age=0',
         }
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            return response.text
+            with httpx.Client(follow_redirects=True, timeout=15.0) as client:
+                response = client.get(url, headers=headers)
+                
+                if response.status_code == 403:
+                    logger.warning(f"Access forbidden (403) for {url}. Possible bot detection.")
+                
+                response.raise_for_status()
+                return response.text
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error {e.response.status_code} fetching HTML from {url}")
+            return None
         except Exception as e:
             logger.error(f"Failed to fetch HTML from {url}: {e}")
             return None
