@@ -1,6 +1,10 @@
 import json
 import re
+import logging
+import html
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 import ingredient_slicer
 from recipe_scrapers import scrape_me
 
@@ -35,10 +39,14 @@ class AllrecipesParser(BaseParser):
         
         # If JSON-LD failed (likely due to a 403 on our manual fetch), fall back to recipe-scrapers
         if not self._recipe_data:
+            logger.info(f"JSON-LD extraction failed for {url}, falling back to recipe-scrapers")
             try:
                 self._scraper_fallback = scrape_me(url)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"recipe-scrapers fallback also failed for {url}: {e}")
                 pass
+        else:
+            logger.info(f"Successfully extracted JSON-LD for {url}")
 
     def _parse_json_ld(self):
         if not self.html:
@@ -62,19 +70,24 @@ class AllrecipesParser(BaseParser):
                         if item_type == 'Recipe' or (isinstance(item_type, list) and 'Recipe' in item_type):
                             self._recipe_data = item
                             return
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                logger.debug(f"JSON decode error in script block: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error parsing JSON-LD script block: {e}")
                 continue
 
     @property
     def title(self) -> str:
+        t = ""
         if self._recipe_data and 'name' in self._recipe_data:
-            return str(self._recipe_data['name'])
-        if self._scraper_fallback:
+            t = str(self._recipe_data['name'])
+        elif self._scraper_fallback:
             try:
-                return self._scraper_fallback.title()
+                t = self._scraper_fallback.title()
             except Exception:
                 pass
-        return ""
+        return html.unescape(t) if t else ""
 
     @property
     def description(self) -> str:
@@ -181,12 +194,14 @@ class AllrecipesParser(BaseParser):
         
         for ing_str in raw_ingredients:
             try:
-                parsed = ingredient_slicer.IngredientSlicer(str(ing_str))
-                parsed_ingredients.append(parsed.to_json())
-            except Exception:
+                from recipes.ingredient_processor import parse_ingredient_line
+                parsed_item = parse_ingredient_line(str(ing_str))
+                parsed_ingredients.append(parsed_item)
+            except Exception as e:
+                logger.error(f"Error parsing ingredient line '{ing_str}': {e}")
                 parsed_ingredients.append({
                     "food": str(ing_str),
-                    "quantity": "0",
+                    "quantity": 0.0,
                     "unit": ""
                 })
 
