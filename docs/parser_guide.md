@@ -1,6 +1,6 @@
 # The Ultimate KitchenClip Recipe Parser Guide
 
-This guide is the complete resource for anyone looking to build, debug, or understand recipe parsers in KitchenClip. It covers discovery, implementation using shared helpers, and the full data lifecycle.
+This guide is the complete resource for anyone looking to build, debug, or understand recipe parsers in KitchenClip. It covers discovery, the automated inheritance architecture, and the detailed data lifecycle from URL to database.
 
 ---
 
@@ -14,7 +14,7 @@ Before writing any code, you need to see if the website provides "machine-readab
 3.  **Inspect**: Look for a `<script>` tag that contains a JSON object with `"@type": "Recipe"`.
 
 ### Mapping Chart: JSON-LD to KitchenClip
-When you find the JSON, you map its keys to these parser properties:
+When you find the JSON, you map its keys to these parser properties (handled automatically by `BaseParser`):
 
 | Component | JSON-LD Key (Standard) | KitchenClip Property | Notes |
 | :--- | :--- | :--- | :--- |
@@ -28,74 +28,130 @@ When you find the JSON, you map its keys to these parser properties:
 
 ---
 
-## 2. Selection: The Factory Pattern
+## 2. Selection
 
 When you click "Import Recipe", KitchenClip uses a **Factory Method**.
 
-> [!NOTE]
-> **What is a Factory Method?** 
-> It's a design pattern where one central function (`get_parser`) is responsible for deciding exactly which class to create based on the input provided (the URL). You don't have to know which parser to use; the Factory figures it out for you.
-
 ### Logic Flow in `ParserRegistry.get_parser(url)`:
-1.  **Domain Extraction**: It strips the URL to its base domain (e.g., `lesswithlaur.com`).
-2.  **Registration Check**: It iterates through `_parsers` (a list of all classes that used the `@register_parser` decorator).
-3.  **Domain Matching**: 
-    - Inside each parser class, we define a list of domains it handles: `SUPPORTED_DOMAINS = ["lesswithlaur.com"]`.
-    - The registry uses `getattr(parser_class, "SUPPORTED_DOMAINS", [])` to check that list.
-    - If it find a match, it **instantiates** that specific parser.
-4.  **Fallback**: If no custom parser matches the domain, it returns a `ScrapersParser` (which uses a 3rd-party library as a "catch-all").
+1.  **Domain Extraction**: It strips the URL to its base domain (e.g., `allrecipes.com`).
+2.  **Registration Check**: It iterates through `_parsers` (all classes using the `@register_parser` decorator).
+3.  **Domain Matching**: It checks `SUPPORTED_DOMAINS` in each class. If it finds a match, it **instantiates** that specific parser.
+4.  **Fallback**: If no custom parser matches, it returns a `ScrapersParser` (a catch-all 3rd-party scraper).
 
 ---
 
-## 3. Extraction: The Parser Lifecycle & Shared Helpers
+## 3. Extraction: The Automated Lifecycle
 
-KitchenClip provides shared helpers to make writing parsers faster and more reliable.
+KitchenClip uses an inheritance-based architecture where `BaseParser` handles the heavy lifting.
 
-### BaseParser Helpers
-- **`self._get_json_ld_data(target_type="Recipe")`**: This method (defined in `BaseParser`) handles searching all `<script>` tags, parsing JSON, and looking through `@graph` arrays to find the recipe data.
+### The Standard Parser Example
+```python
+from .base import BaseParser
+from .registry import register_parser
 
-### Utility Helpers
-- **`parse_iso_duration(duration_str)`**: (from `.utils`) Converts ISO 8601 durations like `PT1H30M` into a simple integer of total minutes (`90`).
+@register_parser
+class MyNewParser(BaseParser):
+    SUPPORTED_DOMAINS = ["example.com"]
+```
 
-### The Extraction Path:
-1.  **`BaseParser.__init__`**: Fetches the HTML from the web using `httpx`.
-2.  **`CustomParser._parse_json_ld()`**:
-    - Simply calls `self._recipe_data = self._get_json_ld_data()`.
-3.  **Property Access**: The system now asks for data. For example:
-    - `parser.ingredients` calls `return self._recipe_data.get('recipeIngredient', [])`.
+### The Function Call Stack:
+1.  **`BaseParser.__init__`**: 
+    - Fetches the HTML from the web using `httpx`.
+    - calls **`self._get_json_ld_data()`**: Searches `<script>` tags for `"@type": "Recipe"`. result maps to `self._recipe_data`.
+    - calls **`self._setup_scraper_fallback()`**: If JSON-LD is missing, it initializes `recipe-scrapers`.
+2.  **Property Access**: When the system needs a title, it calls `parser.title`.
+    - `BaseParser.title` checks `self._recipe_data.get('name')`.
+    - If empty, it checks `self._scraper.title()`.
 
 ---
 
-## 4. Processing: The Ingredient Pipeline
+## 4. Advanced: Overriding Defaults
+
+If a site is truly unique, you can still override anything in the parser:
+
+```python
+@property
+def title(self):
+    # Do custom regex or soup parsing here
+    return "Custom Title"
+```
+
+---
+
+## 5. Processing: The Ingredient Pipeline
 
 This is where raw text becomes structured database entries.
 
-### The Function Call Path:
+### The Function Call Stack:
 1.  **`views.RecipeCreateView.form_valid`**: Loops through the list of raw strings from `parser.ingredients`.
 2.  **`ingredient_processor.parse_ingredient_line(line)`**:
     - **Calls `ingredient_slicer.IngredientSlicer(line)`**: This external library breaks "1 cup chopped onions" into `quantity: 1`, `unit: cup`, `food: onions`.
-    - **Applies Heuristics**: Our code then fixes common mistakes (e.g., ensuring "1 (15oz) can" doesn't return 15 as the quantity).
+    - **KitchenClip Heuristics**: Our code then fixes common mistakes (e.g., ensuring "1 (15oz) can" doesn't return 15 as the quantity).
 3.  **`ingredient_processor.process_ingredients(parsed_list)`**:
-    - **Consolidates**: If two lines both say "salt", it adds the quantities together.
-    - **Normalizes**: Converts "32 oz" to "2 lbs".
-    - **Beautifies**: Converts `0.5` to `½`.
+    - **Consolidates**: Adds quantities together for duplicate ingredients.
+    - **Normalizes/Beautifies**: Converts units (ounces to lbs) and formats numbers (0.5 to ½).
 4.  **Database Storage**:
-    - `Ingredient.objects.get_or_create(name=name)`: Finds or makes the base ingredient (e.g., "Onion").
-    - `RecipeIngredient.objects.create(...)`: Saves the specific amount for *this* recipe (e.g., "1 cup").
+    - `Ingredient.objects.get_or_create(name=name)`
+    - `RecipeIngredient.objects.create(...)`
 
 ---
 
-## 5. Testing: Proving it Works
+## 6. Fallbacks: When it Fails
 
-Always create an automated test to ensure your parser doesn't break later.
+1.  **No JSON-LD**: `BaseParser` automatically attempts a fallback via `_setup_scraper_fallback`.
+2.  **Total Failure**: If `RecipeCreateView` detects that critical fields (title/ingredients) are missing after all attempts, it redirects the user to the **Manual Add** page so they don't lose the data they were trying to import.
 
-1.  **Capture a Fixture**: `curl -L "URL" -o recipes/parsers/tests/fixtures/site_name.html`.
-2.  **Mock the Network**: In the test, we pass this local HTML to the parser so it doesn't actually hit the internet.
-3.  **Assert**: Check that the parsed results match the website.
-    ```python
-    def test_parsing(load_fixture):
-        html = load_fixture("site_name.html")
-        parser = MyParser(url, html)
-        assert parser.title == "Example Cake"
-        assert "1 cup flour" in parser.ingredients
-    ```
+---
+
+## 7. Testing: Proving it Works
+
+KitchenClip uses **pytest** for testing. Since the application runs in Docker, you must execute the tests within the container environment.
+
+### 1. How to Run Tests
+Because we use `pytest-django`, standard `python manage.py test` will not find our tests. Use this command:
+
+```bash
+docker compose exec web pytest recipes/parsers/tests
+```
+
+### 2. The Fixture Pattern
+Always capture a local fixture to verify your parser offline without hitting the internet:
+1.  **Capture**: `curl -L "URL" -o recipes/parsers/tests/fixtures/site_name.html`.
+2.  **Mock**: In your test, use the `load_fixture` utility to pass this local HTML to your parser.
+
+### 3. Comprehensive Test Example
+A good test ensures every component (title, ingredients, instructions, etc.) is extracted correctly.
+
+```python
+from recipes.parsers.my_parser import MyParser
+
+def test_my_parser_parsing(load_fixture):
+    # Load the captured local HTML
+    html = load_fixture("site_name.html")
+    url = "https://example.com/recipe-url/"
+    
+    # Initialize parser with mock data
+    parser = MyParser(url, html)
+    
+    # 1. Assert Basic Info
+    assert parser.title == "Awesome Chocolate Cake"
+    assert "best cake ever" in parser.description.lower()
+    assert parser.servings == 8
+    
+    # 2. Assert Ingredients (check count and specific items)
+    assert len(parser.ingredients) == 5
+    assert "2 cups flour" in parser.ingredients
+    assert "1 tsp salt" in parser.ingredients
+    
+    # 3. Assert Instructions
+    assert "Preheat oven to 350F." in parser.instructions
+    assert len(parser.instructions.splitlines()) >= 3
+    
+    # 4. Assert Times (KitchenClip converts ISO 8601 to minutes)
+    assert parser.prep_time == 15
+    assert parser.cook_time == 45
+    assert parser.total_time == 60
+    
+    # 5. Assert Image URL
+    assert "chocolate-cake.jpg" in parser.image_url
+```
