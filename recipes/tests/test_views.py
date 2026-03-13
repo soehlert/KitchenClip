@@ -1,8 +1,11 @@
-import pytest
 import json
+
+import pytest
 from django.urls import reverse
-from recipes.models import Recipe, MealPlan
 from django.utils import timezone
+
+from recipes.models import MealPlan, Recipe
+
 
 @pytest.mark.django_db
 def test_recipe_list_view(client):

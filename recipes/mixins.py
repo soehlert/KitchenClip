@@ -1,5 +1,7 @@
-from django.core.exceptions import PermissionDenied
 from functools import wraps
+
+from django.core.exceptions import PermissionDenied
+
 
 class AdminRequiredMixin:
     """Verify that the current user is an admin (not read-only)."""

@@ -1,10 +1,12 @@
 import logging
+from datetime import datetime, timedelta
+
 import httpx
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.utils import timezone
+
 from .models import MealPlan
-from asgiref.sync import sync_to_async
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 

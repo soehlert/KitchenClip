@@ -2,9 +2,9 @@
 
 import ipaddress
 
-from django.contrib.auth import authenticate, login, get_user_model
-from django.http import HttpResponseForbidden
 from django.conf import settings
+from django.contrib.auth import authenticate, get_user_model, login
+from django.http import HttpResponseForbidden
 
 User = get_user_model()
 
