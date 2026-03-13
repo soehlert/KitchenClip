@@ -36,12 +36,12 @@ if env_file.exists():
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-fallback-key-for-local-dev-only")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(os.environ.get("DEBUG", default=0))
+DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "https://127.0.0.1").split(",")
-USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "False") == "True"
-USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "False") == "True"
+USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "0") == "1"
+USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "0") == "1"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
@@ -145,7 +145,7 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication
-if os.environ.get("CLOUDFLARE_ENABLED"):
+if os.environ.get("CLOUDFLARE_ENABLED", "0") == "1":
     auth_index = MIDDLEWARE.index(
         "django.contrib.auth.middleware.AuthenticationMiddleware"
     )
@@ -165,7 +165,7 @@ LOCAL_ADMIN_EMAIL = os.environ.get('LOCAL_ADMIN_EMAIL', '')
 DEFAULT_LUNCH_TIME = "12:00"
 DEFAULT_DINNER_TIME = "18:30"
 BEACON_URL = os.environ.get("BEACON_URL", "https://beacon.soehlert.com/homeassistant/alert")
-ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "False") == "True"
+ENABLE_COOKING_NOTIFICATIONS = os.environ.get("ENABLE_COOKING_NOTIFICATIONS", "0") == "1"
 
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")

@@ -105,53 +105,47 @@ This is where raw text becomes structured database entries.
 
 ## 7. Testing: Proving it Works
 
-KitchenClip uses **pytest** for testing. Since the application runs in Docker, you must execute the tests within the container environment.
+KitchenClip uses **pytest** for testing. To keep tests clean and 100% offline, we use **Pytest Markers** to map URLs to local fixtures.
 
 ### 1. How to Run Tests
-Because we use `pytest-django`, standard `python manage.py test` will not find our tests. Use this command:
-
 ```bash
 docker compose exec web pytest recipes/parsers/tests
 ```
 
-### 2. The Fixture Pattern
-Always capture a local fixture to verify your parser offline without hitting the internet:
+### 2. The Scalable Marker Pattern
+Each test specifies its own fixture using a decorator. This is handled invisibly by `conftest.py`.
+
 1.  **Capture**: `curl -L "URL" -o recipes/parsers/tests/fixtures/site_name.html`.
-2.  **Mock**: In your test, use the `load_fixture` utility to pass this local HTML to your parser.
+2.  **Mock**: Add `@pytest.mark.recipe_fixture("site_name.html")` to your test.
 
 ### 3. Comprehensive Test Example
-A good test ensures every component (title, ingredients, instructions, etc.) is extracted correctly.
-
 ```python
+import pytest
 from recipes.parsers.my_parser import MyParser
 
-def test_my_parser_parsing(load_fixture):
-    # Load the captured local HTML
-    html = load_fixture("site_name.html")
+@pytest.mark.recipe_fixture("site_name.html")
+def test_my_parser_parsing():
     url = "https://example.com/recipe-url/"
     
-    # Initialize parser with mock data
-    parser = MyParser(url, html)
+    parser = MyParser(url)
     
-    # 1. Assert Basic Info
     assert parser.title == "Awesome Chocolate Cake"
     assert "best cake ever" in parser.description.lower()
     assert parser.servings == 8
     
-    # 2. Assert Ingredients (check count and specific items)
+    # Check ingredients
     assert len(parser.ingredients) == 5
     assert "2 cups flour" in parser.ingredients
-    assert "1 tsp salt" in parser.ingredients
     
-    # 3. Assert Instructions
-    assert "Preheat oven to 350F." in parser.instructions
+    # Check instructions
+    assert "Preheat oven to 350F" in parser.instructions
     assert len(parser.instructions.splitlines()) >= 3
     
-    # 4. Assert Times (KitchenClip converts ISO 8601 to minutes)
+    # Check times (converted to minutes)
     assert parser.prep_time == 15
     assert parser.cook_time == 45
     assert parser.total_time == 60
     
-    # 5. Assert Image URL
+    # Check image URL
     assert "chocolate-cake.jpg" in parser.image_url
 ```

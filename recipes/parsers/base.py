@@ -17,14 +17,11 @@ class BaseParser(ABC):
     Any custom parser should inherit from this and implement the methods.
     """
     
-    def __init__(self, url: str, html: str | None = None):
+    def __init__(self, url: str):
         self.url = url
         self._recipe_data = {}
         self._scraper = None  # Optional recipe-scrapers instance
-        if html is None:
-            self.html = self._fetch_html(url)
-        else:
-            self.html = html
+        self.html = self._fetch_html(url)
         
         # Perform standard discovery automatically
         self._recipe_data = self._get_json_ld_data()
@@ -96,11 +93,14 @@ class BaseParser(ABC):
                     # Check for @graph
                     if '@graph' in block:
                         for item in block['@graph']:
-                            if item.get('@type') == target_type:
+                            item_type = item.get('@type')
+                            if item_type == target_type or (isinstance(item_type, list) and target_type in item_type):
                                 return item
                     # Check direct type
-                    elif block.get('@type') == target_type:
-                        return block
+                    else:
+                        block_type = block.get('@type')
+                        if block_type == target_type or (isinstance(block_type, list) and target_type in block_type):
+                            return block
             
             return None
         except Exception as e:
@@ -108,14 +108,30 @@ class BaseParser(ABC):
             return None
 
     def _setup_scraper_fallback(self):
-        """Optional helper to initialize recipe-scrapers if JSON-LD fails."""
-        if not self._recipe_data:
-            try:
-                from recipe_scrapers import scrape_me
+        """Optional helper to initialize recipe-scrapers if needed."""
+        if self._scraper:
+            return
+
+        try:
+            from recipe_scrapers import scrape_me
+            if self.html:
+                self._scraper = scrape_me(self.url, html=self.html)
+            else:
                 self._scraper = scrape_me(self.url)
-                logger.info(f"Initialized scraper fallback for {self.url}")
-            except Exception as e:
-                logger.warning(f"Scraper fallback failed for {self.url}: {e}")
+            logger.info(f"Initialized scraper fallback for {self.url}")
+        except Exception as e:
+            logger.warning(f"Scraper fallback failed for {self.url}: {e}")
+
+    def _get_scraper_val(self, method_name: str, default: any = None) -> any:
+        """Safely extract a value from the scraper fallback."""
+        if not self._scraper:
+            return default
+        try:
+            method = getattr(self._scraper, method_name)
+            val = method()
+            return val if val is not None else default
+        except Exception:
+            return default
 
     @property
     def title(self) -> str:
@@ -124,11 +140,8 @@ class BaseParser(ABC):
         if self._recipe_data and 'name' in self._recipe_data:
             t = BeautifulSoup(str(self._recipe_data['name']), "html.parser").get_text().strip()
         
-        if not t and self._scraper:
-            try:
-                t = self._scraper.title()
-            except Exception:
-                pass
+        if not t:
+            t = self._get_scraper_val("title", "")
         
         if t:
             import html
@@ -141,12 +154,7 @@ class BaseParser(ABC):
         if self._recipe_data and 'recipeIngredient' in self._recipe_data:
             return self._recipe_data['recipeIngredient']
         
-        if self._scraper:
-            try:
-                return self._scraper.ingredients()
-            except Exception:
-                pass
-        return []
+        return self._get_scraper_val("ingredients", [])
 
     def _extract_steps(self, items: list | dict | str) -> list[str]:
         """Recursive helper to extract instruction text from HowToStep and HowToSection."""
@@ -196,11 +204,8 @@ class BaseParser(ABC):
                         result.append(clean_text)
             instr = "\n".join(result)
 
-        if not instr and self._scraper:
-            try:
-                instr = self._scraper.instructions()
-            except Exception:
-                pass
+        if not instr:
+            instr = self._get_scraper_val("instructions", "")
         
         return instr
 
@@ -211,11 +216,8 @@ class BaseParser(ABC):
         if self._recipe_data and 'description' in self._recipe_data:
             d = BeautifulSoup(str(self._recipe_data['description']), "html.parser").get_text().strip()
         
-        if not d and self._scraper:
-            try:
-                d = self._scraper.description()
-            except Exception:
-                pass
+        if not d:
+            d = self._get_scraper_val("description", "")
         return d
 
     @property
@@ -236,11 +238,8 @@ class BaseParser(ABC):
             elif isinstance(img, str):
                 img_url = img
 
-        if not img_url and self._scraper:
-            try:
-                img_url = self._scraper.image()
-            except Exception:
-                pass
+        if not img_url:
+            img_url = self._get_scraper_val("image", "")
             
         return img_url
 
@@ -252,11 +251,8 @@ class BaseParser(ABC):
             from .utils import parse_iso_duration
             t = parse_iso_duration(str(self._recipe_data['prepTime']))
         
-        if t is None and self._scraper:
-            try:
-                t = self._scraper.prep_time()
-            except Exception:
-                pass
+        if t is None:
+            t = self._get_scraper_val("prep_time", 0)
         return t
 
     @property
@@ -267,11 +263,8 @@ class BaseParser(ABC):
             from .utils import parse_iso_duration
             t = parse_iso_duration(str(self._recipe_data['cookTime']))
         
-        if t is None and self._scraper:
-            try:
-                t = self._scraper.cook_time()
-            except Exception:
-                pass
+        if t is None:
+            t = self._get_scraper_val("cook_time", 0)
         return t
 
     @property
@@ -282,19 +275,16 @@ class BaseParser(ABC):
             from .utils import parse_iso_duration
             t = parse_iso_duration(str(self._recipe_data['totalTime']))
         
-        if t is None and self._scraper:
-            try:
-                t = self._scraper.total_time()
-            except Exception:
-                pass
+        if t is None:
+            t = self._get_scraper_val("total_time", 0)
         
-        if t is not None:
+        if t is not None and t > 0:
             return t
 
         # Fallback to sum
         pt = self.prep_time or 0
         ct = self.cook_time or 0
-        return pt + ct if pt + ct > 0 else None
+        return pt + ct if pt + ct > 0 else 0
 
     @property
     def servings(self) -> int | None:
@@ -308,14 +298,13 @@ class BaseParser(ABC):
             else:
                 s = extract_servings(str(yield_data))
         
-        if s is None and self._scraper:
-            try:
-                y = self._scraper.yields()
+        if s is None:
+            y = self._get_scraper_val("yields", "")
+            if y:
                 from ..utils import extract_servings
-                s = extract_servings(str(y)) if y else None
-            except Exception:
-                pass
-        return s
+                s = extract_servings(str(y))
+        
+        return s if s is not None else 1
 
     @property
     def prep_time_str(self) -> str:
