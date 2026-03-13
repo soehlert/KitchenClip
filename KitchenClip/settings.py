@@ -9,11 +9,12 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-from celery.schedules import crontab
-from pathlib import Path
-import os
 import json
+import os
 import warnings
+from pathlib import Path
+
+from celery.schedules import crontab
 
 # This package is required by recipe-scrapers but not ready for python3.13 ignore the log lines, nothings broken
 warnings.filterwarnings(

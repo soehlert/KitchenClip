@@ -1,5 +1,7 @@
 import pytest
+
 from recipes.parsers.houseofnasheats import HouseOfNashEatsParser
+
 
 @pytest.mark.recipe_fixture("houseofnasheats_banana_bread.html")
 def test_houseofnasheats_parsing():

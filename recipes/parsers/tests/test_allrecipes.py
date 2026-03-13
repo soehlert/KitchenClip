@@ -1,5 +1,7 @@
 import pytest
+
 from recipes.parsers.allrecipes import AllrecipesParser
+
 
 @pytest.mark.recipe_fixture("allrecipes_100_grand.html")
 def test_allrecipes_parsing():

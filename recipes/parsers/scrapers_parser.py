@@ -1,4 +1,5 @@
 import logging
+
 from .base import BaseParser
 
 logger = logging.getLogger(__name__)

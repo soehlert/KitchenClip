@@ -1,5 +1,7 @@
 import pytest
+
 from recipes.parsers.lesswithlaur import LessWithLaurParser
+
 
 @pytest.mark.recipe_fixture("lesswithlaur_chicken_gnocchi.html")
 def test_lesswithlaur_parsing():

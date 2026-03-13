@@ -1,7 +1,10 @@
 import asyncio
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from recipes.services import NotificationService
+
 
 class Command(BaseCommand):
     help = 'Send a daily cooking summary to Beacon'

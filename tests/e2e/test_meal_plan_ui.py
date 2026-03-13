@@ -1,6 +1,8 @@
 import pytest
 from playwright.sync_api import Page, expect
+
 from recipes.models import Recipe
+
 
 @pytest.mark.django_db(transaction=True)
 def test_meal_plan_page_load(page: Page, live_server):
@@ -29,6 +31,7 @@ def test_recipes_list_page(page: Page, live_server):
 def test_meal_plan_drag_and_drop(page: Page, live_server):
     """Test dragging a recipe from the sidebar to a meal slot."""
     from django.utils import timezone
+
     from recipes.models import MealPlan
     
     recipe = Recipe.objects.create(title="Drag Me Recipe", is_on_menu=True)

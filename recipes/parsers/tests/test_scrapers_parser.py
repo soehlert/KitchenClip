@@ -1,5 +1,7 @@
 import pytest
+
 from recipes.parsers.scrapers_parser import ScrapersParser
+
 
 @pytest.mark.recipe_fixture("mock_recipe.html")
 def test_scrapers_parser_fallback():

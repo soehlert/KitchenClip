@@ -1,6 +1,8 @@
 import pytest
 from playwright.sync_api import Page, expect
+
 from recipes.models import Recipe
+
 
 @pytest.mark.django_db(transaction=True)
 def test_manual_recipe_add_and_view(page: Page, live_server):

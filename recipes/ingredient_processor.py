@@ -1,6 +1,8 @@
-from fractions import Fraction
 import re
+from fractions import Fraction
+
 import ingredient_slicer
+
 
 def _safe_float(value) -> float:
     """Internal helper to safely convert values to a float."""

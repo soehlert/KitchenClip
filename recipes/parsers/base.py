@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
 
 import httpx
 from bs4 import BeautifulSoup

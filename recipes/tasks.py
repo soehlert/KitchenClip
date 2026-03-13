@@ -1,7 +1,9 @@
 import asyncio
-from celery import shared_task
-from .services import NotificationService
 import logging
+
+from celery import shared_task
+
+from .services import NotificationService
 
 logger = logging.getLogger(__name__)
 

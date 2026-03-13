@@ -1,7 +1,9 @@
 import re
+
 import ingredient_slicer
-from recipes.ingredient_processor import process_ingredients
-from recipes.ingredient_processor import parse_ingredient_line
+
+from recipes.ingredient_processor import (parse_ingredient_line,
+                                          process_ingredients)
 
 
 def parse_with_logic(line):

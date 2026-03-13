@@ -1,5 +1,7 @@
 import pytest
+
 from recipes.parsers.purelyyum import PurelyYumParser
+
 
 @pytest.mark.recipe_fixture("purelyyum_shrimp_ramen.html")
 def test_purelyyum_parsing():
