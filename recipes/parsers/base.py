@@ -1,7 +1,9 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 
 import httpx
+from bs4 import BeautifulSoup
 
 from recipes.ingredient_processor import format_time_h_m
 
@@ -52,6 +54,50 @@ class BaseParser(ABC):
             return None
         except Exception as e:
             logger.error(f"Failed to fetch HTML from {url}: {e}")
+            return None
+
+    def _get_json_ld_data(self, target_type: str = "Recipe") -> dict | None:
+        """
+        Extract JSON-LD data of a specific type from the HTML.
+        Handles both single objects and @graph arrays.
+        """
+        if not self.html:
+            return None
+
+        try:
+            soup = BeautifulSoup(self.html, 'html.parser')
+            scripts = soup.find_all('script', type='application/ld+json')
+
+            for script in scripts:
+                content = script.string if script.string else ""
+                if not content:
+                    continue
+                
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError:
+                    continue
+
+                # JSON-LD can be a single object, a list of objects, or an @graph array
+                blocks = []
+                if isinstance(data, list):
+                    blocks.extend(data)
+                else:
+                    blocks.append(data)
+
+                for block in blocks:
+                    # Check for @graph
+                    if '@graph' in block:
+                        for item in block['@graph']:
+                            if item.get('@type') == target_type:
+                                return item
+                    # Check direct type
+                    elif block.get('@type') == target_type:
+                        return block
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error extracting JSON-LD for {self.url}: {e}")
             return None
 
     @property

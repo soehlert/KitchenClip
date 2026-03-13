@@ -1,22 +1,18 @@
-import json
 import re
 
-import ingredient_slicer
-from bs4 import BeautifulSoup
-
 from recipes.ingredient_processor import format_time_h_m, process_ingredients
-
 from ..utils import extract_servings
 from .base import BaseParser
 from .registry import register_parser
 from .utils import parse_iso_duration
 
+
 @register_parser
-class PurelyYumParser(BaseParser):
+class LessWithLaurParser(BaseParser):
     """
-    Parser for purelyyumrecipes.com utilizing JSON-LD application/ld+json script block.
+    Parser for lesswithlaur.com utilizing JSON-LD application/ld+json script block.
     """
-    SUPPORTED_DOMAINS = ["purelyyumrecipes.com"]
+    SUPPORTED_DOMAINS = ["lesswithlaur.com"]
 
     def __init__(self, url: str, html: str | None = None):
         super().__init__(url, html)
@@ -29,20 +25,23 @@ class PurelyYumParser(BaseParser):
     @property
     def title(self) -> str:
         if self._recipe_data and 'name' in self._recipe_data:
-            return self._recipe_data['name']
+            # HTML entities like &#39; might be present in name
+            name = self._recipe_data['name']
+            return BeautifulSoup(name, "html.parser").get_text()
         return ""
 
     @property
     def description(self) -> str:
         if self._recipe_data and 'description' in self._recipe_data:
-            return self._recipe_data['description']
+            desc = self._recipe_data['description']
+            return BeautifulSoup(desc, "html.parser").get_text()
         return ""
 
     @property
     def image_url(self) -> str:
         if not self._recipe_data or 'image' not in self._recipe_data:
             return ""
-            
+
         img = self._recipe_data['image']
         if isinstance(img, list) and len(img) > 0:
             if isinstance(img[0], str):
@@ -53,7 +52,7 @@ class PurelyYumParser(BaseParser):
             return img['url']
         elif isinstance(img, str):
             return img
-            
+
         return ""
 
     @property
@@ -72,19 +71,10 @@ class PurelyYumParser(BaseParser):
     def total_time(self) -> int | None:
         if self._recipe_data and 'totalTime' in self._recipe_data:
             return parse_iso_duration(self._recipe_data['totalTime'])
-        return None
-
-    @property
-    def prep_time_str(self) -> str:
-        return format_time_h_m(self.prep_time)
-
-    @property
-    def cook_time_str(self) -> str:
-        return format_time_h_m(self.cook_time)
-
-    @property
-    def total_time_str(self) -> str:
-        return format_time_h_m(self.total_time)
+        # If totalTime isn't explicitly provided, we could sum prep and cook
+        pt = self.prep_time or 0
+        ct = self.cook_time or 0
+        return pt + ct if pt + ct > 0 else None
 
     @property
     def servings(self) -> int | None:
@@ -99,58 +89,27 @@ class PurelyYumParser(BaseParser):
     def ingredients(self) -> list[str]:
         if not self._recipe_data or 'recipeIngredient' not in self._recipe_data:
             return []
-            
+
         raw_ingredients = self._recipe_data['recipeIngredient']
-        parsed_ingredients = []
-        
-        for ing_str in raw_ingredients:
-            try:
-                parsed = ingredient_slicer.IngredientSlicer(ing_str)
-                p_data = parsed.to_json()
-                # Ensure quantity is a float
-                if 'quantity' in p_data and isinstance(p_data['quantity'], str):
-                    try:
-                        p_data['quantity'] = float(p_data['quantity'])
-                    except ValueError:
-                        p_data['quantity'] = 0.0
-                parsed_ingredients.append(p_data)
-            except Exception:
-                # Fallback to appending a dummy dict to preserve something or skip
-                parsed_ingredients.append({
-                    "food": ing_str,
-                    "quantity": 0.0,
-                    "unit": ""
-                })
-
-        processed = process_ingredients(parsed_ingredients)
-        
-        final_list = []
-        for p in processed:
-            dq = p.get("display_quantity", "")
-            u = p.get("unit", "")
-            f = p.get("food", "")
-            
-            parts = [str(dq), str(u), str(f)]
-            final_list.append(" ".join(part for part in parts if part).strip())
-
-        return final_list
+        return raw_ingredients
 
     @property
     def instructions(self) -> str:
         if not self._recipe_data or 'recipeInstructions' not in self._recipe_data:
             return ""
-            
+
         instructions = self._recipe_data['recipeInstructions']
         result = []
-        
+
         for step in instructions:
             if isinstance(step, dict):
-                text = step.get('text', '')
+                text = step.get('text', step.get('name', ''))
             else:
                 text = str(step)
-                
+
             if text:
+                # Remove any existing HTML tags
                 clean_text = re.sub('<.*?>', '', text).strip()
                 result.append(clean_text)
-                
+
         return "\n".join(result)

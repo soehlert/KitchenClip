@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 
@@ -20,50 +19,11 @@ class HouseOfNashEatsParser(BaseParser):
 
     def __init__(self, url: str, html: str | None = None):
         super().__init__(url, html)
-        self._recipe_data = self._parse_json_ld()
+        self._recipe_data = None
+        self._parse_json_ld()
 
-    def _parse_json_ld(self) -> dict | None:
-        if not self.html:
-            logger.warning(f"HouseOfNashEatsParser: No HTML content to parse for {self.url}")
-            return None
-
-        soup = get_soup(self.html)
-        scripts = soup.find_all("script", type="application/ld+json")
-        logger.debug(f"HouseOfNashEatsParser: Found {len(scripts)} JSON-LD scripts")
-
-        for script in scripts:
-            try:
-                data = json.loads(script.string)
-                
-                items = []
-                if isinstance(data, dict):
-                    if "@graph" in data:
-                        items.extend(data["@graph"])
-                    else:
-                        items.append(data)
-                elif isinstance(data, list):
-                    items.extend(data)
-
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    
-                    item_type = item.get("@type")
-                    # Handle string, list, or absolute schema.org URL
-                    types = item_type if isinstance(item_type, list) else [item_type]
-                    types = [str(t).lower().replace("https://schema.org/", "").replace("http://schema.org/", "") for t in types if t]
-                    
-                    if "recipe" in types:
-                        logger.info(f"HouseOfNashEatsParser: Successfully found Recipe in JSON-LD for {self.url}")
-                        return item
-                    else:
-                        logger.debug(f"HouseOfNashEatsParser: Item type(s) {types} did not match 'Recipe'")
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.debug(f"HouseOfNashEatsParser: Error decoding JSON script: {e}")
-                continue
-        
-        logger.warning(f"HouseOfNashEatsParser: Could not find Recipe data in JSON-LD for {self.url}")
-        return None
+    def _parse_json_ld(self):
+        self._recipe_data = self._get_json_ld_data()
 
     @property
     def title(self) -> str:

@@ -1,5 +1,4 @@
 import html
-import json
 import logging
 import re
 
@@ -12,7 +11,7 @@ from recipes.ingredient_processor import (format_time_h_m,
 from ..utils import extract_servings
 from .base import BaseParser
 from .registry import register_parser
-from .utils import get_soup, parse_iso_duration
+from .utils import parse_iso_duration
 
 logger = logging.getLogger(__name__)
 
@@ -42,33 +41,7 @@ class AllrecipesParser(BaseParser):
             logger.info(f"Successfully extracted JSON-LD for {url}")
 
     def _parse_json_ld(self):
-        if not self.html:
-            return
-            
-        soup = get_soup(self.html)
-        scripts = soup.find_all('script', type='application/ld+json')
-        
-        for script in scripts:
-            try:
-                content = script.string if script.string else ""
-                data = json.loads(content)
-                
-                items = data if isinstance(data, list) else [data]
-                if isinstance(data, dict) and '@graph' in data:
-                    items.extend(data['@graph'])
-                    
-                for item in items:
-                    if isinstance(item, dict):
-                        item_type = item.get('@type')
-                        if item_type == 'Recipe' or (isinstance(item_type, list) and 'Recipe' in item_type):
-                            self._recipe_data = item
-                            return
-            except json.JSONDecodeError as e:
-                logger.debug(f"JSON decode error in script block: {e}")
-                continue
-            except Exception as e:
-                logger.error(f"Unexpected error parsing JSON-LD script block: {e}")
-                continue
+        self._recipe_data = self._get_json_ld_data()
 
     @property
     def title(self) -> str:
