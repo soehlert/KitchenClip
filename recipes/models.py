@@ -22,7 +22,7 @@ class Recipe(models.Model):
     """Store recipe data."""
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    original_url = models.URLField(blank=True, help_text="Original recipe URL", unique=True)
+    original_url = models.URLField(blank=True, null=True, help_text="Original recipe URL", unique=True)
     prep_time = models.PositiveIntegerField(null=True, blank=True, help_text="Prep time in minutes")
     cook_time = models.PositiveIntegerField(null=True, blank=True, help_text="Cook time in minutes")
     total_time = models.PositiveIntegerField(null=True, blank=True, help_text="Total time in minutes")

@@ -194,6 +194,10 @@ class RecipeUpdateForm(forms.ModelForm):
 
         return recipe
 
+    def clean_original_url(self):
+        url = self.cleaned_data.get('original_url')
+        return url if url else None
+
     def clean_rating(self):
         value = self.cleaned_data['rating']
         return int(value) if value else None
@@ -284,6 +288,10 @@ class RecipeManualForm(forms.ModelForm):
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
         }
+
+    def clean_original_url(self):
+        url = self.cleaned_data.get('original_url')
+        return url if url else None
 
     def clean_rating(self):
         value = self.cleaned_data['rating']
