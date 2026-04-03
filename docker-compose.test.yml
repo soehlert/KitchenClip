@@ -17,4 +17,5 @@ services:
       - DJANGO_SETTINGS_MODULE=KitchenClip.settings
       - DJANGO_ALLOW_ASYNC_UNSAFE=true
       - ENABLE_COOKING_NOTIFICATIONS=False
+      - CLOUDFLARE_ENABLED=0
     command: ["pytest", "--browser", "chromium", "-v"]

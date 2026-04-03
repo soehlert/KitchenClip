@@ -1,5 +1,4 @@
 import re
-
 from fractions import Fraction
 
 INGREDIENT_STARTERS = [

@@ -1,12 +1,12 @@
-from django import forms
-from .models import Recipe, Ingredient, RecipeIngredient
-from .utils import remove_instruction_headers
+import logging
 
 import ingredient_slicer
+from django import forms
+
 from .ingredient_processor import process_ingredients
+from .models import Ingredient, Recipe, RecipeIngredient
+from .utils import remove_instruction_headers
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]

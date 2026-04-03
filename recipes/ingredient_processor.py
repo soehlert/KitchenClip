@@ -1,6 +1,8 @@
-from fractions import Fraction
 import re
+from fractions import Fraction
+
 import ingredient_slicer
+
 
 def _safe_float(value) -> float:
     """Internal helper to safely convert values to a float."""
@@ -29,7 +31,7 @@ def parse_ingredient_line(line: str) -> dict:
     Centralized parsing for a single ingredient line.
     """
     
-    # 0. Prevent Conflicting "Or" Options
+    # TODO fix this comment
     # If the line contains "or", we only parse the first half so the slicer
     or_split = re.split(r'(?:\s+|,)\s*or\s+', line, maxsplit=1, flags=re.IGNORECASE)
     if len(or_split) > 1:
@@ -42,11 +44,9 @@ def parse_ingredient_line(line: str) -> dict:
     slicer = ingredient_slicer.IngredientSlicer(line_to_parse)
     parsed_item = slicer.to_json()
 
-    # 1. Metric Multiplication & "Sliding" Quantity Fix
     # IngredientSlicer often gets confused by weights in parentheses:
     # - Multiplication: 6 eggs (305g) -> quantity=1830
     # - Hijacking: 4 scallions (60g) -> quantity=60
-
     qty = _safe_float(parsed_item.get("quantity"))
     sec_qty = _safe_float(parsed_item.get("secondary_quantity"))
     
@@ -63,7 +63,6 @@ def parse_ingredient_line(line: str) -> dict:
     # RECONCILIATION HEURISTIC:
     # If the parser's quantity is NOT found in the 'Safe' zone but IS found
     # in the 'Danger' zone (either directly or as a product), we revert.
-    
     reverted = False
     if qty > 0 and qty not in safe_nums:
         # Check Case A: Multiplication (6 * 305 = 1830)
@@ -90,8 +89,6 @@ def parse_ingredient_line(line: str) -> dict:
     # ingredient_slicer has no spatial awareness and will frequently:
     # 1. Hijack unit words from preparation phrases ("seeds and ribs removed" -> unit: ribs)
     # 2. Split compound nouns ("hoagie rolls" -> unit: rolls, food: hoagie)
-    # Genuine English units almost always precede the food noun ("1 cup sugar").
-    
     u_current = (parsed_item.get("unit") or "").lower().strip()
     food_current = (parsed_item.get("food") or "").strip()
     

@@ -1,32 +1,25 @@
+import pytest
+
 from recipes.parsers.houseofnasheats import HouseOfNashEatsParser
 
 
-def test_houseofnasheats_parsing(load_fixture):
-    # Use the shared fixture loader
-    mock_html = load_fixture("houseofnasheats_banana_bread.html")
-
+@pytest.mark.recipe_fixture("houseofnasheats_banana_bread.html")
+def test_houseofnasheats_parsing():
     url = "https://houseofnasheats.com/best-banana-bread-recipe/"
-    parser = HouseOfNashEatsParser(url, html=mock_html)
+    parser = HouseOfNashEatsParser(url)
     
     assert "Banana Bread" in parser.title
+    assert "Super moist, EASY, and delicious" in parser.description
     assert len(parser.ingredients) == 11
-    # Check a few specific ingredients
-    ingredients_str = " ".join(parser.ingredients)
-    assert "ripe bananas" in ingredients_str.lower()
-    assert "salted butter" in ingredients_str.lower()
-    assert "walnuts" in ingredients_str.lower()
-    
-    # Check instructions
-    assert "preheat oven" in parser.instructions.lower()
-    assert len(parser.instructions.splitlines()) >= 5
-    
-    # New assertions
-    assert parser.image_url.startswith("http")
-    assert "banana bread" in parser.description.lower()
-    assert "Preheat oven" in parser.instructions
-    
-    # Check times and yields
+    assert any("ripe bananas" in ing.lower() for ing in parser.ingredients)
+    assert len(parser.instructions.splitlines()) == 9
+    assert "Preheat oven to 350" in parser.instructions
     assert parser.servings == 1
+    
+    # Check times
     assert parser.prep_time == 15
     assert parser.cook_time == 55
     assert parser.total_time == 70
+    
+    # Check image URL
+    assert "Banana-Bread-Square.jpg" in parser.image_url

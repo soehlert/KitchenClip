@@ -1,9 +1,12 @@
-import pytest
 from datetime import timedelta
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from django.utils import timezone
-from recipes.models import Recipe, MealPlan
+
+from recipes.models import MealPlan, Recipe
 from recipes.services import NotificationService
+
 
 @pytest.mark.django_db
 @pytest.mark.asyncio

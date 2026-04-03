@@ -1,7 +1,10 @@
-import pytest
 from datetime import time
+
+import pytest
 from django.utils import timezone
-from recipes.models import Recipe, MealPlan, RecipeTag
+
+from recipes.models import MealPlan, Recipe, RecipeTag
+
 
 @pytest.mark.django_db
 def test_recipe_creation():

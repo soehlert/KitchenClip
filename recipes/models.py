@@ -1,13 +1,13 @@
-from django.db import models
-from django.utils.text import slugify
-from django.utils.html import format_html
-
 import random
-from .ingredient_processor import format_time_h_m
 
-from django.urls import reverse
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.text import slugify
+
+from .ingredient_processor import format_time_h_m
 
 
 class Ingredient(models.Model):
