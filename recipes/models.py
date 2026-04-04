@@ -44,8 +44,8 @@ class Recipe(models.Model):
         blank=True,
         related_name='recipes'
     )
-    is_future = models.BooleanField(default=False, help_text="Is this a recipe I want to try in the future?")
-    is_on_menu = models.BooleanField(default=False, help_text="Is this recipe currently on my weekly menu?")
+    is_future = models.BooleanField(default=False, help_text="Save to try in the future")
+    is_on_menu = models.BooleanField(default=False, help_text="Add to weekly menu")
 
     class Meta:
         ordering = ['-created_at']
