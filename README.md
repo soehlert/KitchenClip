@@ -36,7 +36,7 @@ docker run -d \
   -v $(pwd)/recipes:/app/recipes \
   -v $(pwd)/KitchenClip:/app/KitchenClip \
   -v $(pwd)/templates:/app/templates \
-  -v $(pwd)/db.sqlite3:/app/data/db.sqlite3 \
+  -v $(pwd)/data/db.sqlite3:/app/data/db.sqlite3 \
   ghcr.io/soehlert/kitchenclip:latest
 ```
 
