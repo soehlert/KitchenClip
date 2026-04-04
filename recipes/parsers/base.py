@@ -6,6 +6,8 @@ from abc import ABC
 import httpx
 from bs4 import BeautifulSoup
 
+from recipe_scrapers import scrape_me, scrape_html
+
 from recipes.ingredient_processor import format_time_h_m
 
 logger = logging.getLogger(__name__)
@@ -21,11 +23,11 @@ class BaseParser(ABC):
         self.url = url
         self._recipe_data = {}
         self._scraper = None  # Optional recipe-scrapers instance
+        self._scraper_attempted = False
         self.html = self._fetch_html(url)
         
         # Perform standard discovery automatically
         self._recipe_data = self._get_json_ld_data()
-        self._setup_scraper_fallback()
 
     def _fetch_html(self, url: str) -> str | None:
         """Fetch HTML content from the URL with robust headers using httpx."""
@@ -109,13 +111,13 @@ class BaseParser(ABC):
 
     def _setup_scraper_fallback(self):
         """Optional helper to initialize recipe-scrapers if needed."""
+        self._scraper_attempted = True
         if self._scraper:
             return
 
         try:
-            from recipe_scrapers import scrape_me
             if self.html:
-                self._scraper = scrape_me(self.url, html=self.html)
+                self._scraper = scrape_html(html=self.html, org_url=self.url)
             else:
                 self._scraper = scrape_me(self.url)
             logger.info(f"Initialized scraper fallback for {self.url}")
@@ -124,6 +126,9 @@ class BaseParser(ABC):
 
     def _get_scraper_val(self, method_name: str, default: any = None) -> any:
         """Safely extract a value from the scraper fallback."""
+        if not self._scraper and not getattr(self, '_scraper_attempted', False):
+            self._setup_scraper_fallback()
+            
         if not self._scraper:
             return default
         try:
