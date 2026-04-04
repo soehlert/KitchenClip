@@ -2,6 +2,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from recipe_scrapers import scrape_me, scrape_html
 
 
 @pytest.fixture
@@ -48,15 +49,17 @@ def mock_recipe_responses(load_fixture, request):
     with patch("httpx.Client.get", side_effect=_mock_get):
         with patch("httpx.get", side_effect=_mock_get):
             # Intercept recipe_scrapers
-            from recipe_scrapers import scrape_me
             
             def mocked_scrape_me(url, html=None, **kwargs):
                 # If html is NOT provided but we have a fixture, inject it
                 if html is None and fixture_file:
                     html = load_fixture(fixture_file)
                 
-                with patch("recipe_scrapers.scrape_me", wraps=scrape_me):
-                    return scrape_me(url, html=html, **kwargs)
+                if html:
+                    return scrape_html(html=html, org_url=url, **kwargs)
+                else:
+                    with patch("recipe_scrapers.scrape_me", wraps=scrape_me):
+                        return scrape_me(url, **kwargs)
 
             with patch("recipe_scrapers.scrape_me", side_effect=mocked_scrape_me):
                 yield
