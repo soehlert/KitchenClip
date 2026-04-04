@@ -13,7 +13,7 @@ services:
       - ./KitchenClip:/app/KitchenClip
       - ./templates:/app/templates
       - ./manage.py:/app/manage.py
-      - ./db.sqlite3:/app/data/db.sqlite3
+      - ./data/db.sqlite3:/app/data/db.sqlite3
       - ./static:/app/static
       - ./pyproject.toml:/app/pyproject.toml
     restart: unless-stopped
