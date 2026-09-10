@@ -40,6 +40,19 @@ docker run -d \
   ghcr.io/soehlert/kitchenclip:latest
 ```
 
+## Multi-Household & Authentication
+
+KitchenClip supports multi-household tenancy with zero-friction, passwordless authentication using single-use CLI Magic Links and WebAuthn Passkeys (TouchID / FaceID):
+
+* **Household Isolation**: Each household has its own private recipe library and weekly meal plan. Spouses share the same household space with independent personal device passkeys.
+* **Cross-Household Sharing**: Recipes can be marked as shared for other households to view and 1-click clone into their own collections.
+* **Inviting Users / Enrolling Devices (CLI)**:
+  To invite a user or pair a new device for an existing user, run the management command via Docker:
+  ```bash
+  docker compose exec web uv run python manage.py create_invite --username sam --household "Oehlert Home"
+  ```
+  Open the printed single-use link in your browser to log in and register your device's biometric Passkey.
+
 ## Environment Variables
 
 The following environment variables can be configured:
