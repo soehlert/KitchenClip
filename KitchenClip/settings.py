@@ -27,8 +27,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 env_file = BASE_DIR / '.env'
 if env_file.exists():
-    from dotenv import load_dotenv
-    load_dotenv(env_file)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+    except ImportError:
+        pass
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -225,3 +228,22 @@ TAG_COLORS = [
     "#3e2723",  # brown
     "#795548",  # medium brown
 ]
+
+# ==============================================================================
+# Passwordless Authentication & Persistent Session Settings (Milestone M2)
+# ==============================================================================
+
+# Persistent 1-Year Sessions (365 days = 31,536,000 seconds)
+SESSION_COOKIE_AGE = 31536000
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# Authentication Routing
+LOGIN_URL = "/auth/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/auth/login/"
+
+# WebAuthn Relying Party Configuration
+WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "localhost")
+WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "KitchenClip")

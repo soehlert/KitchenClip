@@ -5,58 +5,76 @@ import operator
 from functools import reduce
 
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
-                                  UpdateView)
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    UpdateView,
+)
 
 from .forms import RecipeImportForm, RecipeManualForm, RecipeUpdateForm
 from .ingredient_processor import parse_ingredient_line, process_ingredients
-from .mixins import AdminRequiredMixin, require_admin
+from .mixins import (
+    AdminRequiredMixin,
+    HouseholdLoginRequiredMixin,
+    household_required,
+    require_admin,
+)
 from .models import Ingredient, MealPlan, Recipe, RecipeIngredient, RecipeTag
 from .parsers.registry import ParserRegistry
+from .services import RecipeCloningService, clone_recipe_to_household
+from .url_utils import find_recipe_by_url, normalize_url
 from .utils import clean_instruction_line, is_valid_ingredient
 
 logger = logging.getLogger(__name__)
 
+
+@household_required
 def tag_autocomplete(request):
+    """Return matching tags for autocomplete scoped to user household."""
     q = request.GET.get("q", "")
-    tags = RecipeTag.objects.filter(name__icontains=q).values("name", "color")
+    tags = RecipeTag.objects.filter(household=request.household, name__icontains=q).values("name", "color")
     return JsonResponse(list(tags), safe=False)
 
-@require_admin
+
 @require_POST
+@require_admin
 def move_to_recipes(request, pk):
-    recipe = get_object_or_404(Recipe, pk=pk)
+    """Move a recipe from future ideas to saved recipes."""
+    recipe = get_object_or_404(Recipe, pk=pk, household=request.household)
     recipe.is_future = False
     recipe.save()
     messages.success(request, f'"{recipe.title}" has been saved to your recipes!')
     return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': pk}))
 
-class RecipeListView(ListView):
+
+class RecipeListView(HouseholdLoginRequiredMixin, ListView):
     model = Recipe
     template_name = "recipes/recipe_list.html"
     context_object_name = "recipes"
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Recipe.objects.filter(is_future=False)
+        queryset = Recipe.objects.filter(household=self.household, is_future=False)
 
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
-                Q(title__icontains=search) |
-                Q(ingredients__name__icontains=search) |
-                Q(description__icontains=search)
+                Q(title__icontains=search)
+                | Q(ingredients__name__icontains=search)
+                | Q(description__icontains=search)
             ).distinct()
 
         time_ranges = self.request.GET.getlist('time_range')
@@ -86,30 +104,22 @@ class RecipeListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['all_tags'] = RecipeTag.objects.all().order_by('name')
+        context['all_tags'] = RecipeTag.objects.filter(household=self.household).order_by('name')
         context['page_title'] = "Recipes"
         return context
 
 
 class FutureRecipeListView(RecipeListView):
     def get_queryset(self):
-        queryset = Recipe.objects.filter(is_future=True)
+        queryset = Recipe.objects.filter(household=self.household, is_future=True)
 
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
-                Q(title__icontains=search) |
-                Q(ingredients__name__icontains=search) |
-                Q(description__icontains=search)
+                Q(title__icontains=search)
+                | Q(ingredients__name__icontains=search)
+                | Q(description__icontains=search)
             ).distinct()
-
-        # Re-use most of the logic but filter for future recipes
-        # Actually, since we inherit from RecipeListView, we can just call super().get_queryset()
-        # but we need to override the initial filter.
-
-        # Let's just implement the filtering here to be safe and clear.
-        # This is a bit redundant but cleaner for a quick implementation.
-        # (Alternatively, we could refactor RecipeListView to take an is_future param)
 
         time_ranges = self.request.GET.getlist('time_range')
         if time_ranges:
@@ -137,18 +147,73 @@ class FutureRecipeListView(RecipeListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['all_tags'] = RecipeTag.objects.filter(household=self.household).order_by('name')
         context['page_title'] = "Future Ideas"
         return context
 
 
-class RecipeDetailView(DetailView):
+class SharedRecipeListView(HouseholdLoginRequiredMixin, ListView):
+    """Browse recipes shared across households."""
+
+    model = Recipe
+    template_name = "recipes/shared_recipe_list.html"
+    context_object_name = "recipes"
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = Recipe.objects.filter(is_shared=True, is_future=False).select_related('household', 'created_by').prefetch_related('tags')
+
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(ingredients__name__icontains=search)
+                | Q(description__icontains=search)
+            ).distinct()
+
+        time_ranges = self.request.GET.getlist('time_range')
+        if time_ranges:
+            time_conditions = []
+            for time_range in time_ranges:
+                if time_range == '0-20':
+                    time_conditions.append(Q(total_time__lte=20))
+                elif time_range == '21-30':
+                    time_conditions.append(Q(total_time__range=(21, 30)))
+                elif time_range == '31-45':
+                    time_conditions.append(Q(total_time__range=(31, 45)))
+                elif time_range == '46-60':
+                    time_conditions.append(Q(total_time__range=(46, 60)))
+                elif time_range == '60+':
+                    time_conditions.append(Q(total_time__gt=60))
+
+            if time_conditions:
+                queryset = queryset.filter(reduce(operator.or_, time_conditions))
+
+        tags = self.request.GET.getlist('tags')
+        if tags:
+            queryset = queryset.filter(tags__id__in=tags).distinct()
+
+        return queryset.order_by('-updated_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['all_tags'] = RecipeTag.objects.filter(recipes__is_shared=True).distinct().order_by('name')
+        context['page_title'] = "Shared Recipes"
+        return context
+
+
+class RecipeDetailView(HouseholdLoginRequiredMixin, DetailView):
     model = Recipe
     template_name = "recipes/recipe_detail.html"
     context_object_name = "recipe"
 
+    def get_queryset(self):
+        return Recipe.objects.filter(
+            Q(household=self.household) | Q(is_shared=True)
+        ).select_related('household')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         recipe = self.object
 
         context["instructions_list"] = [line for line in recipe.instructions.splitlines() if line.strip()]
@@ -162,10 +227,14 @@ class RecipeDetailView(DetailView):
             })
         context["ingredients_with_confidence"] = ingredients_with_confidence
 
+        is_own = (recipe.household_id == self.household.id)
+        context["is_own_recipe"] = is_own
+        context["is_owner"] = is_own
+
         return context
 
 
-class RecipeCreateView(CreateView):
+class RecipeCreateView(HouseholdLoginRequiredMixin, CreateView):
     model = Recipe
     form_class = RecipeImportForm
     template_name = "recipes/recipe_form.html"
@@ -177,19 +246,36 @@ class RecipeCreateView(CreateView):
         context["heading"] = "Add Recipe by URL"
         context["button_text"] = "Import Recipe"
         context["show_delete"] = False
-        all_tags = RecipeTag.objects.values("name", "color")
+        all_tags = RecipeTag.objects.filter(household=self.household).values("name", "color")
         context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
-        context["initial_tags_csv"] = ""
+        if "initial_tags_csv" not in context:
+            context["initial_tags_csv"] = ""
 
         return context
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
+        kwargs['household'] = self.household
         kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
         return kwargs
 
     def form_valid(self, form):
         original_url = form.cleaned_data["original_url"]
+
+        force_scrape = self.request.POST.get("force_scrape") in ("true", "1", "yes")
+        if not force_scrape and self.household:
+            existing_recipe = find_recipe_by_url(original_url, exclude_household=self.household)
+            if existing_recipe:
+                tags_val = form.cleaned_data.get("tags")
+                initial_tags_csv = ", ".join(tags_val) if isinstance(tags_val, list) else (tags_val or "")
+                context = self.get_context_data(
+                    form=form,
+                    duplicate_detected=True,
+                    duplicate_recipe=existing_recipe,
+                    entered_url=original_url,
+                    initial_tags_csv=initial_tags_csv,
+                )
+                return self.render_to_response(context)
 
         try:
             parser = ParserRegistry.get_parser(original_url)
@@ -202,6 +288,8 @@ class RecipeCreateView(CreateView):
             form.instance.instructions = parser.instructions
             form.instance.image_url = parser.image_url
             form.instance.original_url = original_url
+            form.instance.household = self.household
+            form.instance.created_by = self.request.user
 
             if getattr(self.request, 'is_readonly', False):
                 form.instance.is_future = True
@@ -215,6 +303,7 @@ class RecipeCreateView(CreateView):
                 'rating': form.cleaned_data.get('rating'),
                 'tags': form.cleaned_data.get('tags', []),
                 'user_notes': form.cleaned_data.get('user_notes', ''),
+                'is_shared': form.cleaned_data.get('is_shared', False),
             }
             self.request.session.save()
 
@@ -232,19 +321,17 @@ class RecipeCreateView(CreateView):
             raise
 
         try:
-            # Parse all lines first
             parsed_list = []
             for line in ingredient_lines:
                 parsed_item = parse_ingredient_line(line)
                 parsed_list.append(parsed_item)
-            
-            # Process (consolidate, format, normalize)
+
             processed_ingredients = process_ingredients(parsed_list)
 
             for idx, item in enumerate(processed_ingredients):
                 name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
-                
+
                 RecipeIngredient.objects.create(
                     recipe=self.object,
                     ingredient=ingredient,
@@ -266,9 +353,12 @@ class RecipeCreateView(CreateView):
 
             tag_objs = []
             for name in tag_names:
-                slug = name.lower().replace(" ", "-")
-                tag_obj, created = RecipeTag.objects.get_or_create(name=name, defaults={"slug": slug})
-                tag_objs.append(tag_obj)
+                tag_obj = RecipeTag.get_or_create_for_household(
+                    household=self.household,
+                    name=name,
+                )
+                if tag_obj:
+                    tag_objs.append(tag_obj)
             self.object.tags.set(tag_objs)
         except (TypeError, AttributeError):
             logger.exception("Tag processing failed")
@@ -277,25 +367,21 @@ class RecipeCreateView(CreateView):
         return response
 
 
-class RecipeManualCreateView(CreateView):
+class RecipeManualCreateView(HouseholdLoginRequiredMixin, CreateView):
     model = Recipe
     form_class = RecipeManualForm
     template_name = "recipes/recipe_manual_form.html"
     success_url = reverse_lazy("recipes:list_recipe")
 
     def get_context_data(self, **kwargs):
-
-        preserved_data = self.request.session.get('preserved_form_data', {})
-
         context = super().get_context_data(**kwargs)
         context["title"] = "Add Recipe Manually"
         context["heading"] = "Enter Recipe Details"
         context["button_text"] = "Save Recipe"
         context["show_delete"] = False
-        all_tags = RecipeTag.objects.values("name", "color")
+        all_tags = RecipeTag.objects.filter(household=self.household).values("name", "color")
         context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
 
-        # Get preserved tags from session or form initial data
         preserved_data = self.request.session.get('preserved_form_data', {})
         preserved_tags = preserved_data.get('tags', '')
 
@@ -303,7 +389,6 @@ class RecipeManualCreateView(CreateView):
             initial_tags = []
             for tag_name in preserved_tags:
                 initial_tags.append({"name": tag_name, "color": "#6B7280"})
-
             context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
         else:
             context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
@@ -312,6 +397,7 @@ class RecipeManualCreateView(CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
+        kwargs['household'] = self.household
         kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
         return kwargs
 
@@ -328,36 +414,37 @@ class RecipeManualCreateView(CreateView):
                 'rating': preserved_data.get('rating'),
                 'tags': preserved_data.get('tags', ''),
                 'user_notes': preserved_data.get('user_notes', ''),
+                'is_shared': preserved_data.get('is_shared', False),
             })
 
         return initial
 
     def form_valid(self, form):
         form.instance.instructions = clean_instruction_line(form.instance.instructions)
-        
+        form.instance.household = self.household
+        form.instance.created_by = self.request.user
+
         if getattr(self.request, 'is_readonly', False):
             form.instance.is_future = True
             form.instance.is_on_menu = False
-            
+
         response = super().form_valid(form)
 
         ingredients_text = form.cleaned_data.get('ingredients_text', '')
         try:
-            # Parse all lines first
             parsed_list = []
             for line in ingredients_text.split('\n'):
                 line = line.strip()
                 if line:
                     parsed_item = parse_ingredient_line(line)
                     parsed_list.append(parsed_item)
-            
-            # Process (consolidate, format, normalize)
+
             processed_ingredients = process_ingredients(parsed_list)
 
             for idx, item in enumerate(processed_ingredients):
                 name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
-                
+
                 RecipeIngredient.objects.create(
                     recipe=self.object,
                     ingredient=ingredient,
@@ -377,9 +464,12 @@ class RecipeManualCreateView(CreateView):
 
         tag_objs = []
         for name in tag_names:
-            slug = name.lower().replace(" ", "-")
-            tag_obj, created = RecipeTag.objects.get_or_create(name=name, defaults={"slug": slug})
-            tag_objs.append(tag_obj)
+            tag_obj = RecipeTag.get_or_create_for_household(
+                household=self.household,
+                name=name,
+            )
+            if tag_obj:
+                tag_objs.append(tag_obj)
         self.object.tags.set(tag_objs)
 
         return response
@@ -390,6 +480,14 @@ class RecipeUpdateView(AdminRequiredMixin, UpdateView):
     form_class = RecipeUpdateForm
     template_name = "recipes/recipe_form.html"
 
+    def get_queryset(self):
+        return Recipe.objects.filter(household=self.household)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['household'] = self.household
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Update Recipe"
@@ -397,7 +495,7 @@ class RecipeUpdateView(AdminRequiredMixin, UpdateView):
         context["button_text"] = "Update Recipe"
         context["show_delete"] = True
         context["recipe"] = self.object
-        all_tags = RecipeTag.objects.values("name", "color", "slug")
+        all_tags = RecipeTag.objects.filter(household=self.household).values("name", "color", "slug")
         context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
 
         initial_tags = []
@@ -419,9 +517,12 @@ class RecipeUpdateView(AdminRequiredMixin, UpdateView):
             tag_names = list(raw_tags)
         tag_objs = []
         for name in tag_names:
-            slug = name.lower().replace(" ", "-")
-            tag_obj, created = RecipeTag.objects.get_or_create(name=name, defaults={"slug": slug})
-            tag_objs.append(tag_obj)
+            tag_obj = RecipeTag.get_or_create_for_household(
+                household=self.household,
+                name=name,
+            )
+            if tag_obj:
+                tag_objs.append(tag_obj)
         self.object.tags.set(tag_objs)
 
         return response
@@ -432,6 +533,96 @@ class RecipeDeleteView(AdminRequiredMixin, DeleteView):
     template_name = "recipes/recipe_confirm_delete.html"
     success_url = reverse_lazy("recipes:list_recipe")
 
+    def get_queryset(self):
+        return Recipe.objects.filter(household=self.household)
+
+
+# --- Cross-Household Recipe Actions ---
+
+@require_POST
+def copy_recipe(request, pk):
+    """Deep clone a shared or own recipe into the active user's household."""
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(f"{reverse('auth:login')}?next={request.path}")
+
+    if getattr(request, 'is_readonly', False):
+        raise PermissionDenied("Read-only users cannot copy recipes.")
+
+    profile = getattr(request.user, "profile", None)
+    if not profile or not profile.household:
+        raise PermissionDenied("User is not associated with an active household.")
+    user_household = profile.household
+
+    recipe_to_copy = get_object_or_404(
+        Recipe.objects.select_related('household'),
+        Q(pk=pk) & (Q(is_shared=True) | Q(household=user_household))
+    )
+
+    if recipe_to_copy.household_id == user_household.id:
+        messages.info(request, f'"{recipe_to_copy.title}" is already in your household recipes.')
+        return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': recipe_to_copy.pk}))
+
+    cloned = RecipeCloningService.clone_recipe(
+        source_recipe=recipe_to_copy,
+        target_household=user_household,
+        target_user=request.user,
+    )
+
+    messages.success(request, f'"{cloned.title}" has been successfully copied to your household!')
+    return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': cloned.pk}))
+
+
+@require_POST
+def copy_duplicate_recipe(request, pk):
+    """Copy an existing recipe detected during URL import into the active household."""
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(f"{reverse('auth:login')}?next={request.path}")
+
+    if getattr(request, 'is_readonly', False):
+        raise PermissionDenied("Read-only users cannot copy recipes.")
+
+    profile = getattr(request.user, "profile", None)
+    if not profile or not profile.household:
+        raise PermissionDenied("User is not associated with an active household.")
+    user_household = profile.household
+
+    recipe_to_copy = get_object_or_404(Recipe, pk=pk)
+
+    if recipe_to_copy.household_id == user_household.id:
+        messages.info(request, f'"{recipe_to_copy.title}" is already in your household recipes.')
+        return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': recipe_to_copy.pk}))
+
+    if not recipe_to_copy.original_url:
+        raise Http404("Cannot duplicate a recipe without an external URL.")
+
+    submitted_url = request.POST.get('original_url', '').strip()
+    if not submitted_url:
+        raise Http404("Original URL is required to duplicate recipe.")
+
+    if normalize_url(submitted_url) != normalize_url(recipe_to_copy.original_url):
+        raise Http404("Submitted URL does not match duplicate recipe.")
+
+    user_notes = request.POST.get('user_notes')
+    rating_val = request.POST.get('rating')
+    rating = int(rating_val) if rating_val and rating_val.isdigit() else None
+    tags_str = request.POST.get('tags')
+    tags = [t.strip() for t in tags_str.split(',') if t.strip()] if tags_str else None
+    is_future = request.POST.get('is_future') in ('1', 'true', 'True')
+
+    cloned = clone_recipe_to_household(
+        source_recipe=recipe_to_copy,
+        target_household=user_household,
+        user=request.user,
+        user_notes=user_notes,
+        rating=rating,
+        tags=tags,
+        is_future=is_future,
+    )
+
+    messages.success(request, f'"{cloned.title}" has been successfully copied to your household!')
+    return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': cloned.pk}))
+
+
 # --- Meal Plan Views ---
 
 class MealPlanView(AdminRequiredMixin, ListView):
@@ -439,24 +630,21 @@ class MealPlanView(AdminRequiredMixin, ListView):
     context_object_name = "meal_plans"
 
     def get_queryset(self):
-        # We handle data fetching in get_context_data to organize by date
         return None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Calculate the start date (the most recent Sunday)
+
         today = now().date()
         days_to_sunday = (today.weekday() + 1) % 7
         start_date = today - datetime.timedelta(days=days_to_sunday)
-        
-        # Calculate 14 days of the plan
+
         days = []
         for i in range(14):
             current_date = start_date + datetime.timedelta(days=i)
-            lunch = MealPlan.objects.filter(date=current_date, meal_type='LUNCH').first()
-            dinner = MealPlan.objects.filter(date=current_date, meal_type='DINNER').first()
-            
+            lunch = MealPlan.objects.filter(household=self.household, date=current_date, meal_type='LUNCH').first()
+            dinner = MealPlan.objects.filter(household=self.household, date=current_date, meal_type='DINNER').first()
+
             days.append({
                 'date': current_date,
                 'day_name': current_date.strftime('%A'),
@@ -464,27 +652,34 @@ class MealPlanView(AdminRequiredMixin, ListView):
                 'lunch': lunch,
                 'dinner': dinner,
             })
-            
+
         context['weeks'] = [days[0:7], days[7:14]]
         context['page_title'] = "Meal Plan"
-        
-        # Get recipes for the sidebar picker - split by status
         context.update(get_sidebar_context(request=self.request))
-        
+
         return context
 
+
 def get_sidebar_context(request, saved_page=1, future_page=1):
-    """Helper to get paginated sidebar recipes."""
-    
-    saved_qs = Recipe.objects.filter(is_future=False, is_on_menu=True).order_by('-updated_at')
-    future_qs = Recipe.objects.filter(is_future=True, is_on_menu=True).order_by('-updated_at')
-    
+    """Helper to get paginated sidebar recipes scoped to household."""
+    household = getattr(request, 'household', None)
+    if not household:
+        profile = getattr(getattr(request, 'user', None), 'profile', None)
+        household = getattr(profile, 'household', None)
+
+    if household:
+        saved_qs = Recipe.objects.filter(household=household, is_future=False, is_on_menu=True).order_by('-updated_at')
+        future_qs = Recipe.objects.filter(household=household, is_future=True, is_on_menu=True).order_by('-updated_at')
+    else:
+        saved_qs = Recipe.objects.none()
+        future_qs = Recipe.objects.none()
+
     saved_paginator = Paginator(saved_qs, 7)
     future_paginator = Paginator(future_qs, 7)
-    
+
     saved_recipes = saved_paginator.get_page(saved_page)
     future_recipes = future_paginator.get_page(future_page)
-    
+
     return {
         'saved_recipes': saved_recipes,
         'future_recipes': future_recipes,
@@ -496,6 +691,7 @@ def get_sidebar_context(request, saved_page=1, future_page=1):
         'future_page_num': future_recipes.number,
     }
 
+
 @csrf_exempt
 @require_POST
 @require_admin
@@ -506,27 +702,30 @@ def toggle_menu_status(request):
         recipe_id = data.get('recipe_id')
         if not recipe_id:
             return JsonResponse({'status': 'error', 'message': 'Missing recipe_id'}, status=400)
-            
-        recipe = get_object_or_404(Recipe, id=recipe_id)
+
+        recipe = get_object_or_404(Recipe, id=recipe_id, household=request.household)
         recipe.is_on_menu = not recipe.is_on_menu
         recipe.save()
-        
+
         return JsonResponse({
             'status': 'success',
             'is_on_menu': recipe.is_on_menu,
             'title': recipe.title
         })
+    except Http404:
+        return JsonResponse({'status': 'error', 'message': 'Recipe not found'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@household_required
 def sidebar_pagination_api(request):
     """API endpoint to get paginated sidebar sections."""
     saved_page = request.GET.get('saved_page', 1)
     future_page = request.GET.get('future_page', 1)
-    
+
     context = get_sidebar_context(request, saved_page, future_page)
-    
-    
+
     saved_html = render_to_string('recipes/partials/_sidebar_section.html', {
         'recipes': context['saved_recipes'],
         'has_next': context['saved_has_next'],
@@ -534,7 +733,7 @@ def sidebar_pagination_api(request):
         'page_num': context['saved_page_num'],
         'type': 'saved'
     }, request=request)
-    
+
     future_html = render_to_string('recipes/partials/_sidebar_section.html', {
         'recipes': context['future_recipes'],
         'has_next': context['future_has_next'],
@@ -542,11 +741,12 @@ def sidebar_pagination_api(request):
         'page_num': context['future_page_num'],
         'type': 'future'
     }, request=request)
-    
+
     return JsonResponse({
         'saved_html': saved_html,
         'future_html': future_html
     })
+
 
 @csrf_exempt
 @require_POST
@@ -559,53 +759,60 @@ def update_meal_plan(request):
         meal_type = data.get('meal_type')
         recipe_id = data.get('recipe_id')
         custom_meal = data.get('custom_meal', '')
-        action = data.get('action', 'update') # update or delete
+        action = data.get('action', 'update')
         ready_at = data.get('ready_at')
-        
+
         if not date_str or not meal_type:
             return JsonResponse({'status': 'error', 'message': 'Missing date or meal type'}, status=400)
-            
+
         plan_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-        
+
         if action == 'delete':
-            MealPlan.objects.filter(date=plan_date, meal_type=meal_type).delete()
+            MealPlan.objects.filter(household=request.household, date=plan_date, meal_type=meal_type).delete()
             return JsonResponse({'status': 'success'})
-            
+
         recipe = None
         if recipe_id:
-            recipe = Recipe.objects.get(id=recipe_id)
-            
+            recipe = get_object_or_404(
+                Recipe.objects.filter(Q(household=request.household) | Q(is_shared=True)),
+                id=recipe_id
+            )
+
         meal_plan, created = MealPlan.objects.update_or_create(
+            household=request.household,
             date=plan_date,
             meal_type=meal_type,
             defaults={
                 'recipe': recipe,
                 'custom_meal': custom_meal if not recipe else '',
-                'ready_at': ready_at if ready_at else None
+                'ready_at': ready_at if ready_at else None,
+                'created_by': request.user,
             }
         )
-        
+
         return JsonResponse({
             'status': 'success',
             'meal_id': meal_plan.id,
             'title': recipe.title if recipe else custom_meal
         })
-        
+
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
-    except Recipe.DoesNotExist:
+    except (Recipe.DoesNotExist, Http404):
         return JsonResponse({'status': 'error', 'message': 'Recipe not found'}, status=404)
     except Exception as e:
         logger.error(f"Meal plan update error: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@household_required
 def search_recipes_api(request):
     """API endpoint for recipe search in the planner sidebar."""
     query = request.GET.get('q', '')
-    recipes = Recipe.objects.filter(
+    recipes = Recipe.objects.filter(household=request.household).filter(
         Q(title__icontains=query) | Q(ingredients__name__icontains=query)
     ).distinct()[:20]
-    
+
     data = []
     for r in recipes:
         data.append({
@@ -615,8 +822,10 @@ def search_recipes_api(request):
             'is_on_menu': r.is_on_menu,
             'image_url': r.image_url
         })
-        
+
     return JsonResponse({'recipes': data})
+
+
 class MealPlanKioskView(MealPlanView):
     template_name = "recipes/meal_plan_kiosk.html"
 

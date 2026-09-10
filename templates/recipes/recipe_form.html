@@ -7,6 +7,70 @@
   <div class="max-w-xl mx-auto">
     <h1 class="text-2xl font-bold mb-4 text-[#194769]">{{ heading }}</h1>
     <div class="bg-[#F7F9FA] p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
+
+      {% if duplicate_detected and duplicate_recipe %}
+      <div class="mb-6 rounded-xl border border-[#5B8E7D]/40 bg-[#D7EEF2]/30 p-5 shadow-sm" role="alert" id="duplicate-alert-banner">
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 mt-0.5 text-[#194769]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-base font-semibold text-[#194769]">Recipe Already Saved on KitchenClip</h3>
+            <p class="mt-1 text-sm text-gray-700">
+              A recipe from this URL was previously saved on this instance:
+              <span class="font-semibold text-[#194769]">"{{ duplicate_recipe.title }}"</span>
+              {% if duplicate_recipe.prep_time or duplicate_recipe.cook_time %}
+                <span class="text-xs text-gray-500">
+                  ({% if duplicate_recipe.total_time %}{{ duplicate_recipe.total_time }} min total{% elif duplicate_recipe.cook_time %}{{ duplicate_recipe.cook_time }} min cook{% endif %})
+                </span>
+              {% endif %}
+            </p>
+            <p class="mt-1 text-xs text-gray-500">
+              You can copy the existing recipe directly into your household, or proceed with a fresh scrape from the external website.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <form method="post" action="{% url 'recipes:copy_duplicate' duplicate_recipe.id %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="original_url" value="{{ entered_url }}">
+                <input type="hidden" name="user_notes" value="{{ form.cleaned_data.user_notes|default:'' }}">
+                <input type="hidden" name="rating" value="{{ form.cleaned_data.rating|default:'' }}">
+                <input type="hidden" name="tags" value="{{ initial_tags_csv|default:'' }}">
+                <input type="hidden" name="is_future" value="{{ form.cleaned_data.is_future|yesno:'1,0' }}">
+                <button type="submit" id="btn-copy-existing" class="inline-flex items-center gap-2 px-4 py-2 bg-[#5B8E7D] hover:bg-[#4a7566] text-white text-sm font-medium rounded-lg shadow-sm transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                  Copy to My Household
+                </button>
+              </form>
+              <form method="post" action="{% url 'recipes:add_recipe' %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="original_url" value="{{ entered_url }}">
+                <input type="hidden" name="user_notes" value="{{ form.cleaned_data.user_notes|default:'' }}">
+                <input type="hidden" name="rating" value="{{ form.cleaned_data.rating|default:'' }}">
+                <input type="hidden" name="tags" value="{{ initial_tags_csv|default:'' }}">
+                <input type="hidden" name="is_future" value="{{ form.cleaned_data.is_future|yesno:'1,0' }}">
+                <input type="hidden" name="force_scrape" value="1">
+                <button type="submit" id="btn-force-scrape" class="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-100 text-[#194769] border border-[#194769] text-sm font-medium rounded-lg shadow-sm transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  Scrape Fresh Anyway
+                </button>
+              </form>
+              {% if duplicate_recipe.is_shared %}
+              <a href="{% url 'recipes:detail_recipe' duplicate_recipe.id %}" target="_blank" class="text-xs text-[#194769] hover:underline font-semibold ml-2">
+                View shared recipe &rarr;
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
         {% csrf_token %}
         {{ form.non_field_errors }}
@@ -18,6 +82,18 @@
                 {{ field }}
                 <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold">
                   Future
+                </label>
+              </div>
+              {% if field.help_text %}
+                <p class="text-sm text-gray-500 mt-1">{{ field.help_text }}</p>
+              {% endif %}
+            </div>
+            {% elif field.name == "is_shared" %}
+            <div class="mb-4">
+              <div class="flex items-center">
+                {{ field }}
+                <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold">
+                  Share across households
                 </label>
               </div>
               {% if field.help_text %}

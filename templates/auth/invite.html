@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Join KitchenClip{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto my-12 p-8 bg-white rounded-2xl shadow-md border border-gray-100 text-center">
+    
+    {% if error %}
+    <!-- Error State: Expired, Used, or Invalid Link -->
+    <div class="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-9 h-9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+    </div>
+    
+    <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+        {% if error == 'used' %}Invite Link Already Redeemed
+        {% elif error == 'expired' %}Invite Link Expired
+        {% else %}Invalid Invite Link{% endif %}
+    </h1>
+    
+    <p class="text-sm text-gray-600 mt-2 mb-6">
+        {{ message|default:"This invitation link cannot be used." }}
+    </p>
+
+    <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-left text-xs text-gray-600 space-y-2 mb-6">
+        <p class="font-semibold text-gray-800">What should I do?</p>
+        {% if error == 'used' %}
+        <p>If you have already enrolled this device, you can sign in directly with your passkey.</p>
+        {% else %}
+        <p>Ask your household administrator to generate a new invitation for you by running:</p>
+        <code class="block bg-white p-2 rounded border border-gray-200 font-mono text-gray-800">python manage.py create_invite --username &lt;name&gt;</code>
+        {% endif %}
+    </div>
+
+    <a href="{% url 'auth:login' %}" class="inline-flex items-center justify-center gap-2 py-3 px-6 bg-[#194769] hover:bg-[#12334b] text-white font-medium rounded-xl transition-colors">
+        Go to Passkey Sign In
+    </a>
+
+    {% else %}
+    <!-- Active Token State: Welcome & Enrollment -->
+    <div class="w-16 h-16 bg-[#5B8E7D]/10 text-[#5B8E7D] rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-9 h-9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.199l-.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+        </svg>
+    </div>
+
+    <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Welcome to KitchenClip!</h1>
+    <p class="text-sm text-gray-600 mt-2 mb-1">
+        You have been invited to join the <strong class="text-gray-900 font-semibold">{{ household.name }}</strong> household as <strong class="text-gray-900 font-semibold">{{ invite_user.username }}</strong>.
+    </p>
+    {% if expires_at %}
+    <p class="text-xs text-gray-400 mb-6">This invitation link expires on {{ expires_at|date:"M j, Y, H:i" }} UTC.</p>
+    {% endif %}
+
+    <!-- Status Alert Container -->
+    <div id="status-container" class="hidden mb-6 text-left">
+        <div id="status-box" class="p-4 rounded-xl text-sm border bg-red-50 text-red-900 border-red-200">
+            <span id="status-message"></span>
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <!-- Primary Action: Register Passkey -->
+        <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl text-left">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#5B8E7D] bg-[#5B8E7D]/10 px-2 py-0.5 rounded">Recommended</span>
+                <h3 class="text-sm font-semibold text-gray-900">Enroll Device Passkey</h3>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Register TouchID, FaceID, or Windows Hello on this device for one-touch login.</p>
+            
+            <button id="btn-register-passkey" type="button" class="w-full py-3 px-4 bg-[#194769] hover:bg-[#12334b] text-white font-medium rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#194769]">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 0 0 4.5 10.5a7.464 7.464 0 0 1-1.15 3.993m1.989 3.559A11.209 11.209 0 0 0 8.25 10.5a3.75 3.75 0 1 1 7.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a1.5 1.5 0 0 1 1.5 1.5v6.75" />
+                </svg>
+                <span id="btn-register-text">Register Passkey & Sign In</span>
+            </button>
+        </div>
+
+        <div class="relative flex py-1 items-center">
+            <div class="flex-grow border-t border-gray-200"></div>
+            <span class="flex-shrink mx-4 text-xs font-medium text-gray-400 uppercase tracking-wider">or</span>
+            <div class="flex-grow border-t border-gray-200"></div>
+        </div>
+
+        <!-- Fallback Action: Direct Browser Session -->
+        <div class="text-left">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">Direct Browser Session</h3>
+            <p class="text-xs text-gray-500 mb-3">If this browser lacks biometric sensors, sign in directly to create a persistent 1-year browser session.</p>
+            
+            <form method="POST" action="{% url 'auth:invite_redeem' token=token %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-xl border border-gray-300 transition-colors shadow-sm text-sm">
+                    Sign In on this Browser (Session Only)
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block javascript %}
+{% if not error %}
+<script>
+(function() {
+    const rawToken = "{{ token|escapejs }}";
+    const btnRegister = document.getElementById('btn-register-passkey');
+    const btnText = document.getElementById('btn-register-text');
+    const statusContainer = document.getElementById('status-container');
+    const statusBox = document.getElementById('status-box');
+    const statusMessage = document.getElementById('status-message');
+
+    function getCsrfToken() {
+        const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+        if (cookie) return cookie.split('=')[1];
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    }
+
+    function bufferToBase64Url(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function base64UrlToBuffer(base64url) {
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function showStatus(msg) {
+        statusContainer.classList.remove('hidden');
+        statusMessage.textContent = msg;
+    }
+
+    function hideStatus() {
+        statusContainer.classList.add('hidden');
+    }
+
+    if (!window.PublicKeyCredential) {
+        btnRegister.disabled = true;
+        btnRegister.classList.add('opacity-50', 'cursor-not-allowed');
+        btnText.textContent = 'Passkeys Not Supported on this Device';
+        showStatus('Your browser does not support WebAuthn Passkeys. Please use the direct browser session sign-in below.');
+        return;
+    }
+
+    btnRegister.addEventListener('click', async function() {
+        hideStatus();
+        btnRegister.disabled = true;
+        btnText.textContent = 'Enrolling Passkey...';
+
+        try {
+            const optionsResp = await fetch('/auth/webauthn/register/options/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ token: rawToken })
+            });
+
+            if (!optionsResp.ok) {
+                const errData = await optionsResp.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to obtain registration challenge.');
+            }
+
+            const options = await optionsResp.json();
+            options.challenge = base64UrlToBuffer(options.challenge);
+            if (options.user && options.user.id) {
+                options.user.id = base64UrlToBuffer(options.user.id);
+            }
+
+            const credential = await navigator.credentials.create({ publicKey: options });
+
+            const credentialPayload = {
+                id: credential.id,
+                rawId: bufferToBase64Url(credential.rawId),
+                type: credential.type,
+                response: {
+                    clientDataJSON: bufferToBase64Url(credential.response.clientDataJSON),
+                    attestationObject: bufferToBase64Url(credential.response.attestationObject)
+                }
+            };
+
+            const verifyResp = await fetch('/auth/webauthn/register/verify/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    token: rawToken,
+                    credential: credentialPayload,
+                    name: 'Passkey (' + new Date().toLocaleDateString() + ')'
+                })
+            });
+
+            const verifyData = await verifyResp.json().catch(() => ({}));
+
+            if (!verifyResp.ok || !verifyData.success) {
+                throw new Error(verifyData.error || 'Failed to verify passkey attestation.');
+            }
+
+            window.location.href = verifyData.redirect_url || '/';
+
+        } catch (err) {
+            console.error('Registration Error:', err);
+            if (err.name === 'NotAllowedError') {
+                showStatus('Passkey registration was cancelled. Click the button to try again.');
+            } else {
+                showStatus(err.message || 'Passkey enrollment failed. You can sign in using direct browser session below.');
+            }
+        } finally {
+            btnRegister.disabled = false;
+            btnText.textContent = 'Register Passkey & Sign In';
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

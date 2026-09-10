@@ -88,3 +88,14 @@ Thumbs.db
 *.backup
 *~
 docker-compose.override.yml
+
+# Databases
+*.sqlite3
+*.sqlite3-*
+data/
+
+# Agents & AI tracking
+.agents/
+ORIGINAL_REQUEST.md
+PROJECT.md
+.vscode/

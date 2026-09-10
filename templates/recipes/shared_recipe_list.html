@@ -49,24 +49,24 @@
             <label class="block text-sm font-medium text-[#194769] mb-2">Total Time</label>
             <div class="space-y-2">
               <label class="flex items-center">
-                <input type="checkbox" name="time_range" value="0-20" {% if "0-20" in request.GET.time_range%}checked{%endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <input type="checkbox" name="time_range" value="0-20" {% if "0-20" in request.GET.time_range %}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">0-20 minutes</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" name="time_range" value="21-30" {% if "21-30" in request.GET.time_range%}checked{% endif %}
+                <input type="checkbox" name="time_range" value="21-30" {% if "21-30" in request.GET.time_range %}checked{% endif %}
                   class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">21-30 minutes</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" name="time_range" value="31-45" {% if "31-45" in request.GET.time_range%}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <input type="checkbox" name="time_range" value="31-45" {% if "31-45" in request.GET.time_range %}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">31-45 minutes</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" name="time_range" value="46-60" {% if "46-60" in request.GET.time_range%}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <input type="checkbox" name="time_range" value="46-60" {% if "46-60" in request.GET.time_range %}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">46-60 minutes</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" name="time_range" value="60+" {% if "60+" in request.GET.time_range %}checked{%endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <input type="checkbox" name="time_range" value="60+" {% if "60+" in request.GET.time_range %}checked{% endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">60+ minutes</span>
               </label>
             </div>
@@ -95,10 +95,6 @@
           <span class="text-base sm:text-lg font-normal text-gray-600">({{ page_obj.paginator.count }} total)</span>
           {% endif %}
         </h1>
-        <a href="{% url 'recipes:add_recipe' %}"
-          class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center">
-          Add Recipe
-        </a>
       </div>
       {% if recipes %}
       <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -115,9 +111,9 @@
               <h3 class="text-base sm:text-lg font-semibold text-[#194769] hover:text-[#3798A9] transition-colors">
                 {{ recipe.title }}
               </h3>
-              {% if recipe.is_shared %}
+              {% if recipe.household %}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#D7EEF2] text-[#194769] flex-shrink-0">
-                Shared
+                Shared by {{ recipe.household.name }}
               </span>
               {% endif %}
             </div>
@@ -150,17 +146,19 @@
               {% endif %}
             </div>
           </a>
-          {% if not request.is_readonly %}
-          <div class="mt-4 pt-4 border-t border-gray-100 flex justify-end">
-            <button
-              class="toggle-menu-btn text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all {% if recipe.is_on_menu %}bg-[#5B8E7D] text-white border-[#5B8E7D]{% else %}text-gray-400 border-gray-200 hover:border-[#194769] hover:text-[#194769]{% endif %}"
-              data-id="{{ recipe.id }}"
-              data-on-classes="bg-[#5B8E7D] text-white border-[#5B8E7D]"
-              data-off-classes="text-gray-400 border-gray-200 hover:border-[#194769] hover:text-[#194769]">
-              {% if recipe.is_on_menu %}On Menu{% else %}+ Add to Menu{% endif %}
-            </button>
+          <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-2">
+            {% if request.user.profile.household_id and recipe.household_id == request.user.profile.household_id %}
+            <span class="text-xs text-gray-500 font-medium italic">In Your Household</span>
+            {% else %}
+            <form method="post" action="{% url 'recipes:copy_recipe' recipe.pk %}" class="w-full">
+              {% csrf_token %}
+              <button type="submit" class="w-full bg-[#194769] hover:bg-[#5B8E7D] text-white text-xs font-semibold py-2 px-3 rounded shadow transition flex items-center justify-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Copy to My Household
+              </button>
+            </form>
+            {% endif %}
           </div>
-          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -193,32 +191,11 @@
       </div>
       {% endif %}
       {% else %}
-      <div class="bg-[#F7F9FA] p-6 sm:p-8 rounded-xl border border-[#D7EEF2] shadow-sm text-center">
-        <h2 class="text-lg sm:text-xl font-semibold text-[#194769] mb-2">No recipes found</h2>
-        <p class="text-gray-600 mb-4">
-          {% if request.GET.search or request.GET.tags %}
-          Try adjusting your filters or search terms.
-          {% else %}
-          Start building your recipe collection!
-          {% endif %}
-        </p>
-        {% if request.GET.search or request.GET.tags or request.GET.time_range %}
-        <a href="{{ request.path }}"
-          class="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition mr-4">
-          Clear Filters
-        </a>
-        {% endif %}
-        <a href="{% url 'recipes:add_recipe' %}"
-          class="bg-[#194769] hover:bg-[#3798A9] text-white font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition">
-          Add Your First Recipe
-        </a>
+      <div class="text-center py-12">
+        <p class="text-gray-500 text-lg">No shared recipes found.</p>
       </div>
       {% endif %}
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block javascript %}
-<script src="{% static 'js/sidebar.js' %}"></script>
 {% endblock %}

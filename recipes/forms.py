@@ -5,11 +5,13 @@ from django import forms
 
 from .ingredient_processor import process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
+from .url_utils import find_recipe_by_url, normalize_url
 from .utils import remove_instruction_headers
 
 logger = logging.getLogger(__name__)
 
 RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
+
 
 class RecipeImportForm(forms.ModelForm):
     original_url = forms.URLField(
@@ -40,11 +42,14 @@ class RecipeImportForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ["original_url", "user_notes", "rating", "is_future"]
+        fields = ["original_url", "user_notes", "rating", "is_shared", "is_future"]
         widgets = {
             "user_notes": forms.Textarea(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "rows": 3,
+            }),
+            "is_shared": forms.CheckboxInput(attrs={
+                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
@@ -60,7 +65,22 @@ class RecipeImportForm(forms.ModelForm):
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
 
+    def clean_original_url(self):
+        url = self.cleaned_data.get('original_url')
+        if not url:
+            return url
+        normalized = normalize_url(url)
+        if self.household:
+            same_recipe = find_recipe_by_url(normalized, household=self.household)
+            if same_recipe and (not self.instance.pk or same_recipe.pk != self.instance.pk):
+                raise forms.ValidationError(
+                    f"This recipe is already in your household collection: '{same_recipe.title}'.",
+                    code="household_duplicate"
+                )
+        return normalized
+
     def __init__(self, *args, **kwargs):
+        self.household = kwargs.pop('household', None)
         self.is_readonly = kwargs.pop('is_readonly', False)
         super().__init__(*args, **kwargs)
         if self.is_readonly and 'is_future' in self.fields:
@@ -102,7 +122,7 @@ class RecipeUpdateForm(forms.ModelForm):
             "title", "description", "original_url",
             "prep_time", "cook_time", "total_time", "servings",
             "rating", "instructions", "user_notes",
-            "image_url", "is_future"
+            "image_url", "is_shared", "is_future"
         ]
         widgets = {
             "title": forms.TextInput(attrs={
@@ -138,12 +158,16 @@ class RecipeUpdateForm(forms.ModelForm):
             "image_url": forms.URLInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
             }),
+            "is_shared": forms.CheckboxInput(attrs={
+                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
+            }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
         }
 
     def __init__(self, *args, **kwargs):
+        self.household = kwargs.pop('household', None)
         super().__init__(*args, **kwargs)
         tags_value = self.initial.get('tags')
         if tags_value is None and self.instance.pk:
@@ -196,7 +220,17 @@ class RecipeUpdateForm(forms.ModelForm):
 
     def clean_original_url(self):
         url = self.cleaned_data.get('original_url')
-        return url if url else None
+        if not url:
+            return None
+        normalized = normalize_url(url)
+        if self.household:
+            same_recipe = find_recipe_by_url(normalized, household=self.household)
+            if same_recipe and (not self.instance.pk or same_recipe.pk != self.instance.pk):
+                raise forms.ValidationError(
+                    f"This recipe is already in your household collection: '{same_recipe.title}'.",
+                    code="household_duplicate"
+                )
+        return normalized
 
     def clean_rating(self):
         value = self.cleaned_data['rating']
@@ -264,7 +298,7 @@ class RecipeManualForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ["title", "original_url", "rating", "image_url", "prep_time", "cook_time",  "total_time", "servings", "user_notes", "is_future"]
+        fields = ["title", "original_url", "rating", "image_url", "prep_time", "cook_time", "total_time", "servings", "user_notes", "is_shared", "is_future"]
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
@@ -289,6 +323,9 @@ class RecipeManualForm(forms.ModelForm):
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "min": "1"
             }),
+            "is_shared": forms.CheckboxInput(attrs={
+                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
+            }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
@@ -296,7 +333,17 @@ class RecipeManualForm(forms.ModelForm):
 
     def clean_original_url(self):
         url = self.cleaned_data.get('original_url')
-        return url if url else None
+        if not url:
+            return None
+        normalized = normalize_url(url)
+        if self.household:
+            same_recipe = find_recipe_by_url(normalized, household=self.household)
+            if same_recipe and (not self.instance.pk or same_recipe.pk != self.instance.pk):
+                raise forms.ValidationError(
+                    f"This recipe is already in your household collection: '{same_recipe.title}'.",
+                    code="household_duplicate"
+                )
+        return normalized
 
     def clean_rating(self):
         value = self.cleaned_data['rating']
@@ -319,6 +366,7 @@ class RecipeManualForm(forms.ModelForm):
         return recipe
 
     def __init__(self, *args, **kwargs):
+        self.household = kwargs.pop('household', None)
         self.is_readonly = kwargs.pop('is_readonly', False)
         super().__init__(*args, **kwargs)
         if self.is_readonly and 'is_future' in self.fields:

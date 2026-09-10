@@ -31,6 +31,7 @@
             <div class="hidden md:flex gap-6">
                 <a href="{% url 'recipes:list_recipe' %}" class="hover:text-gray-300 transition-colors">Recipes</a>
                 <a href="{% url 'recipes:future_recipes' %}" class="hover:text-gray-300 transition-colors">Future Ideas</a>
+                <a href="{% url 'recipes:shared_recipe_list' %}" class="hover:text-gray-300 transition-colors">Shared Recipes</a>
                 {% if not request.is_readonly %}
                 <a href="{% url 'recipes:meal_plan' %}" class="hover:text-gray-300 transition-colors">Meal Plan</a>
                 {% endif %}
@@ -50,6 +51,7 @@
             <div class="flex flex-col px-8 py-2">
                 <a href="{% url 'recipes:list_recipe' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Recipes</a>
                 <a href="{% url 'recipes:future_recipes' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Future Ideas</a>
+                <a href="{% url 'recipes:shared_recipe_list' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Shared Recipes</a>
                 {% if not request.is_readonly %}
                 <a href="{% url 'recipes:meal_plan' %}" class="py-3 border-b border-gray-600 hover:text-gray-300 transition-colors">Meal Plan</a>
                 {% endif %}

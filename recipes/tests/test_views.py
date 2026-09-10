@@ -81,7 +81,7 @@ def test_meal_plan_api_update(client):
     resp_data = response.json()
     assert resp_data['status'] == 'success'
     
-    plan = MealPlan.objects.filter(date=today, meal_type='LUNCH').first()
+    plan = MealPlan.objects.filter(household=client.household, date=today, meal_type='LUNCH').first()
     assert plan is not None
     assert plan.recipe == recipe
     assert plan.ready_at.strftime('%H:%M') == '12:30'

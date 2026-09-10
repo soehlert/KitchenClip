@@ -24,6 +24,18 @@
                 <p class="text-sm text-gray-500 mt-1">{{ field.help_text }}</p>
               {% endif %}
             </div>
+            {% elif field.name == "is_shared" %}
+            <div class="mb-4">
+              <div class="flex items-center">
+                {{ field }}
+                <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold">
+                  Share across households
+                </label>
+              </div>
+              {% if field.help_text %}
+                <p class="text-sm text-gray-500 mt-1">{{ field.help_text }}</p>
+              {% endif %}
+            </div>
             {% else %}
             <div>
               <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mb-1">

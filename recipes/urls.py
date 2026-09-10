@@ -8,9 +8,12 @@ urlpatterns = [
     # Recipe URLs
     path("", views.RecipeListView.as_view(), name="list_recipe"),
     path("future_recipes/", views.FutureRecipeListView.as_view(), name="future_recipes"),
+    path("shared/", views.SharedRecipeListView.as_view(), name="shared_recipe_list"),
     path("add/", views.RecipeCreateView.as_view(), name="add_recipe"),
     path('add/manual/', views.RecipeManualCreateView.as_view(), name='manual_add'),
     path("<int:pk>/", views.RecipeDetailView.as_view(), name="detail_recipe"),
+    path("<int:pk>/copy/", views.copy_recipe, name="copy_recipe"),
+    path("<int:pk>/copy-duplicate/", views.copy_duplicate_recipe, name="copy_duplicate"),
     path("<int:pk>/move_to_recipes/", views.move_to_recipes, name="move_to_recipes"),
     path("<int:pk>/edit/", views.RecipeUpdateView.as_view(), name="edit_recipe"),
     path("<int:pk>/delete/", views.RecipeDeleteView.as_view(), name="delete_recipe"),
