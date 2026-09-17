@@ -57,7 +57,7 @@
           </button>
 
           {% if not recipe %}
-          <span class="text-sm text-gray-500">or <a href="{% url 'recipes:manual_add' %}" class="text-[#5B8E7D] hover:underline font-semibold">create manually</a></span>
+          <span class="text-sm text-gray-500">or <a href="{% url 'recipes:scratch_add' %}" class="text-[#5B8E7D] hover:underline font-semibold">create from scratch</a></span>
           {% endif %}
 
           {% if show_delete and recipe %}

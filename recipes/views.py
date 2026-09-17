@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -19,7 +20,8 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from .forms import RecipeImportForm, RecipeManualForm, RecipeUpdateForm
+from .forms import (RecipeImportForm, RecipeManualForm, RecipeScratchForm,
+                    RecipeUpdateForm)
 from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .mixins import AdminRequiredMixin, require_admin
 from .models import Ingredient, MealPlan, Recipe, RecipeIngredient, RecipeTag
@@ -223,7 +225,7 @@ class RecipeCreateView(CreateView):
                 "Couldn't automatically import this recipe. Please enter it manually below."
             )
 
-            return HttpResponseRedirect(reverse('recipes:manual_add'))
+            return HttpResponseRedirect(reverse('recipes:scratch_add'))
 
         try:
             response = super().form_valid(form)
@@ -275,6 +277,184 @@ class RecipeCreateView(CreateView):
             raise
 
         return response
+
+
+class RecipeScratchCreateView(CreateView):
+    model = Recipe
+    form_class = RecipeScratchForm
+    template_name = "recipes/recipe_scratch_form.html"
+
+    def get_success_url(self):
+        return self.object.get_absolute_url()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
+        return kwargs
+
+    def get_initial(self):
+        initial = super().get_initial()
+
+        failed_url = self.request.session.pop('failed_recipe_url', None)
+        if failed_url:
+            initial['original_url'] = failed_url
+
+        preserved_data = self.request.session.get('preserved_form_data', {})
+        if preserved_data:
+            initial.update({
+                'rating': preserved_data.get('rating'),
+                'tags': preserved_data.get('tags', ''),
+                'user_notes': preserved_data.get('user_notes', ''),
+            })
+
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Create Recipe from Scratch"
+        context["heading"] = "Create Recipe from Scratch"
+        context["button_text"] = "Create Recipe"
+        context["show_delete"] = False
+
+        all_tags = list(RecipeTag.objects.values("name", "color"))
+        context["all_tags_json"] = json.dumps(all_tags, cls=DjangoJSONEncoder)
+        tag_color_map = {t["name"].lower(): t["color"] for t in all_tags}
+
+        preserved_data = self.request.session.get('preserved_form_data', {})
+        # Preserve tags on validation failure (POST) or from session redirect
+        raw_tags = ""
+        if self.request.method == "POST":
+            raw_tags = self.request.POST.get('tags', '')
+        elif preserved_data:
+            p_tags = preserved_data.get('tags', '')
+            if isinstance(p_tags, list):
+                raw_tags = ", ".join(p_tags)
+            elif isinstance(p_tags, str):
+                raw_tags = p_tags
+
+        if raw_tags:
+            tag_names = [t.strip() for t in raw_tags.split(",") if t.strip()]
+            initial_tags = [
+                {"name": t, "color": tag_color_map.get(t.lower(), "#6B7280")}
+                for t in tag_names
+            ]
+            context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
+            context["initial_tags_csv"] = ", ".join(tag_names)
+        else:
+            context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
+            context["initial_tags_csv"] = ""
+
+        # Handle dynamic rows in context
+        if self.request.method == "POST":
+            quantities = self.request.POST.getlist('ingredient_quantity')
+            units = self.request.POST.getlist('ingredient_unit')
+            foods = self.request.POST.getlist('ingredient_food') or self.request.POST.getlist('ingredient_name')
+            max_len = max(len(quantities), len(units), len(foods))
+            ingredient_rows = []
+            for i in range(max_len):
+                ingredient_rows.append({
+                    'quantity': quantities[i] if i < len(quantities) else '',
+                    'unit': units[i] if i < len(units) else '',
+                    'food': foods[i] if i < len(foods) else '',
+                })
+            context["ingredient_rows"] = ingredient_rows if ingredient_rows else [{'quantity': '', 'unit': '', 'food': ''}]
+
+            steps = self.request.POST.getlist('instruction_step')
+            context["instruction_steps"] = steps if steps else ['']
+        else:
+            context["ingredient_rows"] = [
+                {'quantity': '', 'unit': '', 'food': ''},
+                {'quantity': '', 'unit': '', 'food': ''},
+                {'quantity': '', 'unit': '', 'food': ''},
+            ]
+            context["instruction_steps"] = ['', '']
+
+        form = context.get('form')
+        if form and form.errors:
+            for err in form.non_field_errors():
+                err_str = str(err)
+                if "ingredient" in err_str.lower():
+                    context["ingredient_error"] = err_str
+                if "instruction" in err_str.lower():
+                    context["instruction_error"] = err_str
+
+        # On GET, once preserved session data has been consumed for initial display, clear it
+        if self.request.method == "GET":
+            self.request.session.pop('failed_recipe_url', None)
+            self.request.session.pop('preserved_form_data', None)
+
+        return context
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            valid_steps = form.cleaned_data.get('valid_steps', [])
+            form.instance.instructions = "\n".join(valid_steps)
+
+            if getattr(self.request, 'is_readonly', False):
+                form.instance.is_future = True
+                form.instance.is_on_menu = False
+
+            response = super().form_valid(form)
+
+            valid_ingredients = form.cleaned_data.get('valid_ingredients', [])
+            order_idx = 0
+            for item in valid_ingredients:
+                if "food" in item:
+                    food_name = item["food"]
+                    qty = item.get("quantity", "")
+                    unit = item.get("unit", "")
+                    raw_text = " ".join(filter(None, [qty, unit, food_name]))
+                    ingredient, _ = Ingredient.objects.get_or_create(name=food_name[:100])
+                    RecipeIngredient.objects.create(
+                        recipe=self.object,
+                        ingredient=ingredient,
+                        raw_text=raw_text[:200],
+                        quantity=qty[:50],
+                        unit=unit[:50],
+                        order=order_idx
+                    )
+                    order_idx += 1
+                elif "raw_text" in item:
+                    parsed_item = parse_ingredient_line(item["raw_text"])
+                    processed = process_ingredients([parsed_item])
+                    for p in processed:
+                        p_name = p["food"]
+                        ingredient, _ = Ingredient.objects.get_or_create(name=p_name[:100])
+                        p_qty = p.get('display_quantity', '')
+                        p_unit = p.get('unit', '')
+                        raw_text = " ".join(filter(None, [p_qty, p_unit, p_name]))
+                        RecipeIngredient.objects.create(
+                            recipe=self.object,
+                            ingredient=ingredient,
+                            raw_text=raw_text[:200],
+                            quantity=p_qty[:50],
+                            unit=p_unit[:50],
+                            order=order_idx
+                        )
+                        order_idx += 1
+
+            raw_tags = form.cleaned_data.get("tags", [])
+            if isinstance(raw_tags, str):
+                tag_names = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
+            else:
+                tag_names = list(raw_tags)
+
+            tag_objs = []
+            for name in tag_names:
+                tag_name = name[:50]
+                existing_tag = RecipeTag.objects.filter(name__iexact=tag_name).first()
+                if existing_tag:
+                    tag_obj = existing_tag
+                else:
+                    tag_obj, _ = RecipeTag.objects.get_or_create(name=tag_name)
+                tag_objs.append(tag_obj)
+            self.object.tags.set(tag_objs)
+
+            self.request.session.pop('failed_recipe_url', None)
+            self.request.session.pop('preserved_form_data', None)
+
+            messages.success(self.request, f'Recipe "{self.object.title}" created successfully!')
+            return response
 
 
 class RecipeManualCreateView(CreateView):
