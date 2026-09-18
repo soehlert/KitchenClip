@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from .forms import (RecipeImportForm, RecipeManualForm, RecipeScratchForm,
+from .forms import (RecipeImportForm, RecipeScratchForm,
                     RecipeUpdateForm)
 from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .mixins import AdminRequiredMixin, require_admin
@@ -455,114 +455,6 @@ class RecipeScratchCreateView(CreateView):
 
             messages.success(self.request, f'Recipe "{self.object.title}" created successfully!')
             return response
-
-
-class RecipeManualCreateView(CreateView):
-    model = Recipe
-    form_class = RecipeManualForm
-    template_name = "recipes/recipe_manual_form.html"
-    success_url = reverse_lazy("recipes:list_recipe")
-
-    def get_context_data(self, **kwargs):
-
-        preserved_data = self.request.session.get('preserved_form_data', {})
-
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Add Recipe Manually"
-        context["heading"] = "Enter Recipe Details"
-        context["button_text"] = "Save Recipe"
-        context["show_delete"] = False
-        all_tags = RecipeTag.objects.values("name", "color")
-        context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
-
-        # Get preserved tags from session or form initial data
-        preserved_data = self.request.session.get('preserved_form_data', {})
-        preserved_tags = preserved_data.get('tags', '')
-
-        if preserved_tags:
-            initial_tags = []
-            for tag_name in preserved_tags:
-                initial_tags.append({"name": tag_name, "color": "#6B7280"})
-
-            context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
-        else:
-            context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
-
-        return context
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['is_readonly'] = getattr(self.request, 'is_readonly', False)
-        return kwargs
-
-    def get_initial(self):
-        initial = super().get_initial()
-
-        failed_url = self.request.session.pop('failed_recipe_url', None)
-        if failed_url:
-            initial['original_url'] = failed_url
-
-        preserved_data = self.request.session.get('preserved_form_data', {})
-        if preserved_data:
-            initial.update({
-                'rating': preserved_data.get('rating'),
-                'tags': preserved_data.get('tags', ''),
-                'user_notes': preserved_data.get('user_notes', ''),
-            })
-
-        return initial
-
-    def form_valid(self, form):
-        form.instance.instructions = clean_instruction_line(form.instance.instructions)
-        
-        if getattr(self.request, 'is_readonly', False):
-            form.instance.is_future = True
-            form.instance.is_on_menu = False
-            
-        response = super().form_valid(form)
-
-        ingredients_text = form.cleaned_data.get('ingredients_text', '')
-        try:
-            # Parse all lines first
-            parsed_list = []
-            for line in ingredients_text.split('\n'):
-                line = line.strip()
-                if line:
-                    parsed_item = parse_ingredient_line(line)
-                    parsed_list.append(parsed_item)
-            
-            # Process (consolidate, format, normalize)
-            processed_ingredients = process_ingredients(parsed_list)
-
-            for idx, item in enumerate(processed_ingredients):
-                name = item["food"]
-                ingredient, _ = Ingredient.objects.get_or_create(name=name)
-                
-                RecipeIngredient.objects.create(
-                    recipe=self.object,
-                    ingredient=ingredient,
-                    raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
-                    quantity=item["display_quantity"],
-                    unit=item["unit"],
-                    order=idx
-                )
-        except Exception:
-            logger.exception("Failed to process manual ingredients")
-
-        raw_tags = form.cleaned_data["tags"]
-        if isinstance(raw_tags, str):
-            tag_names = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
-        else:
-            tag_names = list(raw_tags)
-
-        tag_objs = []
-        for name in tag_names:
-            slug = name.lower().replace(" ", "-")
-            tag_obj, created = RecipeTag.objects.get_or_create(name=name, defaults={"slug": slug})
-            tag_objs.append(tag_obj)
-        self.object.tags.set(tag_objs)
-
-        return response
 
 
 class RecipeUpdateView(AdminRequiredMixin, UpdateView):

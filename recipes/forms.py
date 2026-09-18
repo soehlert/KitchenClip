@@ -6,7 +6,6 @@ from django import forms
 
 from .ingredient_processor import process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
-from .utils import remove_instruction_headers
 
 logger = logging.getLogger(__name__)
 
@@ -212,123 +211,6 @@ class RecipeUpdateForm(forms.ModelForm):
         tags = self.cleaned_data.get("tags", "")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
-
-
-class RecipeManualForm(forms.ModelForm):
-    ingredients_text = forms.CharField(
-        widget=forms.Textarea(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "rows": 8,
-            "placeholder": "Enter each ingredient on a new line:\n1 cup flour\n2 eggs\n1/2 cup sugar"
-        }),
-        label="Ingredients",
-        help_text="Enter each ingredient on a separate line"
-    )
-    instructions_text = forms.CharField(
-        widget=forms.Textarea(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "rows": 10,
-            "placeholder": "Enter cooking instructions"
-        }),
-        label="Instructions"
-    )
-    rating = forms.ChoiceField(
-        choices=[('', '—')] + RATING_CHOICES,
-        required=False,
-        label="Rating",
-        widget=forms.Select(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
-        })
-    )
-    tags = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "placeholder": "e.g. quick, weeknight, dessert, appetizer",
-            "autocomplete": "off",
-            "id": "id_tags",
-        })
-    )
-    original_url = forms.URLField(
-        required=False,
-        label="Original URL (optional)",
-        assume_scheme='https',
-        widget=forms.URLInput(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "placeholder": "https://example.com/recipe (optional)"
-        })
-    )
-    image_url = forms.URLField(
-        required=False,
-        label="Image URL",
-        assume_scheme='https',
-        widget=forms.URLInput(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "placeholder": "https://example.com/recipe-image.jpg"
-        })
-    )
-
-    class Meta:
-        model = Recipe
-        fields = ["title", "original_url", "rating", "image_url", "prep_time", "cook_time",  "total_time", "servings", "user_notes", "is_future"]
-        widgets = {
-            "title": forms.TextInput(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
-            }),
-            "user_notes": forms.Textarea(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-                "rows": 3,
-            }),
-            "prep_time": forms.NumberInput(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-                "min": "0"
-            }),
-            "cook_time": forms.NumberInput(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-                "min": "0"
-            }),
-            "total_time": forms.NumberInput(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-                "min": "0"
-            }),
-            "servings": forms.NumberInput(attrs={
-                "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-                "min": "1"
-            }),
-            "is_future": forms.CheckboxInput(attrs={
-                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
-            }),
-        }
-
-    def clean_original_url(self):
-        url = self.cleaned_data.get('original_url')
-        return url if url else None
-
-    def clean_rating(self):
-        value = self.cleaned_data['rating']
-        return int(value) if value else None
-
-    def clean_tags(self):
-        tags = self.cleaned_data.get("tags", "")
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-        return tag_list
-
-    def save(self, commit=True):
-        recipe = super().save(commit=False)
-        raw_instructions = self.cleaned_data.get('instructions_text', '')
-        recipe.instructions = remove_instruction_headers(raw_instructions)
-
-        recipe.image_url = self.cleaned_data.get('image_url', '')
-
-        if commit:
-            recipe.save()
-        return recipe
-
-    def __init__(self, *args, **kwargs):
-        self.is_readonly = kwargs.pop('is_readonly', False)
-        super().__init__(*args, **kwargs)
-        if self.is_readonly and 'is_future' in self.fields:
-            del self.fields['is_future']
 
 
 class RecipeScratchForm(forms.ModelForm):

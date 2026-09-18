@@ -14,30 +14,6 @@ def test_recipe_list_view(client):
     assert response.status_code == 200
 
 @pytest.mark.django_db
-def test_recipe_manual_create(client):
-    url = reverse('recipes:manual_add')
-    data = {
-        'title': 'Test Manual Recipe',
-        'prep_time': '10',
-        'cook_time': '20',
-        'total_time': '30',
-        'servings': '2',
-        'ingredients_text': '1 cup flour',
-        'instructions_text': 'Mix and bake.',
-    }
-    response = client.post(url, data)
-    
-    if response.status_code == 200:
-        print("CREATE FORM ERRORS:", response.context['form'].errors)
-
-    assert response.status_code == 302
-    
-    # Verify the recipe was actually created in the DB
-    recipe = Recipe.objects.filter(title='Test Manual Recipe').first()
-    assert recipe is not None
-    assert recipe.total_time == 30
-
-@pytest.mark.django_db
 def test_recipe_edit(client):
     recipe = Recipe.objects.create(title="Old Title", prep_time=10)
     url = reverse('recipes:edit_recipe', args=[recipe.pk])
