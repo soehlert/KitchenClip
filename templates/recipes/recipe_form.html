@@ -16,13 +16,10 @@
             <div class="mb-4">
               <div class="flex items-center">
                 {{ field }}
-                <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold">
-                  Future
+                <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold cursor-pointer">
+                  Save for later
                 </label>
               </div>
-              {% if field.help_text %}
-                <p class="text-sm text-gray-500 mt-1">{{ field.help_text }}</p>
-              {% endif %}
             </div>
             {% else %}
             <div>
@@ -31,7 +28,7 @@
                 {% if field.field.required %}<span class="text-[#F2855E]">*</span>{% endif %}
               </label>
               {{ field }}
-              {% if field.help_text %}
+              {% if field.help_text and field.name != "user_notes" %}
                 <p class="text-sm text-gray-500">{{ field.help_text }}</p>
               {% endif %}
               {% for error in field.errors %}
@@ -55,10 +52,6 @@
           <button type="submit" form="recipe-form" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2 rounded-lg shadow transition">
               {{ button_text }}
           </button>
-
-          {% if not recipe %}
-          <span class="text-sm text-gray-500">or <a href="{% url 'recipes:scratch_add' %}" class="text-[#5B8E7D] hover:underline font-semibold">create from scratch</a></span>
-          {% endif %}
 
           {% if show_delete and recipe %}
           <form method="post" action="{% url 'recipes:delete_recipe' recipe.id %}" class="inline ml-auto">

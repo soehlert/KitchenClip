@@ -46,6 +46,13 @@ class RecipeImportForm(forms.ModelForm):
     class Meta:
         model = Recipe
         fields = ["original_url", "user_notes", "rating", "is_future"]
+        labels = {
+            "is_future": "Save for later",
+        }
+        help_texts = {
+            "user_notes": "",
+            "is_future": "",
+        }
         widgets = {
             "user_notes": forms.Textarea(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
@@ -109,6 +116,13 @@ class RecipeUpdateForm(forms.ModelForm):
             "rating", "instructions", "user_notes",
             "image_url", "is_future"
         ]
+        labels = {
+            "is_future": "Save for later",
+        }
+        help_texts = {
+            "user_notes": "",
+            "is_future": "",
+        }
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
@@ -320,8 +334,7 @@ class RecipeScratchForm(forms.ModelForm):
     )
     is_future = forms.BooleanField(
         required=False,
-        label="Future",
-        help_text="Save to try in the future",
+        label="Save for later",
         widget=forms.CheckboxInput(attrs={
             "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
         })

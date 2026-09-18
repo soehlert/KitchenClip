@@ -254,10 +254,10 @@ def test_scratch_create_navigation_links(client):
     assert list_resp.status_code == 200
     assert reverse('recipes:scratch_add') in list_resp.content.decode()
 
-    # Recipe import page has link to scratch creation
-    add_resp = client.get(reverse('recipes:add_recipe'))
-    assert add_resp.status_code == 200
-    assert reverse('recipes:scratch_add') in add_resp.content.decode()
+    # Saved for Later page also has "Create from Scratch" link
+    future_resp = client.get(reverse('recipes:future_recipes'))
+    assert future_resp.status_code == 200
+    assert reverse('recipes:scratch_add') in future_resp.content.decode()
 
 
 @pytest.mark.django_db

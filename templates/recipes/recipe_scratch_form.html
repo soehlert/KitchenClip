@@ -110,13 +110,10 @@
         <div class="sm:pt-5">
           <div class="flex items-center">
             {{ form.is_future }}
-            <label for="{{ form.is_future.id_for_label }}" class="ml-2 block text-[#194769] font-semibold text-sm">
-              Save as Future Idea
+            <label for="{{ form.is_future.id_for_label }}" class="ml-2 block text-[#194769] font-semibold text-sm cursor-pointer">
+              Save for later
             </label>
           </div>
-          {% if form.is_future.help_text %}
-            <p class="text-xs text-gray-500 mt-1">{{ form.is_future.help_text }}</p>
-          {% endif %}
         </div>
         {% endif %}
       </div>
