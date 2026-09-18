@@ -13,13 +13,19 @@
           {% for field in form %}
           {% if field.name != "tags" %}
             {% if field.name == "is_future" %}
-            <div class="mb-4">
-              <div class="flex items-center">
-                {{ field }}
-                <label for="{{ field.id_for_label }}" class="ml-2 block text-[#194769] font-semibold cursor-pointer">
-                  Save for later
-                </label>
-              </div>
+            <div class="pt-1">
+              <label for="{{ field.id_for_label }}" class="flex items-center justify-between p-3.5 bg-white border border-[#5B8E7D] rounded-lg cursor-pointer hover:border-[#194769] transition shadow-sm select-none group">
+                <div class="flex items-center gap-2.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#5B8E7D] group-hover:text-[#194769] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  <span class="text-[#194769] font-semibold text-sm">Save for later</span>
+                </div>
+                <div class="relative inline-flex items-center">
+                  <input type="checkbox" name="{{ field.html_name }}" id="{{ field.id_for_label }}" {% if field.value %}checked{% endif %} class="peer sr-only">
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#194769]"></div>
+                </div>
+              </label>
             </div>
             {% else %}
             <div>
