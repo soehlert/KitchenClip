@@ -71,6 +71,7 @@ def test_scratch_create_get(client):
     assert "Create Recipe from Scratch" in response.context['title']
     assert len(response.context['ingredient_rows']) >= 1
     assert len(response.context['instruction_steps']) >= 1
+    assert "import by URL" not in response.content.decode()
     # Also verify alias create_scratch works
     alias_url = reverse('recipes:create_scratch')
     alias_response = client.get(alias_url)
