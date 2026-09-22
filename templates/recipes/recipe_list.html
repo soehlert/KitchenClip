@@ -14,32 +14,6 @@
           {% if request.GET.search %}
           <input type="hidden" name="search" value="{{ request.GET.search }}">
           {% endif %}
-          <!-- Tag Filter -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-medium text-[#194769]">Tags</label>
-              <button type="button" id="toggle-tags"
-                class="text-xs text-[#3798A9] hover:text-[#194769] font-medium focus:outline-none transition-colors">
-                <span id="toggle-text">Show</span>
-                <svg id="toggle-icon" class="inline-block w-3 h-3 ml-1 transition-transform" fill="none"
-                  stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-            </div>
-            <div id="tags-container" class="hidden space-y-2 overflow-y-auto max-h-72">
-              {% for tag in all_tags %}
-              <label class="flex items-center">
-                <input type="checkbox" name="tags" value="{{ tag.id }}" {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
-                  class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
-                <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full"
-                  style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
-                  {{ tag.name }}
-                </span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
           <!-- Time Filter -->
           <div>
             <label class="block text-sm font-medium text-[#194769] mb-2">Total Time</label>
@@ -65,6 +39,32 @@
                 <input type="checkbox" name="time_range" value="60+" {% if "60+" in request.GET.time_range %}checked{%endif %} class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
                 <span class="ml-2 text-sm text-gray-700">60+ minutes</span>
               </label>
+            </div>
+          </div>
+          <!-- Tag Filter -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-[#194769]">Tags</label>
+              <button type="button" id="toggle-tags"
+                class="text-xs text-[#3798A9] hover:text-[#194769] font-medium focus:outline-none transition-colors">
+                <span id="toggle-text">Show</span>
+                <svg id="toggle-icon" class="inline-block w-3 h-3 ml-1 transition-transform" fill="none"
+                  stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+            </div>
+            <div id="tags-container" class="hidden space-y-2 overflow-y-auto max-h-72">
+              {% for tag in all_tags %}
+              <label class="flex items-center">
+                <input type="checkbox" name="tags" value="{{ tag.id }}" {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
+                  class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full"
+                  style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
+                  {{ tag.name }}
+                </span>
+              </label>
+              {% endfor %}
             </div>
           </div>
           <!-- Filter Buttons -->
