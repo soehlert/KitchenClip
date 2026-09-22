@@ -7,9 +7,26 @@
 <div class="px-4 sm:px-6 lg:px-8 pt-8">
   <div class="flex flex-col lg:flex-row gap-6">
     <!-- Sidebar -->
-    <div class="w-full lg:w-1/4 xl:w-1/5 2xl:w-1/4 my-8 flex-shrink-0">
+    <div class="w-full lg:w-1/4 xl:w-1/5 2xl:w-1/4 mb-4 lg:my-8 flex-shrink-0">
       <div class="bg-white p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm sticky top-4">
-        <h2 class="text-lg font-semibold text-[#194769] mb-4">Filters</h2>
+        <div class="flex items-center justify-between cursor-pointer select-none" id="toggle-filters-box">
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-[#194769]">Filters</h2>
+            {% if request.GET.time_range or request.GET.tags %}
+            <span class="bg-[#3798A9] text-white text-[10px] px-2 py-0.5 rounded-full font-medium">Active</span>
+            {% endif %}
+          </div>
+          <button type="button" id="filters-toggle-btn"
+            class="text-xs text-[#3798A9] hover:text-[#194769] font-medium flex items-center gap-1 focus:outline-none transition-colors"
+            aria-expanded="{% if request.GET.time_range or request.GET.tags %}true{% else %}false{% endif %}"
+            aria-controls="filter-form-container">
+            <span id="filters-toggle-text">{% if not request.GET.time_range and not request.GET.tags %}<span class="lg:hidden">Show</span><span class="hidden lg:inline">Hide</span>{% else %}Hide{% endif %}</span>
+            <svg id="filters-toggle-icon" class="w-4 h-4 transition-transform duration-200 transform {% if not request.GET.time_range and not request.GET.tags %}rotate-0 lg:rotate-180{% else %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="filter-form-container" class="{% if not request.GET.time_range and not request.GET.tags %}hidden lg:block{% endif %} mt-4">
         <form method="get" class="space-y-4">
           {% if request.GET.search %}
           <input type="hidden" name="search" value="{{ request.GET.search }}">
@@ -79,6 +96,7 @@
             </a>
           </div>
         </form>
+        </div>
       </div>
     </div>
 
