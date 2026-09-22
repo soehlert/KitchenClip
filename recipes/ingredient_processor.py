@@ -373,7 +373,7 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             u = pluralize_unit(u, q)
 
         results.append({
-            "food": f.capitalize(),
+            "food": f,
             "unit": u,
             "quantity": q,
             "display_quantity": display_q,

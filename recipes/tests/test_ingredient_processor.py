@@ -67,7 +67,7 @@ def test_process_ingredients_with_or():
     # f_words = "tortilla chips or crackers".split() -> ["tortilla", "chips", "or", "crackers"]
     # "crackers" in f_words -> unit becomes ""
     
-    assert results[0]["food"] == "Tortilla chips or crackers"
+    assert results[0]["food"] == "tortilla chips or crackers"
     assert results[0]["unit"] == ""
 
 def test_process_ingredients_with_prep_list():
