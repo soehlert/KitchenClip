@@ -7,27 +7,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const filtersToggleIcon = document.getElementById('filters-toggle-icon');
 
     if (filterBoxToggle && filterFormContainer && filtersToggleText && filtersToggleIcon) {
-        filterBoxToggle.addEventListener('click', function(e) {
-            if (e.target.closest('#filter-form-container')) return;
-
-            const isHidden = filterFormContainer.classList.contains('hidden') ||
-                             (window.getComputedStyle(filterFormContainer).display === 'none');
-
-            if (isHidden) {
+        function updateToggleState(isOpen) {
+            if (isOpen) {
                 filterFormContainer.classList.remove('hidden');
                 filterFormContainer.classList.add('block');
                 filterFormContainer.classList.remove('lg:hidden');
-                filtersToggleText.innerHTML = 'Hide';
-                filtersToggleIcon.classList.add('rotate-180');
-                filtersToggleIcon.classList.remove('rotate-0');
+                filtersToggleText.textContent = 'Hide';
+                filtersToggleIcon.style.transform = 'rotate(180deg)';
             } else {
                 filterFormContainer.classList.add('hidden');
                 filterFormContainer.classList.remove('block');
                 filterFormContainer.classList.remove('lg:block');
-                filtersToggleText.innerHTML = 'Show';
-                filtersToggleIcon.classList.remove('rotate-180');
-                filtersToggleIcon.classList.add('rotate-0');
+                filtersToggleText.textContent = 'Show';
+                filtersToggleIcon.style.transform = 'rotate(0deg)';
             }
+        }
+
+        // Initialize state on page load: desktop starts open, mobile starts closed
+        const isInitiallyOpen = window.innerWidth >= 1024;
+        updateToggleState(isInitiallyOpen);
+
+        filterBoxToggle.addEventListener('click', function(e) {
+            if (e.target.closest('#filter-form-container')) return;
+
+            const isCurrentlyHidden = filterFormContainer.classList.contains('hidden') ||
+                             (window.getComputedStyle(filterFormContainer).display === 'none');
+
+            updateToggleState(isCurrentlyHidden);
         });
     }
 
