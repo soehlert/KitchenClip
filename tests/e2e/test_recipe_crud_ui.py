@@ -6,9 +6,9 @@ from recipes.models import Recipe
 
 @pytest.mark.django_db(transaction=True)
 def test_manual_recipe_add_and_view(page: Page, live_server):
-    """Test the complete UI flow for creating a recipe manually and viewing it in the list."""
-    # 1. Navigate to Manual Add
-    page.goto(f"{live_server.url}/add/manual/")
+    """Test the complete UI flow for creating a recipe from scratch and viewing it in the list."""
+    # 1. Navigate to Scratch Add
+    page.goto(f"{live_server.url}/add/scratch/")
     
     # Assert page loaded
     expect(page.locator("text=Ingredients")).to_be_visible()
@@ -19,16 +19,21 @@ def test_manual_recipe_add_and_view(page: Page, live_server):
     page.fill("input[name='cook_time']", "20")
     page.fill("input[name='total_time']", "30")
     page.fill("input[name='servings']", "4")
-    page.fill("textarea[name='ingredients_text']", "1 cup flour\n2 eggs")
-    page.fill("textarea[name='instructions_text']", "Mix.\nBake.")
+    page.locator("input[name='ingredient_quantity']").first.fill("1")
+    page.locator("input[name='ingredient_unit']").first.fill("cup")
+    page.locator("input[name='ingredient_food']").first.fill("flour")
+    page.locator("textarea[name='instruction_step']").first.fill("Mix.\nBake.")
     
     # 3. Submit
     page.click("button[type='submit']")
     
-    # Wait for the redirect back to the recipe list
-    page.wait_for_url(f"{live_server.url}/")
+    # Wait for the redirect to the recipe detail page
+    recipe = Recipe.objects.get(title="E2E UI Recipe")
+    page.wait_for_url(f"{live_server.url}/{recipe.id}/")
+    expect(page.locator("h1")).to_contain_text("E2E UI Recipe")
     
     # 4. Verify the recipe is in the list
+    page.goto(f"{live_server.url}/")
     expect(page.locator("text=E2E UI Recipe")).to_be_visible()
     
     # 5. Verify the DB was actually updated
