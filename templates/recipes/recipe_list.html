@@ -18,15 +18,15 @@
           </div>
           <button type="button" id="filters-toggle-btn"
             class="text-xs text-[#3798A9] hover:text-[#194769] font-medium flex items-center gap-1 focus:outline-none transition-colors"
-            aria-expanded="{% if request.GET.time_range or request.GET.tags %}true{% else %}false{% endif %}"
+            aria-expanded="false"
             aria-controls="filter-form-container">
-            <span id="filters-toggle-text">{% if not request.GET.time_range and not request.GET.tags %}<span class="lg:hidden">Show</span><span class="hidden lg:inline">Hide</span>{% else %}Hide{% endif %}</span>
-            <svg id="filters-toggle-icon" class="w-4 h-4 transition-transform duration-200 transform {% if not request.GET.time_range and not request.GET.tags %}rotate-0 lg:rotate-180{% else %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span id="filters-toggle-text"><span class="lg:hidden">Show</span><span class="hidden lg:inline">Hide</span></span>
+            <svg id="filters-toggle-icon" class="w-4 h-4 transition-transform duration-200 transform rotate-0 lg:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
           </button>
         </div>
-        <div id="filter-form-container" class="{% if not request.GET.time_range and not request.GET.tags %}hidden lg:block{% endif %} mt-4">
+        <div id="filter-form-container" class="hidden lg:block mt-4">
         <form method="get" class="space-y-4">
           {% if request.GET.search %}
           <input type="hidden" name="search" value="{{ request.GET.search }}">
@@ -109,20 +109,20 @@
           <span class="text-base sm:text-lg font-normal text-gray-600">({{ page_obj.paginator.count }} total)</span>
           {% endif %}
         </h1>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <a href="{% url 'recipes:add_recipe' %}"
-            class="bg-white hover:bg-[#F7F9FA] text-[#194769] border border-[#5B8E7D] font-semibold px-4 py-2 rounded-lg shadow-sm transition text-center flex items-center gap-1.5">
+            class="w-full sm:w-52 bg-white hover:bg-[#F7F9FA] text-[#194769] border border-[#5B8E7D] font-semibold px-4 py-2 rounded-lg shadow-sm transition text-center flex items-center justify-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#5B8E7D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
-            Import from URL
+            <span>Import from URL</span>
           </a>
           <a href="{% url 'recipes:scratch_add' %}"
-            class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center flex items-center gap-1.5">
+            class="w-full sm:w-52 bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center flex items-center justify-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            Create from Scratch
+            <span>Create from Scratch</span>
           </a>
         </div>
       </div>
