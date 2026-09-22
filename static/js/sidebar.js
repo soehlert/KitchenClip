@@ -9,31 +9,36 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterBoxToggle && filterFormContainer && filtersToggleText && filtersToggleIcon) {
         function updateToggleState(isOpen) {
             if (isOpen) {
+                filterFormContainer.style.display = 'block';
                 filterFormContainer.classList.remove('hidden');
-                filterFormContainer.classList.add('block');
-                filterFormContainer.classList.remove('lg:hidden');
                 filtersToggleText.textContent = 'Hide';
                 filtersToggleIcon.style.transform = 'rotate(180deg)';
             } else {
+                filterFormContainer.style.display = 'none';
                 filterFormContainer.classList.add('hidden');
-                filterFormContainer.classList.remove('block');
-                filterFormContainer.classList.remove('lg:block');
                 filtersToggleText.textContent = 'Show';
                 filtersToggleIcon.style.transform = 'rotate(0deg)';
             }
         }
 
         // Initialize state on page load: desktop starts open, mobile starts closed
-        const isInitiallyOpen = window.innerWidth >= 1024;
-        updateToggleState(isInitiallyOpen);
+        const mediaQuery = window.matchMedia('(min-width: 1024px)');
+        updateToggleState(mediaQuery.matches);
+
+        // Auto-adapt on screen resize between mobile and desktop
+        if (mediaQuery.addEventListener) {
+            mediaQuery.addEventListener('change', function(e) {
+                updateToggleState(e.matches);
+            });
+        }
 
         filterBoxToggle.addEventListener('click', function(e) {
             if (e.target.closest('#filter-form-container')) return;
 
-            const isCurrentlyHidden = filterFormContainer.classList.contains('hidden') ||
-                             (window.getComputedStyle(filterFormContainer).display === 'none');
+            const isCurrentlyOpen = filterFormContainer.style.display === 'block' ||
+                (!filterFormContainer.classList.contains('hidden') && window.getComputedStyle(filterFormContainer).display !== 'none');
 
-            updateToggleState(isCurrentlyHidden);
+            updateToggleState(!isCurrentlyOpen);
         });
     }
 
