@@ -104,3 +104,62 @@ def test_parse_ingredient_line_clove_fix():
     assert float(parsed["quantity"]) == 2.0
     assert parsed["unit"] == ""
     assert "garlic" in parsed["food"]
+
+
+def test_meal_kit_unit_resolution():
+    """Test resolution of meal kit 'unit' markers into sensible units."""
+    lettuce = parse_ingredient_line("1 unit Baby lettuce")
+    assert lettuce["unit"] == "head"
+    assert "baby lettuce" in lettuce["food"].lower()
+
+    stock = parse_ingredient_line("1 unit Beef stock concentrate")
+    assert stock["unit"] == "packet"
+    assert "beef stock concentrate" in stock["food"].lower()
+
+    ketchup = parse_ingredient_line("1 unit Ketchup")
+    assert ketchup["unit"] == "packet"
+    assert "ketchup" in ketchup["food"].lower()
+
+    cilantro = parse_ingredient_line("1 unit Cilantro")
+    assert cilantro["unit"] == "bunch"
+
+    spring_mix = parse_ingredient_line("1 unit Spring mix")
+    assert spring_mix["unit"] == "bag"
+
+    tomato = parse_ingredient_line("1 unit Tomato")
+    assert tomato["unit"] == ""
+    assert "tomato" in tomato["food"].lower()
+
+    pickle = parse_ingredient_line("1 unit Dill pickle (sliced)")
+    assert pickle["unit"] == ""
+    assert "dill pickle" in pickle["food"].lower()
+
+
+def test_pouch_and_packet_recognition():
+    """Test first-class recognition of pouch and packet units."""
+    pouch1 = parse_ingredient_line("1 pouch beef stock concentrate")
+    assert pouch1["unit"] == "pouch"
+    assert pouch1["food"].lower() == "beef stock concentrate"
+
+    pouch2 = parse_ingredient_line("2 pouches beef stock concentrate")
+    assert pouch2["unit"] == "pouches"
+    assert pouch2["food"].lower() == "beef stock concentrate"
+
+    packet = parse_ingredient_line("1 packet Southwest spice blend")
+    assert packet["unit"] == "packet"
+    assert "southwest spice" in packet["food"].lower()
+
+
+def test_unit_pluralization_in_process_ingredients():
+    """Test that units are pluralized when quantity > 1."""
+    items = [
+        {"food": "mayonnaise", "unit": "tablespoon", "quantity": 2.0},
+        {"food": "beef", "unit": "ounce", "quantity": 10.0},
+        {"food": "fry seasoning", "unit": "tablespoon", "quantity": 1.0},
+    ]
+    processed = process_ingredients(items)
+    by_food = {p["food"].lower(): p for p in processed}
+    assert by_food["mayonnaise"]["unit"] == "tablespoons"
+    assert by_food["beef"]["unit"] == "ounces"
+    assert by_food["fry seasoning"]["unit"] == "tablespoon"
+

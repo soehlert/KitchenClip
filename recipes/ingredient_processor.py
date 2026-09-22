@@ -136,6 +136,32 @@ def parse_ingredient_line(line: str) -> dict:
     if u:
         parsed_item["unit"] = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', u, flags=re.IGNORECASE).strip()
 
+    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can")
+    u_current = (parsed_item.get("unit") or "").lower().strip()
+    food_current = (parsed_item.get("food") or "").strip()
+    if not u_current and food_current:
+        for prefix, norm_unit in [
+            ("pouches", "pouches"), ("pouch", "pouch"),
+            ("packets", "packets"), ("packet", "packet"),
+            ("heads", "heads"), ("head", "head"),
+            ("bunches", "bunches"), ("bunch", "bunch"),
+            ("bags", "bags"), ("bag", "bag"),
+            ("cans", "cans"), ("can", "can"),
+            ("stalks", "stalks"), ("stalk", "stalk"),
+        ]:
+            if food_current.lower().startswith(prefix + " "):
+                parsed_item["unit"] = norm_unit
+                food_current = food_current[len(prefix) + 1:].strip()
+                parsed_item["food"] = food_current
+                u_current = norm_unit
+                break
+
+    # Resolve meal-kit 'unit' into sensible culinary units
+    if not u_current and re.search(r'\bunit\b', line_to_parse, flags=re.IGNORECASE):
+        resolved = resolve_meal_kit_unit(food_current)
+        if resolved:
+            parsed_item["unit"] = resolved
+
     # Let's ensure quantity is always returned as a float, never a string
     parsed_item["quantity"] = qty
     
@@ -146,6 +172,68 @@ def parse_ingredient_line(line: str) -> dict:
         parsed_item["food"] = ""
         
     return parsed_item
+
+UNIT_PLURAL_MAP = {
+    "tablespoon": "tablespoons",
+    "tbsp": "tbsp",
+    "teaspoon": "teaspoons",
+    "tsp": "tsp",
+    "ounce": "ounces",
+    "oz": "oz",
+    "cup": "cups",
+    "pound": "pounds",
+    "lb": "lbs",
+    "packet": "packets",
+    "pouch": "pouches",
+    "head": "heads",
+    "bunch": "bunches",
+    "bag": "bags",
+    "can": "cans",
+    "clove": "cloves",
+    "stalk": "stalks",
+    "slice": "slices",
+    "pinch": "pinches",
+    "dash": "dashes",
+}
+
+
+def pluralize_unit(unit: str, quantity: float) -> str:
+    """Return plural form of unit if quantity > 1."""
+    if not unit or quantity <= 1.0:
+        return unit
+    u_lower = unit.lower()
+    return UNIT_PLURAL_MAP.get(u_lower, u_lower)
+
+
+def resolve_meal_kit_unit(food: str) -> str:
+    """Resolve meal-kit 'unit' into a sensible culinary unit based on food type."""
+    f = food.lower().strip()
+    whole_produce = [
+        "tomato", "lime", "lemon", "onion", "bell pepper", "pepper", "cucumber",
+        "avocado", "potato", "apple", "egg", "bun", "roll", "tortilla", "pickle",
+    ]
+    if any(re.search(rf"\b{item}\b", f) for item in whole_produce):
+        return ""
+
+    if any(re.search(rf"\b{item}\b", f) for item in ["lettuce", "cabbage"]):
+        return "head"
+
+    if any(re.search(rf"\b{item}\b", f) for item in ["greens", "spinach", "arugula", "spring mix"]):
+        return "bag"
+
+    if any(re.search(rf"\b{item}\b", f) for item in ["cilantro", "parsley", "scallion", "green onion", "rosemary", "thyme"]):
+        return "bunch"
+
+    packaged = [
+        "concentrate", "stock", "broth", "paste", "ketchup", "mayo", "mayonnaise",
+        "sauce", "glaze", "jam", "honey", "sriracha", "dressing", "seasoning",
+        "spice", "rub", "sour cream", "cream sauce", "panko", "breadcrumbs", "cheese",
+    ]
+    if any(re.search(rf"\b{item}\b", f) for item in packaged):
+        return "packet"
+
+    return "packet"
+
 
 FRACTION_MAP = {
     0.5: '½', 0.333: '⅓', 0.666: '⅔', 0.25: '¼', 0.75: '¾', 
@@ -225,6 +313,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             continue
             
         unit = (item.get("unit") or "").strip().lower()
+        if unit == "unit":
+            unit = resolve_meal_kit_unit(food)
         
         # Quantity is now guaranteed to be a float or converted to float
         raw_quantity = item.get("quantity", 0.0)
@@ -279,6 +369,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
                 # For display we combine them
                 display_q = f"{lbs} lb {remain_fmt}"
                 u = "oz"
+        else:
+            u = pluralize_unit(u, q)
 
         results.append({
             "food": f.capitalize(),
