@@ -4,7 +4,7 @@ import re
 import ingredient_slicer
 from django import forms
 
-from .ingredient_processor import process_ingredients
+from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
 
 logger = logging.getLogger(__name__)
@@ -429,7 +429,17 @@ class RecipeScratchForm(forms.ModelForm):
 
             # Check if user entered quantity/unit but omitted food name
             if not food_clean and (qty_clean or unit_clean):
-                has_incomplete_row = True
+                combined = f"{qty_clean} {unit_clean}".strip()
+                if " " in combined or re.search(r"[a-zA-Z]", combined):
+                    parsed = parse_ingredient_line(combined)
+                    p_food = parsed.get("food", "")
+                    if p_food:
+                        food_clean = p_food
+                        p_qty = parsed.get("quantity")
+                        qty_clean = str(int(p_qty)) if (isinstance(p_qty, float) and p_qty.is_integer()) else (str(p_qty) if p_qty else "")
+                        unit_clean = parsed.get("unit") or ""
+                if not food_clean:
+                    has_incomplete_row = True
 
             if food_clean:
                 if len(food_clean) > 100:

@@ -161,7 +161,7 @@
             <label class="block text-[#194769] font-semibold text-lg">
               Ingredients <span class="text-[#F2855E]">*</span>
             </label>
-            <p class="text-xs text-gray-500">Specify quantity, unit, and food description for each item.</p>
+            <p class="text-xs text-gray-500">Paste or type full lines (e.g. "1 tablespoon olive oil" or a copied list) to auto-fill.</p>
           </div>
           <button type="button" id="add-ingredient-btn" class="inline-flex items-center gap-1 text-sm font-semibold text-white bg-[#194769] hover:bg-[#5B8E7D] px-3 py-1.5 rounded-lg shadow-sm transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,10 +245,11 @@
 
 {% block javascript %}
   <script src="{% static 'js/tag_input.js' %}"></script>
-  <script src="{% static 'js/recipe_scratch.js' %}"></script>
   <script>
     window.availableTags = {{ all_tags_json|safe }};
     window.initialTags = {{ initial_tags_json|default:"[]"|safe }};
     window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
+    window.parseIngredientsUrl = "{% url 'recipes:parse_ingredients_api' %}";
   </script>
+  <script src="{% static 'js/recipe_scratch.js' %}"></script>
 {% endblock %}

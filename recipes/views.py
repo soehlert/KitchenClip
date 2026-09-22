@@ -691,6 +691,7 @@ def search_recipes_api(request):
     return JsonResponse({'recipes': data})
 
 
+@csrf_exempt
 @require_POST
 def parse_ingredients_api(request):
     """API endpoint to parse ingredient text into structured items."""

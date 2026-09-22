@@ -689,4 +689,27 @@ def test_parse_ingredients_api_empty(client):
     assert response.json() == {'ingredients': []}
 
 
+@pytest.mark.django_db
+def test_scratch_create_fallback_parses_full_line_in_quantity_field(client):
+    """Ensure full ingredient strings entered in the quantity field are parsed automatically on submission."""
+    from recipes.models import Recipe
+    url = reverse('recipes:scratch_add')
+    data = {
+        'title': 'Fallback Paste Recipe',
+        'ingredient_quantity': ['1 tablespoon olive oil'],
+        'ingredient_unit': [''],
+        'ingredient_food': [''],
+        'instruction_step': ['Heat oil in pan.'],
+    }
+    response = client.post(url, data)
+    assert response.status_code == 302
+    recipe = Recipe.objects.get(title='Fallback Paste Recipe')
+    ingredients = list(recipe.recipe_ingredients.all())
+    assert len(ingredients) == 1
+    assert ingredients[0].quantity == '1'
+    assert ingredients[0].unit == 'tablespoon'
+    assert 'olive oil' in ingredients[0].ingredient.name.lower()
+
+
+
 

@@ -32,6 +32,79 @@ document.addEventListener('DOMContentLoaded', function () {
         return row;
     }
 
+    function getCsrfToken() {
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) return csrfInput.value;
+        const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+        return cookie ? cookie.split('=')[1] : '';
+    }
+
+    async function parseIngredients(text) {
+        const url = window.parseIngredientsUrl || '/api/recipes/parse-ingredients/';
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ text: text }),
+            });
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data.ingredients || [];
+        } catch (err) {
+            console.error('Failed to parse ingredients via API:', err);
+            return null;
+        }
+    }
+
+    function isRowEmpty(r) {
+        const q = (r.querySelector('input[name="ingredient_quantity"]')?.value || '').trim();
+        const u = (r.querySelector('input[name="ingredient_unit"]')?.value || '').trim();
+        const f = (r.querySelector('input[name="ingredient_food"]')?.value || '').trim();
+        return !q && !u && !f;
+    }
+
+    function applyParsedIngredients(currentRow, parsedList) {
+        if (!parsedList || parsedList.length === 0) return;
+
+        const first = parsedList[0];
+        const qtyInput = currentRow.querySelector('input[name="ingredient_quantity"]');
+        const unitInput = currentRow.querySelector('input[name="ingredient_unit"]');
+        const foodInput = currentRow.querySelector('input[name="ingredient_food"]');
+
+        if (qtyInput) qtyInput.value = first.quantity || '';
+        if (unitInput) unitInput.value = first.unit || '';
+        if (foodInput) foodInput.value = first.food || '';
+
+        let prevRow = currentRow;
+        for (let i = 1; i < parsedList.length; i++) {
+            const item = parsedList[i];
+            let targetRow = prevRow.nextElementSibling;
+            if (targetRow && targetRow.classList.contains('ingredient-row') && isRowEmpty(targetRow)) {
+                const tQty = targetRow.querySelector('input[name="ingredient_quantity"]');
+                const tUnit = targetRow.querySelector('input[name="ingredient_unit"]');
+                const tFood = targetRow.querySelector('input[name="ingredient_food"]');
+                if (tQty) tQty.value = item.quantity || '';
+                if (tUnit) tUnit.value = item.unit || '';
+                if (tFood) tFood.value = item.food || '';
+            } else {
+                const newRow = createIngredientRow(item.quantity || '', item.unit || '', item.food || '');
+                if (prevRow.nextElementSibling) {
+                    ingredientsList.insertBefore(newRow, prevRow.nextElementSibling);
+                } else {
+                    ingredientsList.appendChild(newRow);
+                }
+                targetRow = newRow;
+            }
+            prevRow = targetRow;
+        }
+
+        // Focus the food input of the primary row or next empty row
+        if (foodInput) foodInput.focus();
+    }
+
     if (addIngredientBtn && ingredientsList) {
         addIngredientBtn.addEventListener('click', function () {
             const newRow = createIngredientRow();
@@ -46,6 +119,48 @@ document.addEventListener('DOMContentLoaded', function () {
                 const row = removeBtn.closest('.ingredient-row');
                 if (row) {
                     row.remove();
+                }
+            }
+        });
+
+        // Intercept paste on any ingredient input box
+        ingredientsList.addEventListener('paste', async function (e) {
+            const target = e.target;
+            if (!target || !target.closest('.ingredient-row')) return;
+
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            if (!pastedText) return;
+
+            const trimmed = pastedText.trim();
+            // If the pasted text contains spaces or multiple lines, treat as full ingredient(s)
+            if (trimmed.includes('\n') || trimmed.includes(' ')) {
+                e.preventDefault();
+                const currentRow = target.closest('.ingredient-row');
+                const parsed = await parseIngredients(trimmed);
+                if (parsed && parsed.length > 0) {
+                    applyParsedIngredients(currentRow, parsed);
+                } else {
+                    target.value = trimmed;
+                }
+            }
+        });
+
+        // Auto-distribute if user types a full line into quantity and tabs/moves away
+        ingredientsList.addEventListener('focusout', async function (e) {
+            const target = e.target;
+            if (target && target.name === 'ingredient_quantity') {
+                const val = target.value.trim();
+                const isFractionOnly = /^(\d+\s+)?\d+\/\d+$/.test(val);
+                if (val.includes(' ') && !isFractionOnly) {
+                    const currentRow = target.closest('.ingredient-row');
+                    const unitInput = currentRow.querySelector('input[name="ingredient_unit"]');
+                    const foodInput = currentRow.querySelector('input[name="ingredient_food"]');
+                    if (unitInput && !unitInput.value && foodInput && !foodInput.value) {
+                        const parsed = await parseIngredients(val);
+                        if (parsed && parsed.length > 0) {
+                            applyParsedIngredients(currentRow, parsed);
+                        }
+                    }
                 }
             }
         });
