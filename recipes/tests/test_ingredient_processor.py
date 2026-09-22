@@ -97,13 +97,51 @@ def test_parse_ingredient_line_metric_multiplier_fix():
     assert parsed["food"] == "eggs"
 
 def test_parse_ingredient_line_clove_fix():
-    """Test another case with cloves and mass."""
+    """Test cloves with metric mass in parentheses."""
     line = "2 cloves garlic (10g)"
     parsed = parse_ingredient_line(line)
     
     assert float(parsed["quantity"]) == 2.0
-    assert parsed["unit"] == ""
-    assert "garlic" in parsed["food"]
+    assert parsed["unit"] == "cloves"
+    assert parsed["food"] == "garlic"
+    processed = process_ingredients([parsed])
+    assert processed[0]["display_quantity"] == "2"
+    assert processed[0]["unit"] == "cloves"
+    assert processed[0]["food"] == "garlic"
+    assert processed[0]["prep"] == "10 g"
+
+
+def test_garlic_cloves_parsing_and_pluralization():
+    """Test singular/plural normalization for garlic cloves across variations."""
+    # 2 clove garlic -> pluralized to 'cloves'
+    two_clove = parse_ingredient_line("2 clove garlic")
+    assert float(two_clove["quantity"]) == 2.0
+    assert two_clove["unit"] == "clove"
+    assert two_clove["food"] == "garlic"
+    proc_two = process_ingredients([two_clove])
+    assert proc_two[0]["display_quantity"] == "2"
+    assert proc_two[0]["unit"] == "cloves"
+    assert proc_two[0]["food"] == "garlic"
+
+    # 1 clove garlic -> remains singular 'clove'
+    one_clove = parse_ingredient_line("1 clove garlic")
+    assert float(one_clove["quantity"]) == 1.0
+    assert one_clove["unit"] == "clove"
+    assert one_clove["food"] == "garlic"
+    proc_one = process_ingredients([one_clove])
+    assert proc_one[0]["display_quantity"] == "1"
+    assert proc_one[0]["unit"] == "clove"
+    assert proc_one[0]["food"] == "garlic"
+
+    # 2 garlic cloves -> unit extracted from suffix
+    suffix_cloves = parse_ingredient_line("2 garlic cloves")
+    assert float(suffix_cloves["quantity"]) == 2.0
+    assert suffix_cloves["unit"] == "cloves"
+    assert suffix_cloves["food"] == "garlic"
+    proc_suffix = process_ingredients([suffix_cloves])
+    assert proc_suffix[0]["display_quantity"] == "2"
+    assert proc_suffix[0]["unit"] == "cloves"
+    assert proc_suffix[0]["food"] == "garlic"
 
 
 def test_meal_kit_unit_resolution():

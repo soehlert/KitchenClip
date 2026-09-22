@@ -33,6 +33,30 @@ def _extract_numbers(text: str) -> list[float]:
     return extracted_floats
 
 
+UNIT_PLURAL_MAP = {
+    "tablespoon": "tablespoons",
+    "tbsp": "tbsp",
+    "teaspoon": "teaspoons",
+    "tsp": "tsp",
+    "ounce": "ounces",
+    "oz": "oz",
+    "cup": "cups",
+    "pound": "pounds",
+    "lb": "lbs",
+    "packet": "packets",
+    "pouch": "pouches",
+    "head": "heads",
+    "bunch": "bunches",
+    "bag": "bags",
+    "can": "cans",
+    "clove": "cloves",
+    "stalk": "stalks",
+    "slice": "slices",
+    "pinch": "pinches",
+    "dash": "dashes",
+}
+
+
 def parse_ingredient_line(line: str) -> dict:
     """
     Centralized parsing for a single ingredient line.
@@ -100,9 +124,16 @@ def parse_ingredient_line(line: str) -> dict:
     food_current = (parsed_item.get("food") or "").strip()
     
     if u_current and food_current:
-        # If the unit is already part of the food name ("yellow onion" & "onion"), just clear the unit
+        # If the unit is already part of the food name ("yellow onion" & "onion", or "clove" & "clove garlic")
         if u_current in food_current.lower().split() or u_current == food_current.lower():
-            parsed_item["unit"] = ""
+            if u_current in UNIT_PLURAL_MAP or u_current in UNIT_PLURAL_MAP.values():
+                cleaned = re.sub(rf"^{re.escape(u_current)}\s+(?:of\s+)?", "", food_current, flags=re.IGNORECASE).strip()
+                if cleaned == food_current:
+                    cleaned = re.sub(rf"\s+{re.escape(u_current)}$", "", food_current, flags=re.IGNORECASE).strip()
+                if cleaned:
+                    parsed_item["food"] = cleaned
+            else:
+                parsed_item["unit"] = ""
         else:
             u_idx = line_to_parse.lower().find(u_current)
             f_words = food_current.lower().split()
@@ -143,7 +174,7 @@ def parse_ingredient_line(line: str) -> dict:
     if u:
         parsed_item["unit"] = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', u, flags=re.IGNORECASE).strip()
 
-    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can")
+    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can", "clove")
     u_current = (parsed_item.get("unit") or "").lower().strip()
     food_current = (parsed_item.get("food") or "").strip()
     if not u_current and food_current:
@@ -155,10 +186,13 @@ def parse_ingredient_line(line: str) -> dict:
             ("bags", "bags"), ("bag", "bag"),
             ("cans", "cans"), ("can", "can"),
             ("stalks", "stalks"), ("stalk", "stalk"),
+            ("cloves", "cloves"), ("clove", "clove"),
         ]:
             if food_current.lower().startswith(prefix + " "):
                 parsed_item["unit"] = norm_unit
                 food_current = food_current[len(prefix) + 1:].strip()
+                if food_current.lower().startswith("of "):
+                    food_current = food_current[3:].strip()
                 parsed_item["food"] = food_current
                 u_current = norm_unit
                 break
@@ -180,30 +214,6 @@ def parse_ingredient_line(line: str) -> dict:
         
     parsed_item["unit"] = parsed_item.get("unit") or ""
     return parsed_item
-
-UNIT_PLURAL_MAP = {
-    "tablespoon": "tablespoons",
-    "tbsp": "tbsp",
-    "teaspoon": "teaspoons",
-    "tsp": "tsp",
-    "ounce": "ounces",
-    "oz": "oz",
-    "cup": "cups",
-    "pound": "pounds",
-    "lb": "lbs",
-    "packet": "packets",
-    "pouch": "pouches",
-    "head": "heads",
-    "bunch": "bunches",
-    "bag": "bags",
-    "can": "cans",
-    "clove": "cloves",
-    "stalk": "stalks",
-    "slice": "slices",
-    "pinch": "pinches",
-    "dash": "dashes",
-}
-
 
 def pluralize_unit(unit: str, quantity: float) -> str:
     """Return plural form of unit if quantity > 1."""
