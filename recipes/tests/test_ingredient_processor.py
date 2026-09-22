@@ -134,6 +134,28 @@ def test_meal_kit_unit_resolution():
     assert pickle["unit"] == ""
     assert "dill pickle" in pickle["food"].lower()
 
+    # Produce and whole items default to empty unit (count)
+    scallions = parse_ingredient_line("2 unit Scallions")
+    assert scallions["unit"] == ""
+    assert "scallions" in scallions["food"].lower()
+
+    zucchini = parse_ingredient_line("1 unit Zucchini")
+    assert zucchini["unit"] == ""
+    assert "zucchini" in zucchini["food"].lower()
+
+    jalapeno = parse_ingredient_line("1 unit Jalapeño")
+    assert jalapeno["unit"] == ""
+    assert "jalapeño" in jalapeno["food"].lower()
+
+    # Heads
+    broccoli = parse_ingredient_line("1 unit Broccoli")
+    assert broccoli["unit"] == "head"
+    assert "broccoli" in broccoli["food"].lower()
+
+    cauliflower = parse_ingredient_line("1 unit Cauliflower")
+    assert cauliflower["unit"] == "head"
+    assert "cauliflower" in cauliflower["food"].lower()
+
 
 def test_pouch_and_packet_recognition():
     """Test first-class recognition of pouch and packet units."""

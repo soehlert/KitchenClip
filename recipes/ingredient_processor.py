@@ -3,6 +3,13 @@ from fractions import Fraction
 
 import ingredient_slicer
 
+from recipes.culinary_units import (
+    BAG_PRODUCE,
+    BUNCH_HERBS,
+    HEAD_PRODUCE,
+    PACKET_CATEGORIES,
+)
+
 
 def _safe_float(value) -> float:
     """Internal helper to safely convert values to a float."""
@@ -171,6 +178,7 @@ def parse_ingredient_line(line: str) -> dict:
     if qty == 0.0 and food in {"ingredients", "finish", "sauce", "garnish", "for the", "serve with", "to serve", "marinade", "dressing"}:
         parsed_item["food"] = ""
         
+    parsed_item["unit"] = parsed_item.get("unit") or ""
     return parsed_item
 
 UNIT_PLURAL_MAP = {
@@ -206,33 +214,30 @@ def pluralize_unit(unit: str, quantity: float) -> str:
 
 
 def resolve_meal_kit_unit(food: str) -> str:
-    """Resolve meal-kit 'unit' into a sensible culinary unit based on food type."""
+    """Resolve meal-kit placeholder unit ('unit') into a sensible culinary unit.
+
+    Defaults to empty string (count) for produce, whole items, and general ingredients,
+    only assigning a unit when explicitly recognized as a head, bunch, bag, or packet.
+    """
     f = food.lower().strip()
-    whole_produce = [
-        "tomato", "lime", "lemon", "onion", "bell pepper", "pepper", "cucumber",
-        "avocado", "potato", "apple", "egg", "bun", "roll", "tortilla", "pickle",
-    ]
-    if any(re.search(rf"\b{item}\b", f) for item in whole_produce):
+
+    # Pickles are whole items / counts, even if prepared with dill
+    if "pickle" in f:
         return ""
 
-    if any(re.search(rf"\b{item}\b", f) for item in ["lettuce", "cabbage"]):
-        return "head"
-
-    if any(re.search(rf"\b{item}\b", f) for item in ["greens", "spinach", "arugula", "spring mix"]):
-        return "bag"
-
-    if any(re.search(rf"\b{item}\b", f) for item in ["cilantro", "parsley", "scallion", "green onion", "rosemary", "thyme"]):
-        return "bunch"
-
-    packaged = [
-        "concentrate", "stock", "broth", "paste", "ketchup", "mayo", "mayonnaise",
-        "sauce", "glaze", "jam", "honey", "sriracha", "dressing", "seasoning",
-        "spice", "rub", "sour cream", "cream sauce", "panko", "breadcrumbs", "cheese",
-    ]
-    if any(re.search(rf"\b{item}\b", f) for item in packaged):
+    if any(re.search(rf"\b{item}\b", f) for item in PACKET_CATEGORIES):
         return "packet"
 
-    return "packet"
+    if any(re.search(rf"\b{item}\b", f) for item in HEAD_PRODUCE):
+        return "head"
+
+    if any(re.search(rf"\b{item}\b", f) for item in BUNCH_HERBS):
+        return "bunch"
+
+    if any(re.search(rf"\b{item}\b", f) for item in BAG_PRODUCE):
+        return "bag"
+
+    return ""
 
 
 FRACTION_MAP = {
