@@ -12,6 +12,33 @@ def test_recipe_list_view(client):
     url = reverse('recipes:list_recipe')
     response = client.get(url)
     assert response.status_code == 200
+    # Navbar contains search input and sidebar does not contain old search field
+    assert 'id="navbar-search"' in response.content.decode()
+    assert 'for="search"' not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_search_both_active_and_future_recipes(client):
+    active = Recipe.objects.create(title="Active Chicken Dish", is_future=False)
+    future = Recipe.objects.create(title="Future Chicken Dish", is_future=True)
+    unrelated = Recipe.objects.create(title="Beef Stew", is_future=False)
+
+    # Without search: only active recipes shown
+    response = client.get(reverse('recipes:list_recipe'))
+    recipes = list(response.context['recipes'])
+    assert active in recipes
+    assert unrelated in recipes
+    assert future not in recipes
+
+    # With search: matches both active and future recipes
+    search_response = client.get(reverse('recipes:list_recipe'), {'search': 'Chicken'})
+    search_recipes = list(search_response.context['recipes'])
+    assert active in search_recipes
+    assert future in search_recipes
+    assert unrelated not in search_recipes
+    content = search_response.content.decode()
+    assert 'Saved for Later' in content
+    assert '<input type="hidden" name="search" value="Chicken">' in content
 
 @pytest.mark.django_db
 def test_recipe_edit(client):

@@ -51,15 +51,15 @@ class RecipeListView(ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Recipe.objects.filter(is_future=False)
-
         search = self.request.GET.get('search')
         if search:
-            queryset = queryset.filter(
+            queryset = Recipe.objects.filter(
                 Q(title__icontains=search) |
                 Q(ingredients__name__icontains=search) |
                 Q(description__icontains=search)
             ).distinct()
+        else:
+            queryset = Recipe.objects.filter(is_future=False)
 
         time_ranges = self.request.GET.getlist('time_range')
         if time_ranges:

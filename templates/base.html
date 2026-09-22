@@ -14,21 +14,47 @@
 
 <body class="bg-gray-50 font-sans m-0 p-0">
     <header>
-        <nav class="bg-gray-800 text-white px-8 py-4 flex justify-between items-center relative">
+        <nav class="bg-gray-800 text-white px-4 sm:px-8 py-3.5 sm:py-4 flex justify-between items-center relative gap-2 sm:gap-4">
             <!-- Logo -->
             <a href="{% url 'recipes:list_recipe' %}"
-                class="flex items-center gap-2 hover:text-gray-300 transition-colors">
+                class="flex items-center gap-2 hover:text-gray-300 transition-colors flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                     stroke="currentColor" class="w-6 h-6">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z">
                     </path>
                 </svg>
-                <span class="text-lg font-semibold">KitchenClip</span>
+                <span class="text-base sm:text-lg font-semibold whitespace-nowrap">KitchenClip</span>
             </a>
 
+            <!-- Center Search Bar -->
+            <div class="flex-1 max-w-xs sm:max-w-md md:max-w-lg mx-2 sm:mx-4">
+                <form method="get" action="{% url 'recipes:list_recipe' %}" class="w-full">
+                    <div class="relative w-full">
+                        <div class="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none text-gray-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text" name="search" id="navbar-search"
+                            value="{{ request.GET.search }}"
+                            placeholder="Search recipes..."
+                            class="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 text-xs sm:text-sm bg-gray-700 text-white placeholder-gray-400 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#3798A9] focus:bg-gray-900 focus:border-transparent transition-all">
+                        {% if request.GET.search %}
+                        <a href="{% url 'recipes:list_recipe' %}"
+                           class="absolute inset-y-0 right-0 pr-2 sm:pr-2.5 flex items-center text-gray-400 hover:text-white"
+                           title="Clear search">
+                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+
             <!-- Desktop Navigation Links -->
-            <div class="hidden md:flex gap-6">
+            <div class="hidden md:flex gap-6 items-center flex-shrink-0">
                 <a href="{% url 'recipes:list_recipe' %}" class="hover:text-gray-300 transition-colors">Recipes</a>
                 <a href="{% url 'recipes:future_recipes' %}" class="hover:text-gray-300 transition-colors">Saved for Later</a>
                 {% if not request.is_readonly %}
@@ -37,7 +63,7 @@
             </div>
 
             <!-- Hamburger Button (mobile only) -->
-            <button id="nav-hamburger" class="md:hidden flex flex-col gap-1.5 p-2 rounded hover:bg-gray-700 transition-colors" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu">
+            <button id="nav-hamburger" class="md:hidden flex flex-col gap-1.5 p-2 rounded hover:bg-gray-700 transition-colors flex-shrink-0" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu">
                 <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-1"></span>
                 <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-2"></span>
                 <span class="block w-6 h-0.5 bg-white transition-all duration-300" id="hamburger-line-3"></span>
