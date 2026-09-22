@@ -223,3 +223,53 @@ def test_unit_pluralization_in_process_ingredients():
     assert by_food["beef"]["unit"] == "ounces"
     assert by_food["fry seasoning"]["unit"] == "tablespoon"
 
+
+def test_fraction_parenthesis_reconciliation():
+    """Test that fraction quantities and units outside parentheses are preserved."""
+    # Slash fraction with metric weight in parentheses
+    parsed_slash = parse_ingredient_line("3/4 cup (175 g) orzo")
+    proc_slash = process_ingredients([parsed_slash])[0]
+    assert proc_slash["display_quantity"] == "¾"
+    assert proc_slash["unit"] == "cup"
+    assert proc_slash["food"] == "orzo"
+    assert proc_slash["prep"] == "175 g"
+
+    # Unicode fraction with metric weight in parentheses
+    parsed_unicode = parse_ingredient_line("¾ cup (175 g) orzo")
+    proc_unicode = process_ingredients([parsed_unicode])[0]
+    assert proc_unicode["display_quantity"] == "¾"
+    assert proc_unicode["unit"] == "cup"
+    assert proc_unicode["food"] == "orzo"
+    assert proc_unicode["prep"] == "175 g"
+
+    # Mixed number fraction with weight in parentheses
+    parsed_mixed = parse_ingredient_line("1 1/2 cups flour (180g)")
+    proc_mixed = process_ingredients([parsed_mixed])[0]
+    assert proc_mixed["display_quantity"] == "1½"
+    assert proc_mixed["unit"] == "cups"
+    assert proc_mixed["food"] == "flour"
+    assert proc_mixed["prep"] == "180 g"
+
+    # Whole unit with parenthetical weight
+    parsed_can = parse_ingredient_line("1 can (15 oz) black beans")
+    proc_can = process_ingredients([parsed_can])[0]
+    assert proc_can["display_quantity"] == "1"
+    assert proc_can["unit"] == "can"
+    assert proc_can["food"] == "black beans"
+    assert proc_can["prep"] == "15 oz"
+
+    # Produce count with parenthetical weight must remain unitless
+    parsed_scallion = parse_ingredient_line("4 scallions (60g)")
+    proc_scallion = process_ingredients([parsed_scallion])[0]
+    assert proc_scallion["display_quantity"] == "4"
+    assert proc_scallion["unit"] == ""
+    assert proc_scallion["food"] == "scallions"
+
+    # Produce count with parenthetical volume must remain unitless
+    parsed_onion = parse_ingredient_line("1 onion (about 1 cup)")
+    proc_onion = process_ingredients([parsed_onion])[0]
+    assert proc_onion["display_quantity"] == "1"
+    assert proc_onion["unit"] == ""
+    assert proc_onion["food"] == "onion"
+
+
