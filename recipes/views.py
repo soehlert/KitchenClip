@@ -689,6 +689,47 @@ def search_recipes_api(request):
         })
         
     return JsonResponse({'recipes': data})
+
+
+@require_POST
+def parse_ingredients_api(request):
+    """API endpoint to parse ingredient text into structured items."""
+    try:
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body.decode('utf-8'))
+            text = payload.get('text', '')
+            lines = payload.get('lines', [])
+            if not lines and text:
+                lines = text.splitlines()
+        else:
+            text = request.POST.get('text', '')
+            lines = request.POST.getlist('lines')
+            if not lines and text:
+                lines = text.splitlines()
+
+        clean_lines = [line.strip() for line in lines if line and line.strip()]
+        if not clean_lines:
+            return JsonResponse({'ingredients': []})
+
+        parsed_items = [parse_ingredient_line(line) for line in clean_lines]
+        processed = process_ingredients(parsed_items)
+
+        results = []
+        for p in processed:
+            results.append({
+                'food': p.get('food', ''),
+                'unit': p.get('unit', ''),
+                'quantity': p.get('display_quantity', ''),
+                'prep': p.get('prep', ''),
+            })
+
+        return JsonResponse({'ingredients': results})
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.exception("Failed to parse ingredients via API")
+        return JsonResponse({'error': str(e)}, status=500)
+
 class MealPlanKioskView(MealPlanView):
     template_name = "recipes/meal_plan_kiosk.html"
 

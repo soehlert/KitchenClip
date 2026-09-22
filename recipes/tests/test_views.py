@@ -651,3 +651,42 @@ def test_scratch_create_tag_color_preserved_case_insensitive(client):
     assert tags_json[0]['color'] == '#9B59B6'
 
 
+def test_parse_ingredients_api_json(client):
+    """Test parsing multiple ingredient lines via JSON request."""
+    url = reverse('recipes:parse_ingredients_api')
+    payload = {
+        'text': "1 tablespoon olive oil\n1 unit Baby lettuce\n1 unit Beef stock concentrate\n2 tablespoon Mayonnaise"
+    }
+    response = client.post(url, data=json.dumps(payload), content_type='application/json')
+    assert response.status_code == 200
+    data = response.json()
+    assert 'ingredients' in data
+    ings = data['ingredients']
+    assert len(ings) == 4
+    # Olive oil
+    assert ings[0]['quantity'] == '1'
+    assert ings[0]['unit'] == 'tablespoon'
+    assert 'olive oil' in ings[0]['food'].lower()
+    # Baby lettuce (unit -> head)
+    assert ings[1]['quantity'] == '1'
+    assert ings[1]['unit'] == 'head'
+    assert 'baby lettuce' in ings[1]['food'].lower()
+    # Beef stock concentrate (unit -> packet)
+    assert ings[2]['quantity'] == '1'
+    assert ings[2]['unit'] == 'packet'
+    assert 'beef stock concentrate' in ings[2]['food'].lower()
+    # Mayonnaise (pluralized)
+    assert ings[3]['quantity'] == '2'
+    assert ings[3]['unit'] == 'tablespoons'
+    assert 'mayonnaise' in ings[3]['food'].lower()
+
+
+def test_parse_ingredients_api_empty(client):
+    """Test parse API handles empty text gracefully."""
+    url = reverse('recipes:parse_ingredients_api')
+    response = client.post(url, data=json.dumps({'text': ''}), content_type='application/json')
+    assert response.status_code == 200
+    assert response.json() == {'ingredients': []}
+
+
+

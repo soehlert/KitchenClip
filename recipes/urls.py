@@ -25,4 +25,5 @@ urlpatterns = [
     path("api/recipes/search/", views.search_recipes_api, name="search_recipes_api"),
     path("api/recipes/toggle-menu/", views.toggle_menu_status, name="toggle_menu_status"),
     path("api/recipes/sidebar/", views.sidebar_pagination_api, name="sidebar_pagination_api"),
+    path("api/recipes/parse-ingredients/", views.parse_ingredients_api, name="parse_ingredients_api"),
 ]
