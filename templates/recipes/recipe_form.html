@@ -74,30 +74,30 @@
       <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
         {% csrf_token %}
         {{ form.non_field_errors }}
-          {% for field in form %}
-          {% if field.name != "tags" %}
-            {% if field.name == "is_future" %}
-            <div>
-              <label for="{{ field.id_for_label }}" class="flex items-center justify-between h-[42px] px-3 py-2 bg-white border border-[#5B8E7D] rounded-lg cursor-pointer hover:border-[#194769] transition shadow-sm select-none">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[#194769] font-medium text-sm">Save for later</span>
-                  <div class="relative group/tooltip inline-flex items-center" onclick="event.stopPropagation();">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 hover:text-[#194769] cursor-help transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="This is for things you haven't tried yet">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:block z-20 px-2.5 py-1 text-xs text-white bg-gray-800 rounded shadow-md whitespace-nowrap pointer-events-none">
-                      This is for things you haven't tried yet
-                      <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-                    </div>
-                  </div>
+        {% if form.is_future %}
+        <div>
+          <label for="{{ form.is_future.id_for_label }}" class="flex items-center justify-between h-[42px] px-3 py-2 bg-white border border-[#5B8E7D] rounded-lg cursor-pointer hover:border-[#194769] transition shadow-sm select-none">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[#194769] font-medium text-sm">Save for later</span>
+              <div class="relative group/tooltip inline-flex items-center" onclick="event.stopPropagation();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 hover:text-[#194769] cursor-help transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="This is for things you haven't tried yet">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:block z-20 px-2.5 py-1 text-xs text-white bg-gray-800 rounded shadow-md whitespace-nowrap pointer-events-none">
+                  This is for things you haven't tried yet
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                 </div>
-                <div class="relative inline-flex items-center">
-                  <input type="checkbox" name="{{ field.html_name }}" id="{{ field.id_for_label }}" {% if field.value %}checked{% endif %} class="peer sr-only">
-                  <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#194769]"></div>
-                </div>
-              </label>
+              </div>
             </div>
-            {% else %}
+            <div class="relative inline-flex items-center">
+              <input type="checkbox" name="{{ form.is_future.html_name }}" id="{{ form.is_future.id_for_label }}" {% if form.is_future.value %}checked{% endif %} class="peer sr-only">
+              <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#194769]"></div>
+            </div>
+          </label>
+        </div>
+        {% endif %}
+        {% for field in form %}
+          {% if field.name != "tags" and field.name != "is_future" %}
             <div>
               <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
                 {{ field.label }}
@@ -111,7 +111,6 @@
                 <p class="text-sm text-[#F2855E]">{{ error }}</p>
               {% endfor %}
             </div>
-            {% endif %}
           {% endif %}
         {% endfor %}
         <div>

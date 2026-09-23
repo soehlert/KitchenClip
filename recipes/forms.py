@@ -47,7 +47,7 @@ class RecipeImportForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ["original_url", "user_notes", "rating", "is_future"]
+        fields = ["is_future", "original_url", "user_notes", "rating"]
         labels = {
             "is_future": "Save for later",
         }
