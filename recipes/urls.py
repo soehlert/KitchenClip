@@ -10,7 +10,8 @@ urlpatterns = [
     path("future_recipes/", views.FutureRecipeListView.as_view(), name="future_recipes"),
     path("shared/", views.SharedRecipeListView.as_view(), name="shared_recipe_list"),
     path("add/", views.RecipeCreateView.as_view(), name="add_recipe"),
-    path('add/manual/', views.RecipeManualCreateView.as_view(), name='manual_add'),
+    path("add/scratch/", views.RecipeScratchCreateView.as_view(), name="scratch_add"),
+    path("add/scratch/", views.RecipeScratchCreateView.as_view(), name="create_scratch"),
     path("<int:pk>/", views.RecipeDetailView.as_view(), name="detail_recipe"),
     path("<int:pk>/copy/", views.copy_recipe, name="copy_recipe"),
     path("<int:pk>/copy-duplicate/", views.copy_duplicate_recipe, name="copy_duplicate"),
@@ -27,4 +28,5 @@ urlpatterns = [
     path("api/recipes/search/", views.search_recipes_api, name="search_recipes_api"),
     path("api/recipes/toggle-menu/", views.toggle_menu_status, name="toggle_menu_status"),
     path("api/recipes/sidebar/", views.sidebar_pagination_api, name="sidebar_pagination_api"),
+    path("api/recipes/parse-ingredients/", views.parse_ingredients_api, name="parse_ingredients_api"),
 ]

@@ -66,10 +66,16 @@ ENV/
 env.bak/
 venv.bak/
 
-# PyCharm
+# IDEs
 .idea/
+.vscode/
 *.swp
 *.swo
+
+# Agents
+.agents/
+ORIGINAL_REQUEST.md
+PROJECT.md
 
 # UV
 .uv/

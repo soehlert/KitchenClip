@@ -2,27 +2,37 @@
 Partial for a populated meal slot card.
 Usage: {% with meal=day.lunch %}{% include "recipes/_meal_slot.html" %}{% endwith %}
 {% endcomment %}
-<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group" draggable="true"
-    data-recipe-id="{{ meal.recipe.id|default:'' }}" data-custom="{{ meal.custom_meal }}">
+<div class="draggable-meal bg-white border border-gray-100 shadow-sm p-2 rounded-xl relative group overflow-hidden max-w-full" draggable="true"
+    data-recipe-id="{{ meal.recipe.id|default:'' }}"
+    data-custom="{{ meal.custom_meal }}"
+    data-title="{% if meal.recipe %}{{ meal.recipe.title }}{% else %}{{ meal.custom_meal }}{% endif %}">
 
     {% if meal.recipe.image_url %}
-    <img src="{{ meal.recipe.image_url }}" class="w-full h-12 object-cover rounded-lg mb-1">
+    <img src="{{ meal.recipe.image_url }}" class="w-full h-12 object-cover rounded-lg mb-1.5">
     {% endif %}
 
-    <div class="flex justify-between items-center mb-1">
-        <span class="text-[10px] font-bold text-gray-800 leading-tight">
+    <div class="flex justify-between items-start gap-1 mb-1">
+        <span class="text-[10px] font-bold text-gray-800 leading-tight flex-1 break-words line-clamp-2">
             {% if meal.recipe %}{{ meal.recipe.title }}{% else %}{{ meal.custom_meal }}{% endif %}
         </span>
-        <button
-            class="remove-meal opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold">&times;</button>
+        <div class="flex items-center gap-0.5 flex-shrink-0">
+            {% if not request.is_readonly %}
+            <button type="button" class="move-meal-btn text-gray-400 hover:text-[#194769] p-1 rounded transition-colors" title="Move meal">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+            </button>
+            <button type="button" class="remove-meal text-gray-400 hover:text-red-500 font-bold p-1 leading-none text-sm transition-colors" title="Remove meal">&times;</button>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="mt-2 pt-2 border-t border-gray-50 flex justify-end">
+    <div class="mt-1.5 pt-1.5 border-t border-gray-50 flex justify-end">
         <div
-            class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer">
-            <span class="text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span>
+            class="time-wrapper relative flex items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg border border-gray-200 px-2 sm:px-3 py-1 sm:py-1.5 focus-within:ring-1 focus-within:ring-[#194769] focus-within:border-[#194769] cursor-pointer max-w-full">
+            <span class="text-[8px] sm:text-[9px] font-bold text-gray-400 mr-1 uppercase pointer-events-none">Ready</span>
             <input type="text"
-                class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-20"
+                class="ready-at-input text-[10px] font-black text-[#194769] bg-transparent border-none p-0 focus:ring-0 cursor-pointer w-16 sm:w-20"
                 value="{{ meal.ready_at|time:'H:i' }}" required>
         </div>
     </div>

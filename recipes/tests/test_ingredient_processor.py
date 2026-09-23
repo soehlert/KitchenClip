@@ -67,7 +67,7 @@ def test_process_ingredients_with_or():
     # f_words = "tortilla chips or crackers".split() -> ["tortilla", "chips", "or", "crackers"]
     # "crackers" in f_words -> unit becomes ""
     
-    assert results[0]["food"] == "Tortilla chips or crackers"
+    assert results[0]["food"] == "tortilla chips or crackers"
     assert results[0]["unit"] == ""
 
 def test_process_ingredients_with_prep_list():
@@ -97,10 +97,179 @@ def test_parse_ingredient_line_metric_multiplier_fix():
     assert parsed["food"] == "eggs"
 
 def test_parse_ingredient_line_clove_fix():
-    """Test another case with cloves and mass."""
+    """Test cloves with metric mass in parentheses."""
     line = "2 cloves garlic (10g)"
     parsed = parse_ingredient_line(line)
     
     assert float(parsed["quantity"]) == 2.0
-    assert parsed["unit"] == ""
-    assert "garlic" in parsed["food"]
+    assert parsed["unit"] == "cloves"
+    assert parsed["food"] == "garlic"
+    processed = process_ingredients([parsed])
+    assert processed[0]["display_quantity"] == "2"
+    assert processed[0]["unit"] == "cloves"
+    assert processed[0]["food"] == "garlic"
+    assert processed[0]["prep"] == "10 g"
+
+
+def test_garlic_cloves_parsing_and_pluralization():
+    """Test singular/plural normalization for garlic cloves across variations."""
+    # 2 clove garlic -> pluralized to 'cloves'
+    two_clove = parse_ingredient_line("2 clove garlic")
+    assert float(two_clove["quantity"]) == 2.0
+    assert two_clove["unit"] == "clove"
+    assert two_clove["food"] == "garlic"
+    proc_two = process_ingredients([two_clove])
+    assert proc_two[0]["display_quantity"] == "2"
+    assert proc_two[0]["unit"] == "cloves"
+    assert proc_two[0]["food"] == "garlic"
+
+    # 1 clove garlic -> remains singular 'clove'
+    one_clove = parse_ingredient_line("1 clove garlic")
+    assert float(one_clove["quantity"]) == 1.0
+    assert one_clove["unit"] == "clove"
+    assert one_clove["food"] == "garlic"
+    proc_one = process_ingredients([one_clove])
+    assert proc_one[0]["display_quantity"] == "1"
+    assert proc_one[0]["unit"] == "clove"
+    assert proc_one[0]["food"] == "garlic"
+
+    # 2 garlic cloves -> unit extracted from suffix
+    suffix_cloves = parse_ingredient_line("2 garlic cloves")
+    assert float(suffix_cloves["quantity"]) == 2.0
+    assert suffix_cloves["unit"] == "cloves"
+    assert suffix_cloves["food"] == "garlic"
+    proc_suffix = process_ingredients([suffix_cloves])
+    assert proc_suffix[0]["display_quantity"] == "2"
+    assert proc_suffix[0]["unit"] == "cloves"
+    assert proc_suffix[0]["food"] == "garlic"
+
+
+def test_meal_kit_unit_resolution():
+    """Test resolution of meal kit 'unit' markers into sensible units."""
+    lettuce = parse_ingredient_line("1 unit Baby lettuce")
+    assert lettuce["unit"] == "head"
+    assert "baby lettuce" in lettuce["food"].lower()
+
+    stock = parse_ingredient_line("1 unit Beef stock concentrate")
+    assert stock["unit"] == "packet"
+    assert "beef stock concentrate" in stock["food"].lower()
+
+    ketchup = parse_ingredient_line("1 unit Ketchup")
+    assert ketchup["unit"] == "packet"
+    assert "ketchup" in ketchup["food"].lower()
+
+    cilantro = parse_ingredient_line("1 unit Cilantro")
+    assert cilantro["unit"] == "bunch"
+
+    spring_mix = parse_ingredient_line("1 unit Spring mix")
+    assert spring_mix["unit"] == "bag"
+
+    tomato = parse_ingredient_line("1 unit Tomato")
+    assert tomato["unit"] == ""
+    assert "tomato" in tomato["food"].lower()
+
+    pickle = parse_ingredient_line("1 unit Dill pickle (sliced)")
+    assert pickle["unit"] == ""
+    assert "dill pickle" in pickle["food"].lower()
+
+    # Produce and whole items default to empty unit (count)
+    scallions = parse_ingredient_line("2 unit Scallions")
+    assert scallions["unit"] == ""
+    assert "scallions" in scallions["food"].lower()
+
+    zucchini = parse_ingredient_line("1 unit Zucchini")
+    assert zucchini["unit"] == ""
+    assert "zucchini" in zucchini["food"].lower()
+
+    jalapeno = parse_ingredient_line("1 unit Jalapeño")
+    assert jalapeno["unit"] == ""
+    assert "jalapeño" in jalapeno["food"].lower()
+
+    # Heads
+    broccoli = parse_ingredient_line("1 unit Broccoli")
+    assert broccoli["unit"] == "head"
+    assert "broccoli" in broccoli["food"].lower()
+
+    cauliflower = parse_ingredient_line("1 unit Cauliflower")
+    assert cauliflower["unit"] == "head"
+    assert "cauliflower" in cauliflower["food"].lower()
+
+
+def test_pouch_and_packet_recognition():
+    """Test first-class recognition of pouch and packet units."""
+    pouch1 = parse_ingredient_line("1 pouch beef stock concentrate")
+    assert pouch1["unit"] == "pouch"
+    assert pouch1["food"].lower() == "beef stock concentrate"
+
+    pouch2 = parse_ingredient_line("2 pouches beef stock concentrate")
+    assert pouch2["unit"] == "pouches"
+    assert pouch2["food"].lower() == "beef stock concentrate"
+
+    packet = parse_ingredient_line("1 packet Southwest spice blend")
+    assert packet["unit"] == "packet"
+    assert "southwest spice" in packet["food"].lower()
+
+
+def test_unit_pluralization_in_process_ingredients():
+    """Test that units are pluralized when quantity > 1."""
+    items = [
+        {"food": "mayonnaise", "unit": "tablespoon", "quantity": 2.0},
+        {"food": "beef", "unit": "ounce", "quantity": 10.0},
+        {"food": "fry seasoning", "unit": "tablespoon", "quantity": 1.0},
+    ]
+    processed = process_ingredients(items)
+    by_food = {p["food"].lower(): p for p in processed}
+    assert by_food["mayonnaise"]["unit"] == "tablespoons"
+    assert by_food["beef"]["unit"] == "ounces"
+    assert by_food["fry seasoning"]["unit"] == "tablespoon"
+
+
+def test_fraction_parenthesis_reconciliation():
+    """Test that fraction quantities and units outside parentheses are preserved."""
+    # Slash fraction with metric weight in parentheses
+    parsed_slash = parse_ingredient_line("3/4 cup (175 g) orzo")
+    proc_slash = process_ingredients([parsed_slash])[0]
+    assert proc_slash["display_quantity"] == "¾"
+    assert proc_slash["unit"] == "cup"
+    assert proc_slash["food"] == "orzo"
+    assert proc_slash["prep"] == "175 g"
+
+    # Unicode fraction with metric weight in parentheses
+    parsed_unicode = parse_ingredient_line("¾ cup (175 g) orzo")
+    proc_unicode = process_ingredients([parsed_unicode])[0]
+    assert proc_unicode["display_quantity"] == "¾"
+    assert proc_unicode["unit"] == "cup"
+    assert proc_unicode["food"] == "orzo"
+    assert proc_unicode["prep"] == "175 g"
+
+    # Mixed number fraction with weight in parentheses
+    parsed_mixed = parse_ingredient_line("1 1/2 cups flour (180g)")
+    proc_mixed = process_ingredients([parsed_mixed])[0]
+    assert proc_mixed["display_quantity"] == "1½"
+    assert proc_mixed["unit"] == "cups"
+    assert proc_mixed["food"] == "flour"
+    assert proc_mixed["prep"] == "180 g"
+
+    # Whole unit with parenthetical weight
+    parsed_can = parse_ingredient_line("1 can (15 oz) black beans")
+    proc_can = process_ingredients([parsed_can])[0]
+    assert proc_can["display_quantity"] == "1"
+    assert proc_can["unit"] == "can"
+    assert proc_can["food"] == "black beans"
+    assert proc_can["prep"] == "15 oz"
+
+    # Produce count with parenthetical weight must remain unitless
+    parsed_scallion = parse_ingredient_line("4 scallions (60g)")
+    proc_scallion = process_ingredients([parsed_scallion])[0]
+    assert proc_scallion["display_quantity"] == "4"
+    assert proc_scallion["unit"] == ""
+    assert proc_scallion["food"] == "scallions"
+
+    # Produce count with parenthetical volume must remain unitless
+    parsed_onion = parse_ingredient_line("1 onion (about 1 cup)")
+    proc_onion = process_ingredients([parsed_onion])[0]
+    assert proc_onion["display_quantity"] == "1"
+    assert proc_onion["unit"] == ""
+    assert proc_onion["food"] == "onion"
+
+

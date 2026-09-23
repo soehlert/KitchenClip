@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | KitchenClip{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-[#194769]">{{ heading }}</h1>
+  </div>
+
+  <div class="bg-[#F7F9FA] p-6 sm:p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
+    <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg space-y-1">
+        {% for error in form.non_field_errors %}
+          <p class="text-sm font-medium">{{ error }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Recipe Title -->
+      <div>
+        <label for="{{ form.title.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
+          Recipe Title <span class="text-[#F2855E]">*</span>
+        </label>
+        {{ form.title }}
+        {% for error in form.title.errors %}
+          <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <!-- Description & User Notes -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.description.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
+            Description
+          </label>
+          {{ form.description }}
+          {% for error in form.description.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label for="{{ form.user_notes.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
+            Personal Notes
+          </label>
+          {{ form.user_notes }}
+          {% for error in form.user_notes.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Cooking Times & Servings Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <label for="{{ form.prep_time.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Prep Time (mins)
+          </label>
+          {{ form.prep_time }}
+          {% for error in form.prep_time.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label for="{{ form.cook_time.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Cook Time (mins)
+          </label>
+          {{ form.cook_time }}
+          {% for error in form.cook_time.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label for="{{ form.total_time.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Total Time (mins)
+          </label>
+          {{ form.total_time }}
+          {% for error in form.total_time.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label for="{{ form.servings.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Servings
+          </label>
+          {{ form.servings }}
+          {% for error in form.servings.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Rating & Future Idea -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+        <div>
+          <label for="{{ form.rating.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Rating (1-5)
+          </label>
+          {{ form.rating }}
+          {% for error in form.rating.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        {% if 'is_future' in form.fields %}
+        <div class="sm:pt-5">
+          <div class="flex items-center">
+            {{ form.is_future }}
+            <label for="{{ form.is_future.id_for_label }}" class="ml-2 block text-[#194769] font-semibold text-sm cursor-pointer">
+              Save for later
+            </label>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Optional URLs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.image_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Image URL (optional)
+          </label>
+          {{ form.image_url }}
+          {% for error in form.image_url.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label for="{{ form.original_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Original URL (optional)
+          </label>
+          {{ form.original_url }}
+          {% for error in form.original_url.errors %}
+            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Tags section -->
+      <div>
+        <label class="block text-[#194769] font-semibold mb-1">Tags</label>
+        <div id="tag-input-container" class="flex flex-wrap items-center border border-[#5B8E7D] rounded-lg p-2 bg-white min-h-[40px]">
+          <label for="tag-input" class="sr-only">Add a tag</label>
+          <input type="text" id="tag-input" autocomplete="off" placeholder="Add a tag..." class="flex-1 min-w-[120px] border-none focus:ring-0 focus:outline-none text-[#194769] bg-transparent" />
+        </div>
+        <input type="hidden" name="tags" id="hidden-tags-input" value="{{ initial_tags_csv }}">
+        <ul id="tag-suggestions" data-autocomplete-url="{% url 'recipes:tag_autocomplete' %}" class="absolute bg-white border rounded shadow z-10 mt-1" style="display:none; max-height: 150px; overflow-y: auto; left: 0; right: 0;"></ul>
+        {% for error in form.tags.errors %}
+          <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <!-- Dynamic Ingredients Section -->
+      <div id="ingredients-container" class="border-t border-[#D7EEF2] pt-6">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <label class="block text-[#194769] font-semibold text-lg">
+              Ingredients <span class="text-[#F2855E]">*</span>
+            </label>
+            <p class="text-xs text-gray-500">Paste or type full lines (e.g. "1 tablespoon olive oil" or a copied list) to auto-fill.</p>
+          </div>
+          <button type="button" id="add-ingredient-btn" class="inline-flex items-center gap-1 text-sm font-semibold text-white bg-[#194769] hover:bg-[#5B8E7D] px-3 py-1.5 rounded-lg shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Ingredient
+          </button>
+        </div>
+
+        <div id="ingredients-list" class="space-y-2">
+          {% for ing in ingredient_rows %}
+          <div class="ingredient-row flex gap-2 items-center bg-white p-2 rounded-lg border border-[#D7EEF2]">
+            <div class="w-1/4">
+              <input type="text" name="ingredient_quantity" value="{{ ing.quantity }}" placeholder="Qty (e.g. 1 1/2)" aria-label="Quantity" class="w-full px-2 py-1.5 border border-[#5B8E7D] rounded bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#194769] text-[#194769]" />
+            </div>
+            <div class="w-1/4">
+              <input type="text" name="ingredient_unit" value="{{ ing.unit }}" placeholder="Unit (e.g. cup, tsp)" aria-label="Unit" class="w-full px-2 py-1.5 border border-[#5B8E7D] rounded bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#194769] text-[#194769]" />
+            </div>
+            <div class="flex-1">
+              <input type="text" name="ingredient_food" value="{{ ing.food }}" placeholder="Ingredient name (e.g. all-purpose flour)" aria-label="Ingredient name" class="w-full px-2 py-1.5 border border-[#5B8E7D] rounded bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#194769] text-[#194769]" />
+            </div>
+            <button type="button" class="remove-ingredient-btn text-[#F2855E] hover:text-[#D73A49] p-1.5 rounded hover:bg-red-50 transition" title="Remove ingredient" aria-label="Remove ingredient">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+        {% if ingredient_error %}
+          <p class="text-sm text-[#F2855E] font-medium mt-2">{{ ingredient_error }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Dynamic Instructions Section -->
+      <div id="instructions-container" class="border-t border-[#D7EEF2] pt-6">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <label class="block text-[#194769] font-semibold text-lg">
+              Instructions <span class="text-[#F2855E]">*</span>
+            </label>
+            <p class="text-xs text-gray-500">Ordered, step-by-step instructions for preparing this recipe.</p>
+          </div>
+          <button type="button" id="add-instruction-btn" class="inline-flex items-center gap-1 text-sm font-semibold text-white bg-[#194769] hover:bg-[#5B8E7D] px-3 py-1.5 rounded-lg shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Step
+          </button>
+        </div>
+
+        <div id="instructions-list" class="space-y-2">
+          {% for step in instruction_steps %}
+          <div class="instruction-row flex gap-2 items-start bg-white p-2 rounded-lg border border-[#D7EEF2]">
+            <span class="step-badge mt-1.5 flex items-center justify-center w-6 h-6 rounded-full bg-[#194769] text-white text-xs font-bold shrink-0">{{ forloop.counter }}</span>
+            <textarea name="instruction_step" rows="2" placeholder="Describe this cooking step..." aria-label="Instruction step" class="w-full px-2 py-1.5 border border-[#5B8E7D] rounded bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#194769] text-[#194769]">{{ step }}</textarea>
+            <button type="button" class="remove-instruction-btn text-[#F2855E] hover:text-[#D73A49] p-1.5 rounded hover:bg-red-50 transition mt-1" title="Remove step" aria-label="Remove step">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+        {% if instruction_error %}
+          <p class="text-sm text-[#F2855E] font-medium mt-2">{{ instruction_error }}</p>
+        {% endif %}
+      </div>
+
+    </form>
+
+    <div class="flex gap-4 mt-8 items-center border-t border-[#D7EEF2] pt-6">
+      <button type="submit" form="recipe-form" class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-6 py-2.5 rounded-lg shadow transition">
+        {{ button_text }}
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+  <script src="{% static 'js/tag_input.js' %}"></script>
+  <script>
+    window.availableTags = {{ all_tags_json|safe }};
+    window.initialTags = {{ initial_tags_json|default:"[]"|safe }};
+    window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
+    window.parseIngredientsUrl = "{% url 'recipes:parse_ingredients_api' %}";
+  </script>
+  <script src="{% static 'js/recipe_scratch.js' %}"></script>
+{% endblock %}

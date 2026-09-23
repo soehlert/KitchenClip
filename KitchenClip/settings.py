@@ -31,7 +31,12 @@ if env_file.exists():
         from dotenv import load_dotenv
         load_dotenv(env_file)
     except ImportError:
-        pass
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    os.environ.setdefault(k.strip(), v.strip())
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/

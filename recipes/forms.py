@@ -1,14 +1,20 @@
 import logging
+import re
 
 import ingredient_slicer
 from django import forms
 
-from .ingredient_processor import process_ingredients
+from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
 from .url_utils import find_recipe_by_url, normalize_url
 from .utils import remove_instruction_headers
 
 logger = logging.getLogger(__name__)
+
+INSTRUCTION_MARKER_REGEX = re.compile(
+    r'^(?:(?:Step\s*\d*[:.)\-]+)|(?:\(?\d+[.)\]:-]+)|(?:[•◦▪▫*–—\-]+))\s*$',
+    re.IGNORECASE,
+)
 
 RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
 
@@ -43,6 +49,13 @@ class RecipeImportForm(forms.ModelForm):
     class Meta:
         model = Recipe
         fields = ["original_url", "user_notes", "rating", "is_shared", "is_future"]
+        labels = {
+            "is_future": "Save for later",
+        }
+        help_texts = {
+            "user_notes": "",
+            "is_future": "",
+        }
         widgets = {
             "user_notes": forms.Textarea(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
@@ -124,6 +137,13 @@ class RecipeUpdateForm(forms.ModelForm):
             "rating", "instructions", "user_notes",
             "image_url", "is_shared", "is_future"
         ]
+        labels = {
+            "is_future": "Save for later",
+        }
+        help_texts = {
+            "user_notes": "",
+            "is_future": "",
+        }
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
@@ -242,23 +262,73 @@ class RecipeUpdateForm(forms.ModelForm):
         return tag_list
 
 
-class RecipeManualForm(forms.ModelForm):
-    ingredients_text = forms.CharField(
-        widget=forms.Textarea(attrs={
+class RecipeScratchForm(forms.ModelForm):
+    title = forms.CharField(
+        max_length=200,
+        required=True,
+        label="Title",
+        widget=forms.TextInput(attrs={
             "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "rows": 8,
-            "placeholder": "Enter each ingredient on a new line:\n1 cup flour\n2 eggs\n1/2 cup sugar"
-        }),
-        label="Ingredients",
-        help_text="Enter each ingredient on a separate line"
+            "placeholder": "Recipe Title"
+        })
     )
-    instructions_text = forms.CharField(
+    description = forms.CharField(
+        required=False,
+        label="Description",
         widget=forms.Textarea(attrs={
             "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "rows": 10,
-            "placeholder": "Enter cooking instructions"
-        }),
-        label="Instructions"
+            "rows": 2,
+            "placeholder": "Brief description or overview (optional)"
+        })
+    )
+    user_notes = forms.CharField(
+        required=False,
+        label="Notes",
+        widget=forms.Textarea(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "rows": 2,
+            "placeholder": "Personal notes, substitutions, or tips (optional)"
+        })
+    )
+    prep_time = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Prep Time (mins)",
+        widget=forms.NumberInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "min": "0",
+            "placeholder": "e.g. 15"
+        })
+    )
+    cook_time = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Cook Time (mins)",
+        widget=forms.NumberInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "min": "0",
+            "placeholder": "e.g. 30"
+        })
+    )
+    total_time = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Total Time (mins)",
+        widget=forms.NumberInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "min": "0",
+            "placeholder": "e.g. 45"
+        })
+    )
+    servings = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label="Servings",
+        widget=forms.NumberInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "min": "1",
+            "placeholder": "e.g. 4"
+        })
     )
     rating = forms.ChoiceField(
         choices=[('', '—')] + RATING_CHOICES,
@@ -277,16 +347,8 @@ class RecipeManualForm(forms.ModelForm):
             "id": "id_tags",
         })
     )
-    original_url = forms.URLField(
-        required=False,
-        label="Original URL (optional)",
-        assume_scheme='https',
-        widget=forms.URLInput(attrs={
-            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
-            "placeholder": "https://example.com/recipe (optional)"
-        })
-    )
     image_url = forms.URLField(
+        max_length=300,
         required=False,
         label="Image URL",
         assume_scheme='https',
@@ -295,10 +357,32 @@ class RecipeManualForm(forms.ModelForm):
             "placeholder": "https://example.com/recipe-image.jpg"
         })
     )
+    original_url = forms.URLField(
+        max_length=200,
+        required=False,
+        label="Original URL (optional)",
+        assume_scheme='https',
+        widget=forms.URLInput(attrs={
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
+            "placeholder": "https://example.com/recipe (optional)"
+        })
+    )
+    is_future = forms.BooleanField(
+        required=False,
+        label="Save for later",
+        widget=forms.CheckboxInput(attrs={
+            "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
+        })
+    )
+    ingredients_text = forms.CharField(required=False, widget=forms.HiddenInput())
+    instructions_text = forms.CharField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = Recipe
-        fields = ["title", "original_url", "rating", "image_url", "prep_time", "cook_time", "total_time", "servings", "user_notes", "is_shared", "is_future"]
+        fields = [
+            "title", "description", "original_url", "rating", "image_url",
+            "prep_time", "cook_time", "total_time", "servings", "user_notes", "is_shared", "is_future"
+        ]
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
@@ -331,6 +415,21 @@ class RecipeManualForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        self.household = kwargs.pop('household', None)
+        self.is_readonly = kwargs.pop('is_readonly', False)
+        super().__init__(*args, **kwargs)
+        if self.is_readonly and 'is_future' in self.fields:
+            del self.fields['is_future']
+
+    def save(self, commit=True):
+        recipe = super().save(commit=False)
+        valid_steps = self.cleaned_data.get('valid_steps', [])
+        recipe.instructions = "\n".join(valid_steps)
+        if commit:
+            recipe.save()
+        return recipe
+
     def clean_original_url(self):
         url = self.cleaned_data.get('original_url')
         if not url:
@@ -346,28 +445,144 @@ class RecipeManualForm(forms.ModelForm):
         return normalized
 
     def clean_rating(self):
-        value = self.cleaned_data['rating']
+        value = self.cleaned_data.get('rating')
         return int(value) if value else None
 
     def clean_tags(self):
         tags = self.cleaned_data.get("tags", "")
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-        return tag_list
+        if isinstance(tags, str):
+            raw_list = [t.strip() for t in tags.split(",") if t.strip()]
+        elif isinstance(tags, list):
+            raw_list = [str(t).strip() for t in tags if str(t).strip()]
+        else:
+            raw_list = []
 
-    def save(self, commit=True):
-        recipe = super().save(commit=False)
-        raw_instructions = self.cleaned_data.get('instructions_text', '')
-        recipe.instructions = remove_instruction_headers(raw_instructions)
+        seen = set()
+        deduped = []
+        for t in raw_list:
+            if len(t) > 50:
+                raise forms.ValidationError(f"Tag '{t[:20]}...' exceeds maximum length of 50 characters.")
+            t_lower = t.lower()
+            if t_lower not in seen:
+                seen.add(t_lower)
+                deduped.append(t)
+        return deduped
 
-        recipe.image_url = self.cleaned_data.get('image_url', '')
+    def _get_list(self, key):
+        """Safely retrieve a list of values from either QueryDict or standard Python dict."""
+        if not self.data:
+            return []
+        if hasattr(self.data, 'getlist'):
+            return self.data.getlist(key)
+        val = self.data.get(key, [])
+        if isinstance(val, list):
+            return val
+        if val is None or val == '':
+            return []
+        return [val]
 
-        if commit:
-            recipe.save()
-        return recipe
+    def clean(self):
+        cleaned_data = super().clean()
 
-    def __init__(self, *args, **kwargs):
-        self.household = kwargs.pop('household', None)
-        self.is_readonly = kwargs.pop('is_readonly', False)
-        super().__init__(*args, **kwargs)
-        if self.is_readonly and 'is_future' in self.fields:
-            del self.fields['is_future']
+        # Check structured ingredient rows
+        quantities = self._get_list('ingredient_quantity')
+        units = self._get_list('ingredient_unit')
+        foods = self._get_list('ingredient_food') or self._get_list('ingredient_name')
+
+        max_len = max(len(quantities), len(units), len(foods)) if (quantities or units or foods) else 0
+
+        valid_ingredients = []
+        has_incomplete_row = False
+        has_length_error = False
+
+        for i in range(max_len):
+            food_val = foods[i] if i < len(foods) else ""
+            qty_val = quantities[i] if i < len(quantities) else ""
+            unit_val = units[i] if i < len(units) else ""
+
+            food_clean = str(food_val).strip() if food_val else ""
+            qty_clean = str(qty_val).strip() if qty_val else ""
+            unit_clean = str(unit_val).strip() if unit_val else ""
+
+            # Check if user entered quantity/unit but omitted food name
+            if not food_clean and (qty_clean or unit_clean):
+                combined = f"{qty_clean} {unit_clean}".strip()
+                if " " in combined or re.search(r"[a-zA-Z]", combined):
+                    parsed = parse_ingredient_line(combined)
+                    p_food = parsed.get("food", "")
+                    if p_food:
+                        food_clean = p_food
+                        p_qty = parsed.get("quantity")
+                        qty_clean = str(int(p_qty)) if (isinstance(p_qty, float) and p_qty.is_integer()) else (str(p_qty) if p_qty else "")
+                        unit_clean = parsed.get("unit") or ""
+                if not food_clean:
+                    has_incomplete_row = True
+
+            if food_clean:
+                if len(food_clean) > 100:
+                    self.add_error(None, f"Ingredient name '{food_clean[:20]}...' exceeds maximum length of 100 characters.")
+                    has_length_error = True
+                if len(qty_clean) > 50:
+                    self.add_error(None, f"Quantity '{qty_clean[:20]}...' exceeds maximum length of 50 characters.")
+                    has_length_error = True
+                if len(unit_clean) > 50:
+                    self.add_error(None, f"Unit '{unit_clean[:20]}...' exceeds maximum length of 50 characters.")
+                    has_length_error = True
+
+                valid_ingredients.append({
+                    "quantity": qty_clean,
+                    "unit": unit_clean,
+                    "food": food_clean,
+                })
+
+        if has_incomplete_row:
+            self.add_error(None, "An ingredient row has a quantity or unit specified, but the ingredient name is missing.")
+
+        # Fallback to ingredients_text if no structured rows were provided
+        ingredients_text = cleaned_data.get('ingredients_text', '').strip()
+        if not valid_ingredients and ingredients_text:
+            for line in ingredients_text.splitlines():
+                line = line.strip()
+                if line:
+                    valid_ingredients.append({"raw_text": line})
+
+        if not valid_ingredients and not has_incomplete_row and not has_length_error:
+            self.add_error(None, "At least one ingredient is required.")
+
+        cleaned_data['valid_ingredients'] = valid_ingredients
+
+        # Check instruction steps
+        steps = self._get_list('instruction_step')
+        valid_steps = []
+        for s in steps:
+            s_clean = str(s).strip() if s is not None else ""
+            if s_clean:
+                from recipes.utils import clean_instruction_line
+                for sub_line in s_clean.splitlines():
+                    sub_clean = sub_line.strip()
+                    if sub_clean and not INSTRUCTION_MARKER_REGEX.match(sub_clean):
+                        cleaned_step = clean_instruction_line(sub_clean).strip()
+                        if cleaned_step:
+                            valid_steps.append(cleaned_step)
+                        elif sub_clean:
+                            valid_steps.append(sub_clean)
+
+        # Fallback to instructions_text if no steps were provided
+        instructions_text = cleaned_data.get('instructions_text', '').strip()
+        if not valid_steps and instructions_text:
+            from recipes.utils import clean_instruction_line
+            for s in instructions_text.splitlines():
+                s_clean = s.strip()
+                if s_clean and not INSTRUCTION_MARKER_REGEX.match(s_clean):
+                    cleaned_step = clean_instruction_line(s_clean).strip()
+                    if cleaned_step:
+                        valid_steps.append(cleaned_step)
+                    elif s_clean:
+                        valid_steps.append(s_clean)
+
+        if not valid_steps:
+            self.add_error(None, "At least one instruction step is required.")
+
+        cleaned_data['valid_steps'] = valid_steps
+
+        return cleaned_data

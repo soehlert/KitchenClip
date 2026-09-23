@@ -5,10 +5,11 @@ KitchenClip is a personal recipe manager and meal planning application designed 
 ## Features
 
 - **Recipe Import**: Paste a recipe URL to automatically extract the title, ingredients, instructions, prep times, and photos.
+- **Create from Scratch**: Build custom recipes directly from scratch with dynamic ingredient and instruction row management.
 - **Meal Planning Calendar**: A visual drag-and-drop interface for planning your weekly meals.
 - **Custom Meals**: Add manual entries (e.g., "Leftovers" or "Eating Out") directly to the calendar.
 - **Recipe Library**: A searchable database of all your saved recipes.
-- **Future Ideas**: A dedicated space to save recipes you want to try later without adding them to your main library right away.
+- **Saved for Later**: A dedicated space to save recipes you want to try later without adding them to your main library right away.
 - **Recipe Details**: Click any planned meal or recipe card to view its ingredients and instructions in a popup modal.
 - **Kiosk Mode**: A read-only, high-contrast dashboard (`/meal-plan/kiosk/`) ideal for wall-mounted displays in the kitchen.
 

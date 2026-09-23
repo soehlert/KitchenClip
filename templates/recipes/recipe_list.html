@@ -7,43 +7,30 @@
 <div class="px-4 sm:px-6 lg:px-8 pt-8">
   <div class="flex flex-col lg:flex-row gap-6">
     <!-- Sidebar -->
-    <div class="w-full lg:w-1/4 xl:w-1/5 2xl:w-1/4 my-8 flex-shrink-0">
+    <div class="w-full lg:w-1/4 xl:w-1/5 2xl:w-1/4 mb-4 lg:my-8 flex-shrink-0">
       <div class="bg-white p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm sticky top-4">
-        <h2 class="text-lg font-semibold text-[#194769] mb-4">Filters</h2>
+        <div class="flex items-center justify-between cursor-pointer select-none" id="toggle-filters-box">
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-[#194769]">Filters</h2>
+            {% if request.GET.time_range or request.GET.tags %}
+            <span class="bg-[#3798A9] text-white text-[10px] px-2 py-0.5 rounded-full font-medium">Active</span>
+            {% endif %}
+          </div>
+          <button type="button" id="filters-toggle-btn"
+            class="text-xs text-[#3798A9] hover:text-[#194769] font-medium flex items-center gap-1 focus:outline-none transition-colors"
+            aria-expanded="false"
+            aria-controls="filter-form-container">
+            <span id="filters-toggle-text"><span class="lg:hidden">Show</span><span class="hidden lg:inline">Hide</span></span>
+            <svg id="filters-toggle-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="filter-form-container" class="hidden lg:block mt-4">
         <form method="get" class="space-y-4">
-          <!-- Search Bar -->
-          <div>
-            <label for="search" class="block text-sm font-medium text-[#194769] mb-1">Search</label>
-            <input type="text" id="search" name="search" value="{{ request.GET.search }}"
-              placeholder="Recipe name or ingredient..."
-              class="w-full px-3 py-2 bg-white border border-[#5B8E7D] rounded-lg focus:ring-2 focus:ring-[#3798A9] focus:border-transparent">
-          </div>
-          <!-- Tag Filter -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-medium text-[#194769]">Tags</label>
-              <button type="button" id="toggle-tags"
-                class="text-xs text-[#3798A9] hover:text-[#194769] font-medium focus:outline-none transition-colors">
-                <span id="toggle-text">Show</span>
-                <svg id="toggle-icon" class="inline-block w-3 h-3 ml-1 transition-transform" fill="none"
-                  stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-            </div>
-            <div id="tags-container" class="hidden space-y-2 overflow-y-auto max-h-72">
-              {% for tag in all_tags %}
-              <label class="flex items-center">
-                <input type="checkbox" name="tags" value="{{ tag.id }}" {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
-                  class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
-                <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full"
-                  style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
-                  {{ tag.name }}
-                </span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
+          {% if request.GET.search %}
+          <input type="hidden" name="search" value="{{ request.GET.search }}">
+          {% endif %}
           <!-- Time Filter -->
           <div>
             <label class="block text-sm font-medium text-[#194769] mb-2">Total Time</label>
@@ -71,18 +58,45 @@
               </label>
             </div>
           </div>
+          <!-- Tag Filter -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-[#194769]">Tags</label>
+              <button type="button" id="toggle-tags"
+                class="text-xs text-[#3798A9] hover:text-[#194769] font-medium focus:outline-none transition-colors">
+                <span id="toggle-text">Show</span>
+                <svg id="toggle-icon" class="inline-block w-3 h-3 ml-1 transition-transform" fill="none"
+                  stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+            </div>
+            <div id="tags-container" class="hidden space-y-2 overflow-y-auto max-h-72">
+              {% for tag in all_tags %}
+              <label class="flex items-center">
+                <input type="checkbox" name="tags" value="{{ tag.id }}" {% if tag.id|stringformat:"s" in request.GET.tags %}checked{% endif %}
+                  class="rounded border-[#5B8E7D] text-[#3798A9] focus:ring-[#3798A9]">
+                <span class="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full"
+                  style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">
+                  {{ tag.name }}
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
           <!-- Filter Buttons -->
           <div class="flex gap-2">
             <button type="submit"
               class="flex-1 bg-[#194769] hover:bg-[#5B8E7D] text-white text-xs font-medium px-2 py-1 rounded shadow transition">
               Apply
             </button>
-            <a href="{{ request.path }}"
+            <a href="{% if request.GET.search %}?search={{ request.GET.search }}{% else %}{{ request.path }}{% endif %}"
               class="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium px-2 py-1 rounded shadow transition text-center">
               Clear
             </a>
           </div>
         </form>
+        </div>
       </div>
     </div>
 
@@ -95,10 +109,22 @@
           <span class="text-base sm:text-lg font-normal text-gray-600">({{ page_obj.paginator.count }} total)</span>
           {% endif %}
         </h1>
-        <a href="{% url 'recipes:add_recipe' %}"
-          class="bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center">
-          Add Recipe
-        </a>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <a href="{% url 'recipes:add_recipe' %}"
+            class="w-full sm:w-52 bg-white hover:bg-[#F7F9FA] text-[#194769] border border-[#5B8E7D] font-semibold px-4 py-2 rounded-lg shadow-sm transition text-center flex items-center justify-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#5B8E7D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <span>Import from URL</span>
+          </a>
+          <a href="{% url 'recipes:scratch_add' %}"
+            class="w-full sm:w-52 bg-[#194769] hover:bg-[#5B8E7D] text-white font-semibold px-4 py-2 rounded-lg shadow transition text-center flex items-center justify-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Create from Scratch</span>
+          </a>
+        </div>
       </div>
       {% if recipes %}
       <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -122,6 +148,11 @@
               {% endif %}
             </div>
             <div class="flex flex-wrap gap-2 mb-3">
+              {% if recipe.is_future %}
+              <span class="inline-block bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium border border-amber-300">
+                Saved for Later
+              </span>
+              {% endif %}
               {% for tag in recipe.tags.all %}
               <span class="inline-block text-white text-xs px-2 py-1 rounded-full"
                 style="--tag-color: {{ tag.color }}; background-color: var(--tag-color);">

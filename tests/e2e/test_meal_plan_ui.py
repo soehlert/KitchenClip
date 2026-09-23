@@ -14,7 +14,7 @@ def test_meal_plan_page_load(page: Page, live_server):
     
     # Assert page headers and sidebar loaded
     expect(page.locator("text=Meal Planner")).to_be_visible()
-    expect(page.locator("text=Recipes & Ideas")).to_be_visible()
+    expect(page.locator("#sidebar-handle")).to_be_visible()
     
     # Verify the global flatpickr inputs are initialized
     expect(page.locator("#global-lunch")).to_be_attached()

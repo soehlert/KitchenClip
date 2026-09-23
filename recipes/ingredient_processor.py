@@ -3,6 +3,13 @@ from fractions import Fraction
 
 import ingredient_slicer
 
+from recipes.culinary_units import (
+    BAG_PRODUCE,
+    BUNCH_HERBS,
+    HEAD_PRODUCE,
+    PACKET_CATEGORIES,
+)
+
 
 def _safe_float(value) -> float:
     """Internal helper to safely convert values to a float."""
@@ -13,17 +20,61 @@ def _safe_float(value) -> float:
     except (ValueError, TypeError):
         return 0.0
 
+UNICODE_FRACTIONS = {
+    "½": 0.5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": 0.25, "¾": 0.75,
+    "⅕": 0.2, "⅖": 0.4, "⅗": 0.6, "⅘": 0.8, "⅙": 1 / 6,
+    "⅚": 5 / 6, "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875,
+}
+_UNI_CHARS = "".join(UNICODE_FRACTIONS.keys())
+_NUMBER_PATTERN = re.compile(
+    rf"(?:(\d+)\s+)?(\d+)\s*/\s*(\d+)|"
+    rf"(?:(\d+)\s*)?([{_UNI_CHARS}])|"
+    rf"(\d+(?:\.\d+)?)"
+)
+
+
 def _extract_numbers(text: str) -> list[float]:
-    """Internal helper to extract all numbers from a string as floats."""
-    extracted_floats = []
-    # Regex finds digits, optionally followed by a decimal point and more digits
-    number_matches = re.findall(r"(\d+(?:\.\d+)?)", text)
-    
-    for match in number_matches:
-        # We can use standard float() here because the regex guarantees it's a valid number format
-        extracted_floats.append(float(match))
-        
+    """Extract numbers, slash fractions, and unicode fractions from text as floats."""
+    extracted_floats: list[float] = []
+    for m in _NUMBER_PATTERN.finditer(text):
+        g1, g2, g3 = m.group(1), m.group(2), m.group(3)
+        if g2 and g3 and float(g3) != 0:
+            whole = float(g1) if g1 else 0.0
+            extracted_floats.append(whole + float(g2) / float(g3))
+            continue
+        g4, g5 = m.group(4), m.group(5)
+        if g5:
+            whole = float(g4) if g4 else 0.0
+            extracted_floats.append(whole + UNICODE_FRACTIONS[g5])
+            continue
+        g6 = m.group(6)
+        if g6:
+            extracted_floats.append(float(g6))
     return extracted_floats
+
+
+UNIT_PLURAL_MAP = {
+    "tablespoon": "tablespoons",
+    "tbsp": "tbsp",
+    "teaspoon": "teaspoons",
+    "tsp": "tsp",
+    "ounce": "ounces",
+    "oz": "oz",
+    "cup": "cups",
+    "pound": "pounds",
+    "lb": "lbs",
+    "packet": "packets",
+    "pouch": "pouches",
+    "head": "heads",
+    "bunch": "bunches",
+    "bag": "bags",
+    "can": "cans",
+    "clove": "cloves",
+    "stalk": "stalks",
+    "slice": "slices",
+    "pinch": "pinches",
+    "dash": "dashes",
+}
 
 
 def parse_ingredient_line(line: str) -> dict:
@@ -64,26 +115,31 @@ def parse_ingredient_line(line: str) -> dict:
     # If the parser's quantity is NOT found in the 'Safe' zone but IS found
     # in the 'Danger' zone (either directly or as a product), we revert.
     reverted = False
-    if qty > 0 and qty not in safe_nums:
+    if qty > 0 and not any(abs(qty - sn) < 0.01 for sn in safe_nums):
         # Check Case A: Multiplication (6 * 305 = 1830)
-        if sec_qty in safe_nums and danger_nums:
+        if any(abs(sec_qty - sn) < 0.01 for sn in safe_nums) and danger_nums:
             for dn in danger_nums:
                 if abs(sec_qty * dn - qty) < 0.1:
-                    qty = sec_qty
+                    matching_safe = next((sn for sn in safe_nums if abs(sec_qty - sn) < 0.01), sec_qty)
+                    qty = matching_safe
                     reverted = True
                     break
         
         # Check Case B: Pure Hijacking (4 scallions (60g) -> 60)
-        if not reverted and qty in danger_nums and safe_nums:
-            # We assume the first safe number is the intended count
-            qty = safe_nums[0]
+        if not reverted and any(abs(qty - dn) < 0.01 for dn in danger_nums) and safe_nums:
+            matching_safe = next((sn for sn in safe_nums if abs(sec_qty - sn) < 0.01), safe_nums[0])
+            qty = matching_safe
             reverted = True
 
     # If we reverted, we should also clear any unit that was likely hijacked from the parens
     if reverted:
         u_temp = (parsed_item.get("unit") or "").lower()
         if u_temp and any(u_temp in p_c.lower() for p_c in paren_matches):
-            parsed_item["unit"] = ""
+            sec_u = (parsed_item.get("secondary_unit") or "").lower().strip()
+            if sec_u and not any(sec_u in p_c.lower() for p_c in paren_matches):
+                parsed_item["unit"] = sec_u
+            else:
+                parsed_item["unit"] = ""
 
     # 1.5 Generic Rogue Unit Heuristics
     # ingredient_slicer has no spatial awareness and will frequently:
@@ -93,9 +149,16 @@ def parse_ingredient_line(line: str) -> dict:
     food_current = (parsed_item.get("food") or "").strip()
     
     if u_current and food_current:
-        # If the unit is already part of the food name ("yellow onion" & "onion"), just clear the unit
+        # If the unit is already part of the food name ("yellow onion" & "onion", or "clove" & "clove garlic")
         if u_current in food_current.lower().split() or u_current == food_current.lower():
-            parsed_item["unit"] = ""
+            if u_current in UNIT_PLURAL_MAP or u_current in UNIT_PLURAL_MAP.values():
+                cleaned = re.sub(rf"^{re.escape(u_current)}\s+(?:of\s+)?", "", food_current, flags=re.IGNORECASE).strip()
+                if cleaned == food_current:
+                    cleaned = re.sub(rf"\s+{re.escape(u_current)}$", "", food_current, flags=re.IGNORECASE).strip()
+                if cleaned:
+                    parsed_item["food"] = cleaned
+            else:
+                parsed_item["unit"] = ""
         else:
             u_idx = line_to_parse.lower().find(u_current)
             f_words = food_current.lower().split()
@@ -136,6 +199,35 @@ def parse_ingredient_line(line: str) -> dict:
     if u:
         parsed_item["unit"] = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', u, flags=re.IGNORECASE).strip()
 
+    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can", "clove")
+    u_current = (parsed_item.get("unit") or "").lower().strip()
+    food_current = (parsed_item.get("food") or "").strip()
+    if not u_current and food_current:
+        for prefix, norm_unit in [
+            ("pouches", "pouches"), ("pouch", "pouch"),
+            ("packets", "packets"), ("packet", "packet"),
+            ("heads", "heads"), ("head", "head"),
+            ("bunches", "bunches"), ("bunch", "bunch"),
+            ("bags", "bags"), ("bag", "bag"),
+            ("cans", "cans"), ("can", "can"),
+            ("stalks", "stalks"), ("stalk", "stalk"),
+            ("cloves", "cloves"), ("clove", "clove"),
+        ]:
+            if food_current.lower().startswith(prefix + " "):
+                parsed_item["unit"] = norm_unit
+                food_current = food_current[len(prefix) + 1:].strip()
+                if food_current.lower().startswith("of "):
+                    food_current = food_current[3:].strip()
+                parsed_item["food"] = food_current
+                u_current = norm_unit
+                break
+
+    # Resolve meal-kit 'unit' into sensible culinary units
+    if not u_current and re.search(r'\bunit\b', line_to_parse, flags=re.IGNORECASE):
+        resolved = resolve_meal_kit_unit(food_current)
+        if resolved:
+            parsed_item["unit"] = resolved
+
     # Let's ensure quantity is always returned as a float, never a string
     parsed_item["quantity"] = qty
     
@@ -145,7 +237,43 @@ def parse_ingredient_line(line: str) -> dict:
     if qty == 0.0 and food in {"ingredients", "finish", "sauce", "garnish", "for the", "serve with", "to serve", "marinade", "dressing"}:
         parsed_item["food"] = ""
         
+    parsed_item["unit"] = parsed_item.get("unit") or ""
     return parsed_item
+
+def pluralize_unit(unit: str, quantity: float) -> str:
+    """Return plural form of unit if quantity > 1."""
+    if not unit or quantity <= 1.0:
+        return unit
+    u_lower = unit.lower()
+    return UNIT_PLURAL_MAP.get(u_lower, u_lower)
+
+
+def resolve_meal_kit_unit(food: str) -> str:
+    """Resolve meal-kit placeholder unit ('unit') into a sensible culinary unit.
+
+    Defaults to empty string (count) for produce, whole items, and general ingredients,
+    only assigning a unit when explicitly recognized as a head, bunch, bag, or packet.
+    """
+    f = food.lower().strip()
+
+    # Pickles are whole items / counts, even if prepared with dill
+    if "pickle" in f:
+        return ""
+
+    if any(re.search(rf"\b{item}\b", f) for item in PACKET_CATEGORIES):
+        return "packet"
+
+    if any(re.search(rf"\b{item}\b", f) for item in HEAD_PRODUCE):
+        return "head"
+
+    if any(re.search(rf"\b{item}\b", f) for item in BUNCH_HERBS):
+        return "bunch"
+
+    if any(re.search(rf"\b{item}\b", f) for item in BAG_PRODUCE):
+        return "bag"
+
+    return ""
+
 
 FRACTION_MAP = {
     0.5: '½', 0.333: '⅓', 0.666: '⅔', 0.25: '¼', 0.75: '¾', 
@@ -225,6 +353,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             continue
             
         unit = (item.get("unit") or "").strip().lower()
+        if unit == "unit":
+            unit = resolve_meal_kit_unit(food)
         
         # Quantity is now guaranteed to be a float or converted to float
         raw_quantity = item.get("quantity", 0.0)
@@ -279,9 +409,11 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
                 # For display we combine them
                 display_q = f"{lbs} lb {remain_fmt}"
                 u = "oz"
+        else:
+            u = pluralize_unit(u, q)
 
         results.append({
-            "food": f.capitalize(),
+            "food": f,
             "unit": u,
             "quantity": q,
             "display_quantity": display_q,

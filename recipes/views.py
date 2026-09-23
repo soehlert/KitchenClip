@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -24,7 +25,8 @@ from django.views.generic import (
     UpdateView,
 )
 
-from .forms import RecipeImportForm, RecipeManualForm, RecipeUpdateForm
+from .forms import (RecipeImportForm, RecipeScratchForm,
+                    RecipeUpdateForm)
 from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .mixins import (
     AdminRequiredMixin,
@@ -65,17 +67,18 @@ class RecipeListView(HouseholdLoginRequiredMixin, ListView):
     template_name = "recipes/recipe_list.html"
     context_object_name = "recipes"
     paginate_by = 15
-
     def get_queryset(self):
-        queryset = Recipe.objects.filter(household=self.household, is_future=False)
-
         search = self.request.GET.get('search')
         if search:
-            queryset = queryset.filter(
+            queryset = Recipe.objects.filter(
+                household=self.household
+            ).filter(
                 Q(title__icontains=search)
                 | Q(ingredients__name__icontains=search)
                 | Q(description__icontains=search)
             ).distinct()
+        else:
+            queryset = Recipe.objects.filter(household=self.household, is_future=False)
 
         time_ranges = self.request.GET.getlist('time_range')
         if time_ranges:
@@ -148,7 +151,7 @@ class FutureRecipeListView(RecipeListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['all_tags'] = RecipeTag.objects.filter(household=self.household).order_by('name')
-        context['page_title'] = "Future Ideas"
+        context['page_title'] = "Saved for Later"
         return context
 
 
@@ -312,7 +315,7 @@ class RecipeCreateView(HouseholdLoginRequiredMixin, CreateView):
                 "Couldn't automatically import this recipe. Please enter it manually below."
             )
 
-            return HttpResponseRedirect(reverse('recipes:manual_add'))
+            return HttpResponseRedirect(reverse('recipes:scratch_add'))
 
         try:
             response = super().form_valid(form)
@@ -367,33 +370,13 @@ class RecipeCreateView(HouseholdLoginRequiredMixin, CreateView):
         return response
 
 
-class RecipeManualCreateView(HouseholdLoginRequiredMixin, CreateView):
+class RecipeScratchCreateView(HouseholdLoginRequiredMixin, CreateView):
     model = Recipe
-    form_class = RecipeManualForm
-    template_name = "recipes/recipe_manual_form.html"
-    success_url = reverse_lazy("recipes:list_recipe")
+    form_class = RecipeScratchForm
+    template_name = "recipes/recipe_scratch_form.html"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Add Recipe Manually"
-        context["heading"] = "Enter Recipe Details"
-        context["button_text"] = "Save Recipe"
-        context["show_delete"] = False
-        all_tags = RecipeTag.objects.filter(household=self.household).values("name", "color")
-        context["all_tags_json"] = json.dumps(list(all_tags), cls=DjangoJSONEncoder)
-
-        preserved_data = self.request.session.get('preserved_form_data', {})
-        preserved_tags = preserved_data.get('tags', '')
-
-        if preserved_tags:
-            initial_tags = []
-            for tag_name in preserved_tags:
-                initial_tags.append({"name": tag_name, "color": "#6B7280"})
-            context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
-        else:
-            context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
-
-        return context
+    def get_success_url(self):
+        return self.object.get_absolute_url()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -419,60 +402,152 @@ class RecipeManualCreateView(HouseholdLoginRequiredMixin, CreateView):
 
         return initial
 
-    def form_valid(self, form):
-        form.instance.instructions = clean_instruction_line(form.instance.instructions)
-        form.instance.household = self.household
-        form.instance.created_by = self.request.user
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Create Recipe from Scratch"
+        context["heading"] = "Create Recipe from Scratch"
+        context["button_text"] = "Create Recipe"
+        context["show_delete"] = False
 
-        if getattr(self.request, 'is_readonly', False):
-            form.instance.is_future = True
-            form.instance.is_on_menu = False
+        all_tags = list(RecipeTag.objects.filter(household=self.household).values("name", "color"))
+        context["all_tags_json"] = json.dumps(all_tags, cls=DjangoJSONEncoder)
+        tag_color_map = {t["name"].lower(): t["color"] for t in all_tags}
 
-        response = super().form_valid(form)
+        preserved_data = self.request.session.get('preserved_form_data', {})
+        raw_tags = ""
+        if self.request.method == "POST":
+            raw_tags = self.request.POST.get('tags', '')
+        elif preserved_data:
+            p_tags = preserved_data.get('tags', '')
+            if isinstance(p_tags, list):
+                raw_tags = ", ".join(p_tags)
+            elif isinstance(p_tags, str):
+                raw_tags = p_tags
 
-        ingredients_text = form.cleaned_data.get('ingredients_text', '')
-        try:
-            parsed_list = []
-            for line in ingredients_text.split('\n'):
-                line = line.strip()
-                if line:
-                    parsed_item = parse_ingredient_line(line)
-                    parsed_list.append(parsed_item)
-
-            processed_ingredients = process_ingredients(parsed_list)
-
-            for idx, item in enumerate(processed_ingredients):
-                name = item["food"]
-                ingredient, _ = Ingredient.objects.get_or_create(name=name)
-
-                RecipeIngredient.objects.create(
-                    recipe=self.object,
-                    ingredient=ingredient,
-                    raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
-                    quantity=item["display_quantity"],
-                    unit=item["unit"],
-                    order=idx
-                )
-        except Exception:
-            logger.exception("Failed to process manual ingredients")
-
-        raw_tags = form.cleaned_data["tags"]
-        if isinstance(raw_tags, str):
-            tag_names = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
+        if raw_tags:
+            tag_names = [t.strip() for t in raw_tags.split(",") if t.strip()]
+            initial_tags = [
+                {"name": t, "color": tag_color_map.get(t.lower(), "#6B7280")}
+                for t in tag_names
+            ]
+            context["initial_tags_json"] = json.dumps(initial_tags, cls=DjangoJSONEncoder)
+            context["initial_tags_csv"] = ", ".join(tag_names)
         else:
-            tag_names = list(raw_tags)
+            context["initial_tags_json"] = json.dumps([], cls=DjangoJSONEncoder)
+            context["initial_tags_csv"] = ""
 
-        tag_objs = []
-        for name in tag_names:
-            tag_obj = RecipeTag.get_or_create_for_household(
-                household=self.household,
-                name=name,
-            )
-            if tag_obj:
-                tag_objs.append(tag_obj)
-        self.object.tags.set(tag_objs)
+        # Handle dynamic rows in context
+        if self.request.method == "POST":
+            quantities = self.request.POST.getlist('ingredient_quantity')
+            units = self.request.POST.getlist('ingredient_unit')
+            foods = self.request.POST.getlist('ingredient_food') or self.request.POST.getlist('ingredient_name')
+            max_len = max(len(quantities), len(units), len(foods))
+            ingredient_rows = []
+            for i in range(max_len):
+                ingredient_rows.append({
+                    'quantity': quantities[i] if i < len(quantities) else '',
+                    'unit': units[i] if i < len(units) else '',
+                    'food': foods[i] if i < len(foods) else '',
+                })
+            context["ingredient_rows"] = ingredient_rows if ingredient_rows else [{'quantity': '', 'unit': '', 'food': ''}]
 
-        return response
+            steps = self.request.POST.getlist('instruction_step')
+            context["instruction_steps"] = steps if steps else ['']
+        else:
+            context["ingredient_rows"] = [
+                {'quantity': '', 'unit': '', 'food': ''},
+                {'quantity': '', 'unit': '', 'food': ''},
+                {'quantity': '', 'unit': '', 'food': ''},
+            ]
+            context["instruction_steps"] = ['', '']
+
+        form = context.get('form')
+        if form and form.errors:
+            for err in form.non_field_errors():
+                err_str = str(err)
+                if "ingredient" in err_str.lower():
+                    context["ingredient_error"] = err_str
+                if "instruction" in err_str.lower():
+                    context["instruction_error"] = err_str
+
+        # On GET, once preserved session data has been consumed for initial display, clear it
+        if self.request.method == "GET":
+            self.request.session.pop('failed_recipe_url', None)
+            self.request.session.pop('preserved_form_data', None)
+
+        return context
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            valid_steps = form.cleaned_data.get('valid_steps', [])
+            form.instance.instructions = "\n".join(valid_steps)
+            form.instance.household = self.household
+            form.instance.created_by = self.request.user
+
+            if getattr(self.request, 'is_readonly', False):
+                form.instance.is_future = True
+                form.instance.is_on_menu = False
+
+            response = super().form_valid(form)
+
+            valid_ingredients = form.cleaned_data.get('valid_ingredients', [])
+            order_idx = 0
+            for item in valid_ingredients:
+                if "food" in item:
+                    food_name = item["food"]
+                    qty = item.get("quantity", "")
+                    unit = item.get("unit", "")
+                    raw_text = " ".join(filter(None, [qty, unit, food_name]))
+                    ingredient, _ = Ingredient.objects.get_or_create(name=food_name[:100])
+                    RecipeIngredient.objects.create(
+                        recipe=self.object,
+                        ingredient=ingredient,
+                        raw_text=raw_text[:200],
+                        quantity=qty[:50],
+                        unit=unit[:50],
+                        order=order_idx
+                    )
+                    order_idx += 1
+                elif "raw_text" in item:
+                    parsed_item = parse_ingredient_line(item["raw_text"])
+                    processed = process_ingredients([parsed_item])
+                    for p in processed:
+                        p_name = p["food"]
+                        ingredient, _ = Ingredient.objects.get_or_create(name=p_name[:100])
+                        p_qty = p.get('display_quantity', '')
+                        p_unit = p.get('unit', '')
+                        raw_text = " ".join(filter(None, [p_qty, p_unit, p_name]))
+                        RecipeIngredient.objects.create(
+                            recipe=self.object,
+                            ingredient=ingredient,
+                            raw_text=raw_text[:200],
+                            quantity=p_qty[:50],
+                            unit=p_unit[:50],
+                            order=order_idx
+                        )
+                        order_idx += 1
+
+            raw_tags = form.cleaned_data.get("tags", [])
+            if isinstance(raw_tags, str):
+                tag_names = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
+            else:
+                tag_names = list(raw_tags)
+
+            tag_objs = []
+            for name in tag_names:
+                tag_obj = RecipeTag.get_or_create_for_household(
+                    household=self.household,
+                    name=name,
+                )
+                if tag_obj:
+                    tag_objs.append(tag_obj)
+            self.object.tags.set(tag_objs)
+
+            self.request.session.pop('failed_recipe_url', None)
+            self.request.session.pop('preserved_form_data', None)
+
+            messages.success(self.request, f'Recipe "{self.object.title}" created successfully!')
+            return response
 
 
 class RecipeUpdateView(AdminRequiredMixin, UpdateView):
@@ -826,6 +901,45 @@ def search_recipes_api(request):
     return JsonResponse({'recipes': data})
 
 
+@household_required
+@require_POST
+def parse_ingredients_api(request):
+    """API endpoint to parse ingredient text into structured items."""
+    try:
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body.decode('utf-8'))
+            text = payload.get('text', '')
+            lines = payload.get('lines', [])
+            if not lines and text:
+                lines = text.splitlines()
+        else:
+            text = request.POST.get('text', '')
+            lines = request.POST.getlist('lines')
+            if not lines and text:
+                lines = text.splitlines()
+
+        clean_lines = [line.strip() for line in lines if line and line.strip()]
+        if not clean_lines:
+            return JsonResponse({'ingredients': []})
+
+        parsed_items = [parse_ingredient_line(line) for line in clean_lines]
+        processed = process_ingredients(parsed_items)
+
+        results = []
+        for p in processed:
+            results.append({
+                'food': p.get('food', ''),
+                'unit': p.get('unit', ''),
+                'quantity': p.get('display_quantity', ''),
+                'prep': p.get('prep', ''),
+            })
+
+        return JsonResponse({'ingredients': results})
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.exception("Failed to parse ingredients via API")
+        return JsonResponse({'error': str(e)}, status=500)
 class MealPlanKioskView(MealPlanView):
     template_name = "recipes/meal_plan_kiosk.html"
 
