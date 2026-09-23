@@ -45,14 +45,61 @@ docker run -d \
 
 KitchenClip supports multi-household tenancy with zero-friction, passwordless authentication using single-use CLI Magic Links and WebAuthn Passkeys (TouchID / FaceID):
 
-* **Household Isolation**: Each household has its own private recipe library and weekly meal plan. Spouses share the same household space with independent personal device passkeys.
-* **Cross-Household Sharing**: Recipes can be marked as shared for other households to view and 1-click clone into their own collections.
-* **Inviting Users / Enrolling Devices (CLI)**:
-  To invite a user or pair a new device for an existing user, run the management command via Docker:
-  ```bash
-  docker compose exec web uv run python manage.py create_invite --username sam --household "Oehlert Home"
-  ```
-  Open the printed single-use link in your browser to log in and register your device's biometric Passkey.
+* **Household Isolation**: Each household has its own private recipe library and weekly meal plan.
+* **Co-Habitants / Multi-User**: Multiple users (e.g., spouses/partners) can belong to the same household with independent devices and passkeys while sharing the same recipe collection and meal calendar.
+* **Cross-Household Sharing**: Recipes can be marked as shared for other households to browse and 1-click clone into their own collections.
+
+### CLI Invitation Commands
+
+Generate single-use enrollment links via Docker Compose:
+
+1. **Create an Initial User & New Household**:
+   ```bash
+   docker compose exec web uv run python manage.py create_invite --username alice --household "Baker Family" --base-url http://localhost:8888
+   ```
+
+2. **Add a Second User to an Existing Household**:
+   ```bash
+   docker compose exec web uv run python manage.py create_invite --username bob --household "Baker Family" --base-url http://localhost:8888
+   ```
+
+3. **Authorize an Additional Device for an Existing User**:
+   ```bash
+   docker compose exec web uv run python manage.py create_invite --username alice --base-url http://localhost:8888
+   ```
+
+4. **Create a Second Household**:
+   ```bash
+   docker compose exec web uv run python manage.py create_invite --username charlie --household "Smith Family" --base-url http://localhost:8888
+   ```
+
+### Testing Multi-Household Tenancy Locally (No Cloudflare)
+
+To test isolation and sharing between two distinct households on localhost:
+
+1. **Launch Containers**: Ensure `CLOUDFLARE_ENABLED=0` in `.env` or `docker-compose.override.yml`, then start containers:
+   ```bash
+   docker compose up -d
+   ```
+2. **Generate Two Household Invites**:
+   ```bash
+   docker compose exec web uv run python manage.py create_invite --username alice --household "Baker Family" --base-url http://localhost:8888
+   docker compose exec web uv run python manage.py create_invite --username charlie --household "Smith Family" --base-url http://localhost:8888
+   ```
+3. **Log in as Household 1**:
+   - Open Alice's invite URL in your regular browser tab.
+   - Click **Register Passkey & Sign In** (or click **Sign In on this Browser (Session Only)**).
+   - Create a recipe from scratch or import one.
+4. **Log in as Household 2**:
+   - Open Charlie's invite URL in a **Private / Incognito window** (or a separate browser like Safari) so sessions do not conflict.
+   - Complete enrollment. Notice that Charlie's recipe list and meal plan are completely isolated and empty.
+5. **Test Cross-Household Sharing**:
+   - In Alice's browser, edit a recipe and check **Share with other households**.
+   - In Charlie's browser, click **Shared Recipes** in the top navigation. Alice's recipe appears! Click **Copy to My Recipes** to clone a copy into Charlie's collection.
+6. **Add a Second User to an Existing Household**:
+   - Run the command to invite Bob to `"Baker Family"`.
+   - Open Bob's link in another private session. Bob will see the "Baker Family" badge in the navigation and have full access to Alice's recipes and shared meal plan!
+
 
 ## Environment Variables
 

@@ -90,3 +90,57 @@ docker compose -f docker-compose.test.yml run --rm test pytest tests/e2e/test_me
 *   **`test_meal_plan_page_load`**: Creates a dummy recipe, navigates to the meal planner, and asserts that the Sidebar and Global Time flatpickr inputs successfully initialize and attach to the hidden inputs.
 *   **`test_recipes_list_page`**: Ensures the sidebar component properly loads and renders existing recipes within its draggable list.
 *   **`test_meal_plan_drag_and_drop`**: Verifies dynamic Playwright event interactions. Evaluates vanilla Javascript to dispatch native HTML5 `DragEvent` actions (populating the `DataTransfer` payload and manually triggering `bubbles: true` for `dragstart`, `dragenter`, `dragover`, and `drop`) directly onto the UI `.meal-slot`. Finally acts on the Promise return from the fetch API to assert the underlying SQLite `MealPlan` record is updated correctly.
+
+---
+
+## 4. Multi-Household Tenancy & Authentication Testing
+
+KitchenClip enforces strict isolation between different households and allows passwordless invitation and WebAuthn enrollments.
+
+### Automated Multi-Household Backend Tests
+Run the complete multi-household security, auth, and scoping test suite:
+```bash
+docker compose exec web uv run pytest recipes/tests/test_scoping.py recipes/tests/test_auth.py recipes/tests/test_sharing.py recipes/tests/test_duplicate_alerts.py
+```
+
+### Manual Multi-Household Local Testing (No Cloudflare)
+
+When running locally without Cloudflare (`CLOUDFLARE_ENABLED=0`):
+
+1. **Start Local Application**:
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Generate Invites for Two Households**:
+   ```bash
+   # Household 1 (Alice)
+   docker compose exec web uv run python manage.py create_invite --username alice --household "Baker Family" --base-url http://localhost:8888
+
+   # Household 2 (Charlie)
+   docker compose exec web uv run python manage.py create_invite --username charlie --household "Smith Family" --base-url http://localhost:8888
+   ```
+
+3. **Verify Household 1**:
+   - Open Alice's invite link in your browser.
+   - Click **Register Passkey & Sign In** (or click **Sign In on this Browser (Session Only)**).
+   - Add a recipe or create a scratch recipe.
+   - Notice the "Baker Family" badge in the navigation header.
+
+4. **Verify Household 2 Isolation**:
+   - Open Charlie's invite link in a **Private / Incognito window** (or Safari / Firefox).
+   - Sign in as Charlie.
+   - Confirm Charlie sees an empty recipe collection and cannot view or edit Alice's recipes.
+
+5. **Test Cross-Household Sharing**:
+   - In Alice's browser, edit a recipe and check **Share with other households**.
+   - In Charlie's browser, open **Shared Recipes** in the navbar.
+   - Alice's shared recipe is listed! Click **Copy to My Recipes** to clone it. Charlie can now edit his copy independently without altering Alice's recipe.
+
+6. **Add a Second User to an Existing Household**:
+   ```bash
+   # Second user for Baker Family (Bob)
+   docker compose exec web uv run python manage.py create_invite --username bob --household "Baker Family" --base-url http://localhost:8888
+   ```
+   - Open Bob's link in another private session. Bob signs in directly into "Baker Family" and immediately shares access to all recipes and meal plans with Alice.
+
