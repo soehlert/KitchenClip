@@ -11,7 +11,7 @@ from django.db import OperationalError, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from recipes.models import InviteToken, PasskeyCredential
 from recipes.webauthn_service import (
@@ -38,7 +38,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
     return render(request, "auth/login.html", {"next": next_url})
 
 
-@require_POST
+@require_http_methods(["GET", "POST"])
 def logout_view(request: HttpRequest) -> HttpResponse:
     """Log out user, flush session, and redirect to /auth/login/."""
     logout(request)

@@ -66,6 +66,12 @@
                     {{ request.user.profile.household.name }}
                 </span>
                 {% endif %}
+                {% if request.user.is_authenticated %}
+                <form action="{% url 'auth:logout' %}" method="post" class="inline m-0 p-0">
+                    {% csrf_token %}
+                    <button type="submit" class="hover:text-gray-300 transition-colors text-sm text-gray-400">Log Out</button>
+                </form>
+                {% endif %}
             </div>
 
             <!-- Hamburger Button (mobile only) -->
@@ -86,10 +92,21 @@
                 <a href="{% url 'recipes:meal_plan' %}" class="py-3 hover:text-gray-300 transition-colors">Meal Plan</a>
                 {% endif %}
                 {% if request.user.is_authenticated and request.user.profile.household %}
-                <div class="py-2.5 border-t border-gray-600">
+                <div class="py-2.5 border-t border-gray-600 flex items-center justify-between">
                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-300 border border-gray-600">
                         {{ request.user.profile.household.name }}
                     </span>
+                    <form action="{% url 'auth:logout' %}" method="post" class="inline m-0 p-0">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm text-gray-400 hover:text-white transition-colors">Log Out</button>
+                    </form>
+                </div>
+                {% elif request.user.is_authenticated %}
+                <div class="py-2.5 border-t border-gray-600">
+                    <form action="{% url 'auth:logout' %}" method="post" class="inline m-0 p-0">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm text-gray-400 hover:text-white transition-colors">Log Out</button>
+                    </form>
                 </div>
                 {% endif %}
             </div>

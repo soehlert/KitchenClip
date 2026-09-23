@@ -663,15 +663,29 @@ class TestAttackSurfaceElimination:
             assert "signup" not in url_str
             assert "password_reset" not in url_str
 
-    def test_logout_requires_post_and_flushes_session(self, client, test_user):
-        """Logout strictly requires POST, completely terminates the session, and redirects to /auth/login/."""
+    def test_logout_flushes_session(self, client, test_user):
+        """Logout flushes session and redirects to /auth/login/ on both GET and POST."""
         logout_url = reverse("auth:logout")
 
-        # GET is rejected with 405 Method Not Allowed
+        # GET flushes session and redirects
+        client.force_login(test_user)
         get_resp = client.get(logout_url)
-        assert get_resp.status_code == 405
+        assert get_resp.status_code == 302
+        assert get_resp.url == reverse("auth:login")
+        assert "_auth_user_id" not in client.session
 
-        # POST flushes session
+        # POST flushes session and redirects
+        client.force_login(test_user)
         post_resp = client.post(logout_url)
         assert post_resp.status_code == 302
         assert post_resp.url == reverse("auth:login")
+        assert "_auth_user_id" not in client.session
+
+    def test_logout_button_rendered_for_authenticated_user(self, client, test_user):
+        """Authenticated users see the Log Out button in the navigation."""
+        client.force_login(test_user)
+        resp = client.get(reverse("recipes:list_recipe"))
+        assert resp.status_code == 200
+        content = resp.content.decode()
+        assert reverse("auth:logout") in content
+        assert "Log Out" in content
