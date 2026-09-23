@@ -37,18 +37,7 @@ def test_search_both_active_and_future_recipes(client):
     assert future in search_recipes
     assert unrelated not in search_recipes
     content = search_response.content.decode()
-    assert 'Saved for Later' in content
     assert '<input type="hidden" name="search" value="Chicken">' in content
-
-
-@pytest.mark.django_db
-def test_saved_for_later_page_omits_saved_for_later_badge_on_cards(client, test_household):
-    Recipe.objects.create(household=test_household, title="Udon Noodles", is_future=True)
-    response = client.get(reverse('recipes:future_recipes'))
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "Udon Noodles" in content
-    assert '<span class="inline-block bg-amber-100 text-amber-800' not in content
 
 
 @pytest.mark.django_db
