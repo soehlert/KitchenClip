@@ -143,7 +143,7 @@
               </h3>
             </div>
             <div class="flex flex-wrap gap-2 mb-3">
-              {% if recipe.is_future %}
+              {% if recipe.is_future and page_title != "Saved for Later" %}
               <span class="inline-block bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium border border-amber-300">
                 Saved for Later
               </span>
