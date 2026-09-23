@@ -414,27 +414,34 @@ class RecipeTag(models.Model):
 
         target_slug = slug or slugify(clean_name) or clean_name.lower()
 
-        # 1. Search for existing tag in household by exact name, case-insensitive name, or slug
+        # 1. Search for existing tag in household by exact name or case-insensitive name
         existing = cls.objects.filter(household=household).filter(
-            models.Q(name=clean_name) | models.Q(name__iexact=clean_name) | models.Q(slug=target_slug)
+            models.Q(name=clean_name) | models.Q(name__iexact=clean_name)
         ).first()
 
         if existing:
             return existing
 
+        # If clean_name itself is formatted as a slug (e.g. 'comfort-food'), match by slug
+        if clean_name.lower() == target_slug:
+            existing_by_slug = cls.objects.filter(household=household, slug=target_slug).first()
+            if existing_by_slug:
+                return existing_by_slug
+
         # 2. Not found: create new tag
         tag_color = color or cls.get_unique_tag_color()
+        create_slug = slug if slug is not None else (None if cls.objects.filter(household=household, slug=target_slug).exists() else target_slug)
         try:
             with transaction.atomic():
                 return cls.objects.create(
                     household=household,
                     name=clean_name,
-                    slug=target_slug,
+                    slug=create_slug,
                     color=tag_color,
                 )
         except IntegrityError:
             existing = cls.objects.filter(household=household).filter(
-                models.Q(name=clean_name) | models.Q(name__iexact=clean_name) | models.Q(slug=target_slug)
+                models.Q(name=clean_name) | models.Q(name__iexact=clean_name)
             ).first()
             if existing:
                 return existing

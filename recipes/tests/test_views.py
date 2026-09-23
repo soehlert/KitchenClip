@@ -325,6 +325,7 @@ def test_scratch_create_readonly_user(client):
     SessionMiddleware(lambda req: None).process_request(request)
     request.session.save()
     MessageMiddleware(lambda req: None).process_request(request)
+    request.user = client.user
     request.is_readonly = True
     response = RecipeScratchCreateView.as_view()(request)
     assert response.status_code == 302
