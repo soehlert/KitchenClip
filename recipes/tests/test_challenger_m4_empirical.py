@@ -524,7 +524,7 @@ class TestCrossHouseholdSharingAndCloningEmpirical:
         assert cloned.pk != shared_recipe.pk
         assert cloned.household == test_household
         assert cloned.created_by == test_user
-        assert cloned.is_shared is False  # Cloned copy must default to private
+        assert cloned.is_shared is True  # Cloned copy defaults to shared
         assert cloned.description == "Chewy and buttery."
         assert cloned.instructions == shared_recipe.instructions
         assert cloned.user_notes == ""  # Source notes wiped

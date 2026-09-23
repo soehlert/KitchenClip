@@ -17,7 +17,7 @@ KitchenClip employs a comprehensive, dual-tier test architecture designed to val
 
 ## 2. WebAuthn Passkey Testing Architecture via Chrome DevTools Protocol (CDP)
 
-Because WebAuthn requires platform or roaming biometric authenticators (TouchID, FaceID, Windows Hello, YubiKey), browser-driven Playwright tests simulate authenticators using Chrome DevTools Protocol (CDP) virtual authenticators.
+Because WebAuthn requires platform or roaming biometric authenticators (TouchID, FaceID, YubiKey), browser-driven Playwright tests simulate authenticators using Chrome DevTools Protocol (CDP) virtual authenticators.
 
 ```python
 def setup_virtual_authenticator(page: Page):

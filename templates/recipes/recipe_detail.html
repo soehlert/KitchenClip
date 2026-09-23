@@ -7,9 +7,6 @@
   <!-- Title outside the card -->
   <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
     <h1 class="text-3xl font-bold text-[#194769]">{{ recipe.title }}</h1>
-    {% if recipe.is_shared and is_own_recipe %}
-    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#D7EEF2] text-[#194769]">Shared</span>
-    {% endif %}
   </div>
 
   {% if not is_own_recipe and recipe.household %}

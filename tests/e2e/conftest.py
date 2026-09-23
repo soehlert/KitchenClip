@@ -1,7 +1,10 @@
 """tests/e2e/conftest.py - E2E test fixtures, session injection, and backward compatibility."""
 
+import os
 from importlib import import_module
 import pytest
+
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
 from django.core.management import call_command

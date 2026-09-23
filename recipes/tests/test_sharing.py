@@ -70,7 +70,7 @@ class TestRecipeDeepCloning:
         cloned = Recipe.objects.filter(household=test_household, title="Famous Stew").first()
         assert cloned is not None
         assert cloned.created_by == test_user
-        assert cloned.is_shared is False
+        assert cloned.is_shared is True
         assert cloned.instructions == "Simmer for 2 hours"
         assert cloned.prep_time == 20
         assert cloned.cook_time == 120

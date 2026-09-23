@@ -500,7 +500,7 @@ class TestM3RemediationIDORAndIsolationChallenger:
         # Multi-tenancy isolation assertions
         assert cloned.household == secondary_household
         assert cloned.created_by == secondary_user
-        assert cloned.is_shared is False
+        assert cloned.is_shared is True
         assert cloned.is_future is True
         assert cloned.user_notes == "Caller personal note"
         assert cloned.rating == 3

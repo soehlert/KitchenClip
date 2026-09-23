@@ -118,7 +118,7 @@ class RecipeCloningService:
         cloned_recipe = Recipe.objects.create(
             household=target_household,
             created_by=target_user,
-            is_shared=False,
+            is_shared=True,
             title=source_recipe.title,
             description=source_recipe.description,
             original_url=target_url,

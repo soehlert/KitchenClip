@@ -88,7 +88,7 @@ def test_duplicate_action_copy_success(client, test_user, test_household, second
     cloned = Recipe.objects.filter(household=test_household, title="Neighbor Stew").first()
     assert cloned is not None
     assert cloned.created_by == test_user
-    assert cloned.is_shared is False
+    assert cloned.is_shared is True
     assert cloned.recipe_ingredients.count() == 3
     assert cloned.user_notes == "My own personal notes"
     assert "Secret private family note" not in cloned.user_notes

@@ -306,7 +306,6 @@ class RecipeCreateView(HouseholdLoginRequiredMixin, CreateView):
                 'rating': form.cleaned_data.get('rating'),
                 'tags': form.cleaned_data.get('tags', []),
                 'user_notes': form.cleaned_data.get('user_notes', ''),
-                'is_shared': form.cleaned_data.get('is_shared', False),
             }
             self.request.session.save()
 
@@ -397,7 +396,6 @@ class RecipeScratchCreateView(HouseholdLoginRequiredMixin, CreateView):
                 'rating': preserved_data.get('rating'),
                 'tags': preserved_data.get('tags', ''),
                 'user_notes': preserved_data.get('user_notes', ''),
-                'is_shared': preserved_data.get('is_shared', False),
             })
 
         return initial

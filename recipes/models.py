@@ -1,5 +1,6 @@
 import hashlib
 import random
+import re
 import secrets
 from datetime import timedelta
 
@@ -275,7 +276,7 @@ class Recipe(models.Model):
         related_name='created_recipes'
     )
     is_shared = models.BooleanField(
-        default=False,
+        default=True,
         help_text="Share this recipe across households"
     )
     title = models.CharField(max_length=200)
@@ -422,11 +423,17 @@ class RecipeTag(models.Model):
         if existing:
             return existing
 
-        # If clean_name itself is formatted as a slug (e.g. 'comfort-food'), match by slug
+        # 2. If clean_name is formatted as a slug (e.g. 'mac-cheese' or 'gluten-free'), match by slug
         if clean_name.lower() == target_slug:
             existing_by_slug = cls.objects.filter(household=household, slug=target_slug).first()
             if existing_by_slug:
                 return existing_by_slug
+
+        # 3. Match whitespace and hyphen variations (e.g. 'Gluten Free' matching 'Gluten-Free')
+        normalized_clean = re.sub(r'[\s\-]+', ' ', clean_name).strip().lower()
+        for candidate in cls.objects.filter(household=household):
+            if re.sub(r'[\s\-]+', ' ', candidate.name).strip().lower() == normalized_clean:
+                return candidate
 
         # 2. Not found: create new tag
         tag_color = color or cls.get_unique_tag_color()

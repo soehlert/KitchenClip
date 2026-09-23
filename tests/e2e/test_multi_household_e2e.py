@@ -82,7 +82,7 @@ class TestTier1R1AuthAndPasskeys:
             assert resp.status_code == 404
 
         # Unauthenticated access to protected routes must redirect to /auth/login/
-        for path in ["/", "/add/manual/", "/meal-plan/", "/shared/"]:
+        for path in ["/", "/add/scratch/", "/meal-plan/", "/shared/"]:
             resp = client.get(path)
             assert resp.status_code == 302
             assert "/auth/login/" in resp.headers["Location"]
@@ -330,7 +330,7 @@ class TestTier1R3CrossHouseholdRecipeSharing:
         assert cloned is not None
         assert cloned.pk != source.pk
         assert cloned.created_by == e2e_secondary_user
-        assert cloned.is_shared is False  # Clones default to private
+        assert cloned.is_shared is True  # Clones default to shared
 
         # Verify ingredients cloned
         cloned_ings = list(cloned.recipe_ingredients.all())
@@ -623,6 +623,7 @@ class TestTier2R2HouseholdIsolationBoundaries:
             household=e2e_household,
             created_by=e2e_user,
             title="Foreign Secret Recipe",
+            is_shared=False,
         )
         today = timezone.localtime().date().isoformat()
         resp = e2e_secondary_client.post(

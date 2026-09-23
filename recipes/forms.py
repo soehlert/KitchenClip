@@ -47,7 +47,7 @@ class RecipeImportForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ["original_url", "user_notes", "rating", "is_shared", "is_future"]
+        fields = ["original_url", "user_notes", "rating", "is_future"]
         labels = {
             "is_future": "Save for later",
         }
@@ -59,9 +59,6 @@ class RecipeImportForm(forms.ModelForm):
             "user_notes": forms.Textarea(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "rows": 3,
-            }),
-            "is_shared": forms.CheckboxInput(attrs={
-                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
@@ -134,7 +131,7 @@ class RecipeUpdateForm(forms.ModelForm):
             "title", "description", "original_url",
             "prep_time", "cook_time", "total_time", "servings",
             "rating", "instructions", "user_notes",
-            "image_url", "is_shared", "is_future"
+            "image_url", "is_future"
         ]
         labels = {
             "is_future": "Save for later",
@@ -176,9 +173,6 @@ class RecipeUpdateForm(forms.ModelForm):
             }),
             "image_url": forms.URLInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]"
-            }),
-            "is_shared": forms.CheckboxInput(attrs={
-                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
@@ -380,7 +374,7 @@ class RecipeScratchForm(forms.ModelForm):
         model = Recipe
         fields = [
             "title", "description", "original_url", "rating", "image_url",
-            "prep_time", "cook_time", "total_time", "servings", "user_notes", "is_shared", "is_future"
+            "prep_time", "cook_time", "total_time", "servings", "user_notes", "is_future"
         ]
         widgets = {
             "title": forms.TextInput(attrs={
@@ -405,9 +399,6 @@ class RecipeScratchForm(forms.ModelForm):
             "servings": forms.NumberInput(attrs={
                 "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769]",
                 "min": "1"
-            }),
-            "is_shared": forms.CheckboxInput(attrs={
-                "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
             }),
             "is_future": forms.CheckboxInput(attrs={
                 "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"

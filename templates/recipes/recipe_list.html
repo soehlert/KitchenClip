@@ -141,11 +141,6 @@
               <h3 class="text-base sm:text-lg font-semibold text-[#194769] hover:text-[#3798A9] transition-colors">
                 {{ recipe.title }}
               </h3>
-              {% if recipe.is_shared %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#D7EEF2] text-[#194769] flex-shrink-0">
-                Shared
-              </span>
-              {% endif %}
             </div>
             <div class="flex flex-wrap gap-2 mb-3">
               {% if recipe.is_future %}

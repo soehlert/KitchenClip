@@ -13,6 +13,7 @@ urlpatterns = [
     path("add/scratch/", views.RecipeScratchCreateView.as_view(), name="scratch_add"),
     path("add/scratch/", views.RecipeScratchCreateView.as_view(), name="create_scratch"),
     path("add/scratch/", views.RecipeScratchCreateView.as_view(), name="manual_add"),
+    path("add/manual/", views.RecipeScratchCreateView.as_view()),
     path("<int:pk>/", views.RecipeDetailView.as_view(), name="detail_recipe"),
     path("<int:pk>/copy/", views.copy_recipe, name="copy_recipe"),
     path("<int:pk>/copy-duplicate/", views.copy_duplicate_recipe, name="copy_duplicate"),
