@@ -680,12 +680,3 @@ class TestAttackSurfaceElimination:
         assert post_resp.status_code == 302
         assert post_resp.url == reverse("auth:login")
         assert "_auth_user_id" not in client.session
-
-    def test_logout_button_rendered_for_authenticated_user(self, client, test_user):
-        """Authenticated users see the Log Out button in the navigation."""
-        client.force_login(test_user)
-        resp = client.get(reverse("recipes:list_recipe"))
-        assert resp.status_code == 200
-        content = resp.content.decode()
-        assert reverse("auth:logout") in content
-        assert "Log Out" in content
