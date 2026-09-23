@@ -184,6 +184,13 @@
                 options.user.id = base64UrlToBuffer(options.user.id);
             }
 
+            if (options.excludeCredentials && options.excludeCredentials.length > 0) {
+                options.excludeCredentials = options.excludeCredentials.map(cred => ({
+                    ...cred,
+                    id: base64UrlToBuffer(cred.id)
+                }));
+            }
+
             const credential = await navigator.credentials.create({ publicKey: options });
 
             const credentialPayload = {

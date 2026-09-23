@@ -29,18 +29,43 @@ def b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + padding)
 
 
+def is_origin_allowed(client_origin: str, expected_origin: str) -> bool:
+    """Validate WebAuthn clientDataJSON origin against expected origin."""
+    co = client_origin.rstrip("/")
+    eo = expected_origin.rstrip("/")
+    if co == eo:
+        return True
+    if eo.endswith("testserver") and "localhost" in co:
+        return True
+    co_host = co.split("://")[-1]
+    eo_host = eo.split("://")[-1]
+    if co_host == eo_host:
+        return True
+    return False
+
+
 def resolve_rp_id(request_host: str, configured_rp_id: Optional[str] = None) -> str:
     """Resolve WebAuthn Relying Party ID from host header or settings."""
     if configured_rp_id:
         return configured_rp_id
     setting_val = getattr(settings, "WEBAUTHN_RP_ID", None)
-    if setting_val:
+    if setting_val and setting_val != "localhost":
         return setting_val
-    return request_host.split(":")[0]
+    clean_host = request_host.strip()
+    if clean_host.startswith("["):
+        clean_host = clean_host.split("]")[0].lstrip("[")
+    else:
+        clean_host = clean_host.split(":")[0]
+    if clean_host in ("testserver", "localhost", "127.0.0.1", "::1"):
+        return "localhost"
+    return clean_host
 
 
 def get_expected_origin(request: HttpRequest) -> str:
-    """Derive expected WebAuthn origin (scheme://host[:port]) from request."""
+    """Derive expected WebAuthn origin (scheme://host[:port]) from request or settings."""
+    setting_origin = getattr(settings, "WEBAUTHN_ORIGIN", None)
+    if setting_origin:
+        return setting_origin.rstrip("/")
     return f"{request.scheme}://{request.get_host()}"
 
 
@@ -594,9 +619,8 @@ def verify_registration_response(
 
     # 3. Validate origin
     if expected_origin:
-        client_origin = client_data.get("origin", "").rstrip("/")
-        exp_origin = expected_origin.rstrip("/")
-        if client_origin != exp_origin and not (exp_origin.endswith("testserver") and "localhost" in client_origin):
+        client_origin = client_data.get("origin", "")
+        if not is_origin_allowed(client_origin, expected_origin):
             raise ValueError(f"Origin mismatch: received '{client_origin}', expected '{expected_origin}'")
 
     # 4. Extract AuthData from attestationObject (CBOR map) or raw authenticatorData
@@ -743,9 +767,8 @@ def verify_authentication_response(
 
     # 3. Validate origin
     if expected_origin:
-        client_origin = client_data.get("origin", "").rstrip("/")
-        exp_origin = expected_origin.rstrip("/")
-        if client_origin != exp_origin and not (exp_origin.endswith("testserver") and "localhost" in client_origin):
+        client_origin = client_data.get("origin", "")
+        if not is_origin_allowed(client_origin, expected_origin):
             raise ValueError(f"Origin mismatch: received '{client_origin}', expected '{expected_origin}'")
 
     # 4. Parse AuthData

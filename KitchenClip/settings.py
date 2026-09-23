@@ -48,8 +48,8 @@ DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes", "on")
 
 ALLOWED_HOSTS = (os.environ.get("DJANGO_ALLOWED_HOSTS") or os.environ.get("ALLOWED_HOSTS") or "*").split(",")
 CSRF_TRUSTED_ORIGINS = (os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS") or os.environ.get("CSRF_TRUSTED_ORIGINS") or "https://127.0.0.1").split(",")
-USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "0").lower() in ("1", "true", "yes", "on")
-USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "0").lower() in ("1", "true", "yes", "on")
+USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "1").lower() in ("1", "true", "yes", "on")
+USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "1").lower() in ("1", "true", "yes", "on")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
@@ -234,5 +234,6 @@ LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/auth/login/"
 
 # WebAuthn Relying Party Configuration
-WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "localhost")
+WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", None)
 WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "KitchenClip")
+WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN", None)
