@@ -9,7 +9,6 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-import json
 import os
 import warnings
 from pathlib import Path
@@ -45,12 +44,12 @@ if env_file.exists():
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-fallback-key-for-local-dev-only")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "0") == "1"
+DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes", "on")
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
-CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "https://127.0.0.1").split(",")
-USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "0") == "1"
-USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "0") == "1"
+ALLOWED_HOSTS = (os.environ.get("DJANGO_ALLOWED_HOSTS") or os.environ.get("ALLOWED_HOSTS") or "*").split(",")
+CSRF_TRUSTED_ORIGINS = (os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS") or os.environ.get("CSRF_TRUSTED_ORIGINS") or "https://127.0.0.1").split(",")
+USE_X_FORWARDED_HOST = os.environ.get("USE_X_FORWARDED_HOST", "0").lower() in ("1", "true", "yes", "on")
+USE_X_FORWARDED_PORT = os.environ.get("USE_X_FORWARDED_PORT", "0").lower() in ("1", "true", "yes", "on")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
@@ -153,22 +152,7 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Authentication
-if os.environ.get("CLOUDFLARE_ENABLED", "0") == "1":
-    auth_index = MIDDLEWARE.index(
-        "django.contrib.auth.middleware.AuthenticationMiddleware"
-    )
-    MIDDLEWARE.insert(
-        auth_index + 1,
-        "KitchenClip.middleware.cloudflare.CloudflareLoginMiddleware",
-    )
-    AUTHENTICATION_BACKENDS = [
-        "recipes.backends.cloudflare.CloudflareAccessBackend"
-    ]
 
-ACCESS_ROLE_MAP = json.loads(os.environ.get('ACCESS_ROLE_MAP', '{}'))
-TRUSTED_LOCAL_SUBNETS = json.loads(os.environ.get('TRUSTED_LOCAL_SUBNETS', '[]'))
-LOCAL_ADMIN_EMAIL = os.environ.get('LOCAL_ADMIN_EMAIL', '')
 
 # Cooking Notifications
 DEFAULT_LUNCH_TIME = "12:00"
