@@ -17,7 +17,7 @@
 
             {% if not request.is_readonly %}
             <button
-                class="remove-from-menu opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold px-1 transition-opacity"
+                class="remove-from-menu opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 font-bold px-1 transition-opacity flex-shrink-0"
                 data-id="{{ recipe.id }}" title="Remove from Menu">&times;</button>
             {% endif %}
         </div>
