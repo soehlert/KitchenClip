@@ -20,6 +20,11 @@ def test_meal_plan_mobile_layout_and_interactions(page: Page, live_server):
 
     today = timezone.localtime().date()
     today_str = today.isoformat()
+    tomorrow = today + timezone.timedelta(days=1)
+    tomorrow_str = tomorrow.isoformat()
+
+    # Clear target dates to prevent unique constraint collisions from other tests
+    MealPlan.objects.filter(date__in=[today, tomorrow]).delete()
 
     # Place recipe1 in today's Lunch
     MealPlan.objects.create(recipe=recipe1, date=today, meal_type="LUNCH")
@@ -100,5 +105,5 @@ def test_meal_plan_mobile_layout_and_interactions(page: Page, live_server):
     expect(dinner_slot.locator(".draggable-meal")).to_have_count(0)
     expect(dinner_slot.locator(".empty-slot-prompt")).to_be_visible()
 
-    # Take screenshot of final mobile view
-    page.screenshot(path="/Users/soehlert/.gemini/antigravity/brain/0801dc3b-1f5b-45e0-9bbc-6f8c7fb8c4cd/scratch/mobile_after.png", full_page=True)
+    # Clean up test meal plans
+    MealPlan.objects.filter(date__in=[today, tomorrow]).delete()

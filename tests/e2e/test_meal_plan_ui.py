@@ -36,32 +36,36 @@ def test_meal_plan_drag_and_drop(page: Page, live_server):
     
     recipe = Recipe.objects.create(title="Drag Me Recipe", is_on_menu=True)
     today = timezone.localtime().date().isoformat()
+    MealPlan.objects.filter(date=today, meal_type='LUNCH').delete()
     
-    page.goto(f"{live_server.url}/meal-plan/")
-    
-    # Sidebar recipe locator
-    sidebar_recipe = page.locator(f".recipe-card[data-id='{recipe.id}']")
-    expect(sidebar_recipe).to_be_visible()
-    
-    # Target slot locator
-    target_slot = page.locator(f".meal-slot[data-date='{today}'][data-type='LUNCH']")
-    
-    # Perform drag and drop using HTML5 DataTransfer
-    page.evaluate(f'''
-        const source = document.querySelector(".recipe-card[data-id='{recipe.id}']");
-        const target = document.querySelector(".meal-slot[data-date='{today}'][data-type='LUNCH']");
+    try:
+        page.goto(f"{live_server.url}/meal-plan/")
         
-        const dataTransfer = new DataTransfer();
-        dataTransfer.setData('text/plain', '{recipe.id}');
+        # Sidebar recipe locator
+        sidebar_recipe = page.locator(f".recipe-card[data-id='{recipe.id}']")
+        expect(sidebar_recipe).to_be_visible()
         
-        source.dispatchEvent(new DragEvent('dragstart', {{ dataTransfer: dataTransfer, bubbles: true }}));
-        target.dispatchEvent(new DragEvent('dragenter', {{ dataTransfer: dataTransfer, bubbles: true }}));
-        target.dispatchEvent(new DragEvent('dragover', {{ dataTransfer: dataTransfer, bubbles: true }}));
-        target.dispatchEvent(new DragEvent('drop', {{ dataTransfer: dataTransfer, bubbles: true }}));
-    ''')
-    
-    # Verify UI updated
-    expect(target_slot.locator("text=Drag Me Recipe")).to_be_visible()
-    
-    # Verify Database updated
-    assert MealPlan.objects.filter(date=today, meal_type='LUNCH', recipe=recipe).exists()
+        # Target slot locator
+        target_slot = page.locator(f".meal-slot[data-date='{today}'][data-type='LUNCH']")
+        
+        # Perform drag and drop using HTML5 DataTransfer
+        page.evaluate(f'''
+            const source = document.querySelector(".recipe-card[data-id='{recipe.id}']");
+            const target = document.querySelector(".meal-slot[data-date='{today}'][data-type='LUNCH']");
+            
+            const dataTransfer = new DataTransfer();
+            dataTransfer.setData('text/plain', '{recipe.id}');
+            
+            source.dispatchEvent(new DragEvent('dragstart', {{ dataTransfer: dataTransfer, bubbles: true }}));
+            target.dispatchEvent(new DragEvent('dragenter', {{ dataTransfer: dataTransfer, bubbles: true }}));
+            target.dispatchEvent(new DragEvent('dragover', {{ dataTransfer: dataTransfer, bubbles: true }}));
+            target.dispatchEvent(new DragEvent('drop', {{ dataTransfer: dataTransfer, bubbles: true }}));
+        ''')
+        
+        # Verify UI updated
+        expect(target_slot.locator("text=Drag Me Recipe")).to_be_visible()
+        
+        # Verify Database updated
+        assert MealPlan.objects.filter(date=today, meal_type='LUNCH', recipe=recipe).exists()
+    finally:
+        MealPlan.objects.filter(date=today, meal_type='LUNCH').delete()

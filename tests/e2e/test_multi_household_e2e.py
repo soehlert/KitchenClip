@@ -1307,7 +1307,7 @@ def test_playwright_invite_landing_and_redeem_ui(page, live_server, create_cli_i
     page.wait_for_url(f"{live_server.url}/")
 
     # Verify redirected to authenticated home page
-    expect(page.locator("text=Recipes")).to_be_visible()
+    expect(page.get_by_role("heading", name="Recipes", exact=True)).to_be_visible()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1315,8 +1315,8 @@ def test_playwright_recipe_crud_and_household_scoping_ui(page, live_server, e2e_
     """Playwright E2E UI: Create manual recipe and verify rendered in household recipe list."""
     from playwright.sync_api import expect
 
-    # Navigate to manual add
-    page.goto(f"{live_server.url}/add/manual/")
+    # Navigate to scratch recipe add
+    page.goto(f"{live_server.url}/add/scratch/")
     expect(page.locator("text=Ingredients")).to_be_visible()
 
     page.fill("input[name='title']", "Playwright Lasagna")
@@ -1324,10 +1324,16 @@ def test_playwright_recipe_crud_and_household_scoping_ui(page, live_server, e2e_
     page.fill("input[name='cook_time']", "45")
     page.fill("input[name='total_time']", "60")
     page.fill("input[name='servings']", "6")
-    page.fill("textarea[name='ingredients_text']", "Noodles\nRicotta\nSauce")
-    page.fill("textarea[name='instructions_text']", "Layer and bake.")
+    page.locator("input[name='ingredient_quantity']").first.fill("1")
+    page.locator("input[name='ingredient_unit']").first.fill("box")
+    page.locator("input[name='ingredient_food']").first.fill("Noodles")
+    page.locator("textarea[name='instruction_step']").first.fill("Layer and bake.")
     page.click("button[type='submit']")
 
-    page.wait_for_url(f"{live_server.url}/")
+    recipe = Recipe.objects.get(title="Playwright Lasagna")
+    page.wait_for_url(f"{live_server.url}/{recipe.id}/")
+    expect(page.locator("h1")).to_contain_text("Playwright Lasagna")
+
+    page.goto(f"{live_server.url}/")
     expect(page.locator("text=Playwright Lasagna")).to_be_visible()
     assert Recipe.objects.filter(household=e2e_household, title="Playwright Lasagna").exists()
