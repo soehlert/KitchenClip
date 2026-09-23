@@ -196,7 +196,32 @@ class SharedRecipeListView(HouseholdLoginRequiredMixin, ListView):
         if tags:
             queryset = queryset.filter(tags__id__in=tags).distinct()
 
-        return queryset.order_by('-updated_at')
+        raw_recipes = list(queryset.order_by('-updated_at'))
+        user_household_id = getattr(self.household, 'id', None)
+
+        # Prioritize recipes belonging to current user's household so their copy is chosen (shows 'Already saved').
+        candidates = sorted(
+            raw_recipes,
+            key=lambda r: (
+                r.household_id != user_household_id,
+                -(r.updated_at.timestamp() if r.updated_at else 0),
+            )
+        )
+
+        seen_keys = set()
+        deduplicated = []
+        for r in candidates:
+            if r.original_url:
+                key = ('url', normalize_url(r.original_url))
+            else:
+                key = ('title', r.title.strip().lower())
+
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduplicated.append(r)
+
+        deduplicated.sort(key=lambda r: -(r.updated_at.timestamp() if r.updated_at else 0))
+        return deduplicated
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
