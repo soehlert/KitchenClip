@@ -163,14 +163,12 @@ def e2e_autologin(request, e2e_household, e2e_user):
 @pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
     """Provide safe flags for headless chromium execution."""
-    import sys
     args = [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--mute-audio",
     ]
-    if sys.platform.startswith("linux"):
-        args.append("--single-process")
     return {
         **browser_type_launch_args,
         "args": [
