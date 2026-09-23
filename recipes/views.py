@@ -59,7 +59,7 @@ def move_to_recipes(request, pk):
     recipe.is_future = False
     recipe.save()
     messages.success(request, f'"{recipe.title}" has been saved to your recipes!')
-    return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': pk}))
+    return HttpResponseRedirect(reverse('recipes:list_recipe'))
 
 
 class RecipeListView(HouseholdLoginRequiredMixin, ListView):
@@ -642,7 +642,7 @@ def copy_recipe(request, pk):
     )
 
     messages.success(request, f'"{cloned.title}" has been successfully copied to your recipes!')
-    return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': cloned.pk}))
+    return HttpResponseRedirect(reverse('recipes:list_recipe'))
 
 
 @require_POST

@@ -40,6 +40,18 @@ def test_search_both_active_and_future_recipes(client):
     assert 'Saved for Later' in content
     assert '<input type="hidden" name="search" value="Chicken">' in content
 
+
+@pytest.mark.django_db
+def test_move_to_recipes_redirects_to_list(client, test_household):
+    recipe = Recipe.objects.create(household=test_household, title="Future Recipe", is_future=True)
+    url = reverse('recipes:move_to_recipes', kwargs={'pk': recipe.pk})
+    response = client.post(url)
+    assert response.status_code == 302
+    assert response.url == reverse('recipes:list_recipe')
+    recipe.refresh_from_db()
+    assert recipe.is_future is False
+
+
 @pytest.mark.django_db
 def test_recipe_edit(client):
     recipe = Recipe.objects.create(title="Old Title", prep_time=10)

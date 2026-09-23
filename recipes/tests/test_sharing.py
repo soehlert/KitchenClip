@@ -111,12 +111,19 @@ class TestRecipeDeepCloning:
         response = client.get(reverse('recipes:copy_recipe', kwargs={'pk': source.pk}))
         assert response.status_code == 405
 
-    def test_copy_own_recipe_informs_and_redirects(self, client, test_household):
+    def test_copy_own_recipe_noop(self, client, test_household):
         """Copying an existing recipe from user's own household does not duplicate."""
         r = Recipe.objects.create(household=test_household, title="My Own Bread", is_shared=True)
         response = client.post(reverse('recipes:copy_recipe', kwargs={'pk': r.pk}), follow=True)
         assert response.status_code == 200
         assert Recipe.objects.filter(household=test_household, title="My Own Bread").count() == 1
+
+    def test_copy_recipe_redirects_to_recipe_list(self, client, test_household, secondary_household):
+        """Copying/saving a shared recipe redirects to the recipe list, not recipe detail."""
+        source = Recipe.objects.create(household=secondary_household, title="Shared Soup", is_shared=True)
+        response = client.post(reverse('recipes:copy_recipe', kwargs={'pk': source.pk}))
+        assert response.status_code == 302
+        assert response.url == reverse('recipes:list_recipe')
 
 
 @pytest.mark.django_db
