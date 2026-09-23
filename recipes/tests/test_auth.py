@@ -18,7 +18,15 @@ from django.core.management.base import CommandError
 from django.urls import get_resolver, reverse
 from django.utils import timezone
 
-from recipes.models import Household, InviteToken, PasskeyCredential, UserProfile
+from recipes.models import (
+    Household,
+    InviteToken,
+    MealPlan,
+    PasskeyCredential,
+    Recipe,
+    RecipeTag,
+    UserProfile,
+)
 from recipes.webauthn_service import (
     b64url_decode,
     b64url_encode,
@@ -30,6 +38,7 @@ from recipes.webauthn_service import (
 # ==============================================================================
 # 1. CLI Command Tests (recipes/management/commands/create_invite.py)
 # ==============================================================================
+
 
 @pytest.mark.django_db
 class TestCLIInviteCommand:
@@ -73,7 +82,9 @@ class TestCLIInviteCommand:
 
     def test_cli_create_invite_missing_household_for_new_user_fails(self):
         """Omitting --household when provisioning a new user raises CommandError."""
-        with pytest.raises(CommandError, match="--household is required when provisioning a new user"):
+        with pytest.raises(
+            CommandError, match="--household is required when provisioning a new user"
+        ):
             call_command("create_invite", username="charlie")
 
     def test_cli_create_invite_existing_user_multi_device_no_household(self):
@@ -110,18 +121,145 @@ class TestCLIInviteCommand:
 
     def test_cli_create_invite_invalid_expires_hours_fails(self):
         """Non-positive --expires-hours raises CommandError."""
-        with pytest.raises(CommandError, match="--expires-hours must be a positive integer"):
-            call_command("create_invite", username="grace", household="Home", expires_hours=0)
+        with pytest.raises(
+            CommandError, match="--expires-hours must be a positive integer"
+        ):
+            call_command(
+                "create_invite", username="grace", household="Home", expires_hours=0
+            )
 
     def test_cli_create_invite_empty_username_fails(self):
         """Blank username raises CommandError."""
         with pytest.raises(CommandError, match="--username cannot be empty"):
             call_command("create_invite", username="   ", household="Home")
 
+    def test_cli_create_invite_claim_legacy_data_transfers_recipes_and_cleans_up(
+        self,
+    ):
+        """--claim-legacy-data transfers recipes, tags, mealplans to target household and cleans up placeholders."""
+        primary_hh, _ = Household.objects.get_or_create(name="Primary Household")
+        User = get_user_model()
+        admin_placeholder, _ = User.objects.get_or_create(
+            username="admin", defaults={"email": "admin@example.com"}
+        )
+        UserProfile.objects.get_or_create(
+            user=admin_placeholder, defaults={"household": primary_hh, "role": "admin"}
+        )
+
+        tag = RecipeTag.objects.create(household=primary_hh, name="Quick Dinner")
+        recipe = Recipe.objects.create(
+            household=primary_hh,
+            created_by=admin_placeholder,
+            title="Legacy Pasta",
+            instructions="Boil water",
+        )
+        recipe.tags.add(tag)
+        meal_plan = MealPlan.objects.create(
+            household=primary_hh,
+            created_by=admin_placeholder,
+            date=timezone.now().date(),
+            meal_type="DINNER",
+            recipe=recipe,
+        )
+
+        call_command(
+            "create_invite",
+            username="sam",
+            household="Oehlert Family",
+            claim_legacy_data=True,
+        )
+
+        # Target household and user created
+        new_hh = Household.objects.get(name="Oehlert Family")
+        sam = User.objects.get(username="sam")
+        assert not sam.is_staff
+        assert not sam.is_superuser
+
+        # Legacy data transferred
+        recipe.refresh_from_db()
+        meal_plan.refresh_from_db()
+        tag.refresh_from_db()
+
+        assert recipe.household == new_hh
+        assert recipe.created_by == sam
+        assert meal_plan.household == new_hh
+        assert meal_plan.created_by == sam
+        assert tag.household == new_hh
+
+        # Placeholders cleaned up
+        assert not Household.objects.filter(name="Primary Household").exists()
+        assert not User.objects.filter(username="admin").exists()
+
+    def test_cli_create_invite_claim_legacy_data_tag_deduplication(self):
+        """--claim-legacy-data deduplicates tags when target household already has matching tag name."""
+        primary_hh, _ = Household.objects.get_or_create(name="Primary Household")
+        User = get_user_model()
+        admin_placeholder, _ = User.objects.get_or_create(
+            username="admin", defaults={"email": "admin@example.com"}
+        )
+        UserProfile.objects.get_or_create(
+            user=admin_placeholder, defaults={"household": primary_hh, "role": "admin"}
+        )
+
+        target_hh, _ = Household.objects.get_or_create(name="New Home")
+        existing_target_tag = RecipeTag.objects.create(
+            household=target_hh, name="Vegetarian"
+        )
+
+        legacy_tag = RecipeTag.objects.create(household=primary_hh, name="Vegetarian")
+        recipe = Recipe.objects.create(
+            household=primary_hh,
+            created_by=admin_placeholder,
+            title="Veggie Stir Fry",
+            instructions="Stir fry vegetables",
+        )
+        recipe.tags.add(legacy_tag)
+
+        call_command(
+            "create_invite",
+            username="newuser",
+            household="New Home",
+            claim_legacy_data=True,
+        )
+
+        recipe.refresh_from_db()
+        assert recipe.household == target_hh
+        assert existing_target_tag in recipe.tags.all()
+        assert not RecipeTag.objects.filter(pk=legacy_tag.pk).exists()
+
+    def test_cli_create_invite_claim_legacy_data_renames_primary_household(self):
+        """Existing user assigned to Primary Household has their household renamed when claiming."""
+        primary_hh, _ = Household.objects.get_or_create(name="Primary Household")
+        User = get_user_model()
+        existing_user, _ = User.objects.get_or_create(username="existing_sam")
+        UserProfile.objects.get_or_create(
+            user=existing_user, defaults={"household": primary_hh, "role": "admin"}
+        )
+
+        recipe = Recipe.objects.create(
+            household=primary_hh,
+            title="Existing Recipe",
+            instructions="Cook",
+        )
+
+        call_command(
+            "create_invite",
+            username="existing_sam",
+            household="Renamed Family",
+            claim_legacy_data=True,
+        )
+
+        primary_hh.refresh_from_db()
+        assert primary_hh.name == "Renamed Family"
+        recipe.refresh_from_db()
+        assert recipe.household.name == "Renamed Family"
+        assert recipe.created_by == existing_user
+
 
 # ==============================================================================
 # 2. Token Lifecycle & Single-Use Gating Tests
 # ==============================================================================
+
 
 @pytest.mark.django_db
 class TestTokenLifecycle:
@@ -129,20 +267,29 @@ class TestTokenLifecycle:
 
     def test_token_creation_entropy_and_sha256_hashing(self, test_user, test_household):
         """Raw token is 32-byte URL-safe string and never stored in plaintext in SQLite."""
-        token_obj, raw_token = InviteToken.create_token(test_user, test_household, expires_hours=48)
+        token_obj, raw_token = InviteToken.create_token(
+            test_user, test_household, expires_hours=48
+        )
         assert len(raw_token) >= 43
-        assert token_obj.token_hash == hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        assert (
+            token_obj.token_hash
+            == hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        )
         assert token_obj.is_valid is True
 
     def test_token_expiration_logic(self, test_user, test_household):
         """Expired token reports is_expired=True and is_valid=False."""
-        token_obj, raw_token = InviteToken.create_token(test_user, test_household, expires_hours=1)
+        token_obj, raw_token = InviteToken.create_token(
+            test_user, test_household, expires_hours=1
+        )
         token_obj.expires_at = timezone.now() - timedelta(minutes=5)
         token_obj.save()
         assert token_obj.is_expired is True
         assert token_obj.is_valid is False
 
-    def test_invite_landing_get_is_idempotent_and_scanner_safe(self, unauthenticated_client, invite_token_factory):
+    def test_invite_landing_get_is_idempotent_and_scanner_safe(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """Link scanners (SafeLinks/Slack unfurlers) hitting GET do NOT mark the token as used."""
         token_obj = invite_token_factory()
         raw_token = token_obj.raw_token
@@ -164,7 +311,9 @@ class TestTokenLifecycle:
         assert response.status_code == 404
         assert "Invalid" in response.content.decode("utf-8")
 
-    def test_invite_landing_expired_token_returns_400(self, unauthenticated_client, invite_token_factory):
+    def test_invite_landing_expired_token_returns_400(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """Expired token returns HTTP 400 with expired notice."""
         token_obj = invite_token_factory(expires_at=timezone.now() - timedelta(hours=1))
         url = reverse("auth:invite_landing", kwargs={"token": token_obj.raw_token})
@@ -172,7 +321,9 @@ class TestTokenLifecycle:
         assert response.status_code == 400
         assert "Expired" in response.content.decode("utf-8")
 
-    def test_invite_landing_used_token_returns_400(self, unauthenticated_client, invite_token_factory):
+    def test_invite_landing_used_token_returns_400(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """Already redeemed token returns HTTP 400 with redeemed notice."""
         token_obj = invite_token_factory(is_used=True, used_at=timezone.now())
         url = reverse("auth:invite_landing", kwargs={"token": token_obj.raw_token})
@@ -181,7 +332,9 @@ class TestTokenLifecycle:
         content = response.content.decode("utf-8").lower()
         assert "redeemed" in content or "used" in content or "already" in content
 
-    def test_invite_redeem_post_success(self, unauthenticated_client, invite_token_factory):
+    def test_invite_redeem_post_success(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """Direct session fallback POST marks token used, logs in user, sets 1-year expiry."""
         token_obj = invite_token_factory()
         url = reverse("auth:invite_redeem", kwargs={"token": token_obj.raw_token})
@@ -197,7 +350,9 @@ class TestTokenLifecycle:
         session = unauthenticated_client.session
         assert session.get_expiry_age() == 31536000
 
-    def test_invite_redeem_double_redemption_rejected(self, unauthenticated_client, invite_token_factory):
+    def test_invite_redeem_double_redemption_rejected(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """Attempting to redeem the same token twice fails on second attempt."""
         token_obj = invite_token_factory()
         url = reverse("auth:invite_redeem", kwargs={"token": token_obj.raw_token})
@@ -208,7 +363,9 @@ class TestTokenLifecycle:
         resp2 = unauthenticated_client.post(url)
         assert resp2.status_code in [400, 403]
 
-    def test_invite_redeem_requires_post(self, unauthenticated_client, invite_token_factory):
+    def test_invite_redeem_requires_post(
+        self, unauthenticated_client, invite_token_factory
+    ):
         """GET request to /redeem/ endpoint returns HTTP 405 Method Not Allowed."""
         token_obj = invite_token_factory()
         url = reverse("auth:invite_redeem", kwargs={"token": token_obj.raw_token})
@@ -220,11 +377,14 @@ class TestTokenLifecycle:
 # 3. WebAuthn Passkey Registration & Login Gating Tests
 # ==============================================================================
 
+
 @pytest.mark.django_db
 class TestWebAuthnFlows:
     """Validate WebAuthn registration gating, attestation, assertion, and counter rollback."""
 
-    def test_webauthn_register_options_without_token_returns_403(self, unauthenticated_client):
+    def test_webauthn_register_options_without_token_returns_403(
+        self, unauthenticated_client
+    ):
         """Requesting creation options without a valid token returns HTTP 403."""
         url = reverse("auth:webauthn_register_options")
         resp = unauthenticated_client.post(
@@ -288,11 +448,13 @@ class TestWebAuthnFlows:
         verify_url = reverse("auth:webauthn_register_verify")
         verify_resp = unauthenticated_client.post(
             verify_url,
-            data=json.dumps({
-                "token": token_obj.raw_token,
-                "credential": payload,
-                "name": "MacBook TouchID",
-            }),
+            data=json.dumps(
+                {
+                    "token": token_obj.raw_token,
+                    "credential": payload,
+                    "name": "MacBook TouchID",
+                }
+            ),
             content_type="application/json",
         )
         assert verify_resp.status_code == 200
@@ -318,10 +480,12 @@ class TestWebAuthnFlows:
         verify_url = reverse("auth:webauthn_register_verify")
         resp = unauthenticated_client.post(
             verify_url,
-            data=json.dumps({
-                "token": token_obj.raw_token,
-                "credential": {"id": "fake"},
-            }),
+            data=json.dumps(
+                {
+                    "token": token_obj.raw_token,
+                    "credential": {"id": "fake"},
+                }
+            ),
             content_type="application/json",
         )
         assert resp.status_code == 403
@@ -347,10 +511,12 @@ class TestWebAuthnFlows:
         verify_url = reverse("auth:webauthn_register_verify")
         verify_resp = unauthenticated_client.post(
             verify_url,
-            data=json.dumps({
-                "token": token_obj.raw_token,
-                "credential": payload,
-            }),
+            data=json.dumps(
+                {
+                    "token": token_obj.raw_token,
+                    "credential": payload,
+                }
+            ),
             content_type="application/json",
         )
         assert verify_resp.status_code == 400
@@ -367,7 +533,9 @@ class TestWebAuthnFlows:
         _, token2 = InviteToken.create_token(test_user, test_household)
 
         opt_url = reverse("auth:webauthn_register_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({"token": token1}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({"token": token1}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_registration_payload(user=test_user, challenge=challenge)
@@ -375,14 +543,19 @@ class TestWebAuthnFlows:
         # Attempt to verify with token2 while session has token1 hash
         verify_resp = unauthenticated_client.post(
             verify_url,
-            data=json.dumps({
-                "token": token2,
-                "credential": payload,
-            }),
+            data=json.dumps(
+                {
+                    "token": token2,
+                    "credential": payload,
+                }
+            ),
             content_type="application/json",
         )
         assert verify_resp.status_code == 403
-        assert "does not match registration session" in verify_resp.json().get("error", "").lower()
+        assert (
+            "does not match registration session"
+            in verify_resp.json().get("error", "").lower()
+        )
 
     def test_webauthn_register_verify_validation_ordering_403_before_400(
         self, unauthenticated_client
@@ -429,11 +602,13 @@ class TestWebAuthnFlows:
         verify_url = reverse("auth:webauthn_register_verify")
         verify_resp = unauthenticated_client.post(
             verify_url,
-            data=json.dumps({
-                "token": raw_token,
-                "credential": payload,
-                "name": "CBOR Device",
-            }),
+            data=json.dumps(
+                {
+                    "token": raw_token,
+                    "credential": payload,
+                    "name": "CBOR Device",
+                }
+            ),
             content_type="application/json",
         )
         assert verify_resp.status_code == 200
@@ -446,7 +621,9 @@ class TestWebAuthnFlows:
     def test_webauthn_login_options_success(self, unauthenticated_client):
         """Passkey login options endpoint issues challenge and RP ID."""
         url = reverse("auth:webauthn_login_options")
-        resp = unauthenticated_client.post(url, data=json.dumps({}), content_type="application/json")
+        resp = unauthenticated_client.post(
+            url, data=json.dumps({}), content_type="application/json"
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "challenge" in data
@@ -456,10 +633,14 @@ class TestWebAuthnFlows:
         self, unauthenticated_client, test_user, passkey_factory
     ):
         """Valid assertion authenticates user, increments sign_count, and sets 1-year session."""
-        cred = passkey_factory(user=test_user, credential_id="iphone-faceid-cred", sign_count=5)
+        cred = passkey_factory(
+            user=test_user, credential_id="iphone-faceid-cred", sign_count=5
+        )
 
         opt_url = reverse("auth:webauthn_login_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_assertion_payload(
@@ -485,10 +666,14 @@ class TestWebAuthnFlows:
         self, unauthenticated_client, test_user, passkey_factory
     ):
         """Assertion returning sign_count <= stored count raises anti-cloning alert and rejects login."""
-        cred = passkey_factory(user=test_user, credential_id="cloned-cred", sign_count=10)
+        cred = passkey_factory(
+            user=test_user, credential_id="cloned-cred", sign_count=10
+        )
 
         opt_url = reverse("auth:webauthn_login_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_assertion_payload(
@@ -512,10 +697,14 @@ class TestWebAuthnFlows:
         self, unauthenticated_client, test_user, passkey_factory
     ):
         """Assertion with sign_count=0 is permitted for cloud-synced passkeys (iCloud/Google)."""
-        cred = passkey_factory(user=test_user, credential_id="synced-icloud-cred", sign_count=0)
+        cred = passkey_factory(
+            user=test_user, credential_id="synced-icloud-cred", sign_count=0
+        )
 
         opt_url = reverse("auth:webauthn_login_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_assertion_payload(
@@ -536,10 +725,14 @@ class TestWebAuthnFlows:
         self, unauthenticated_client, test_user, passkey_factory
     ):
         """Assertion with a forged signature fails cryptographic verification and rejects login."""
-        cred = passkey_factory(user=test_user, credential_id="sig-verify-cred", sign_count=1)
+        cred = passkey_factory(
+            user=test_user, credential_id="sig-verify-cred", sign_count=1
+        )
 
         opt_url = reverse("auth:webauthn_login_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_assertion_payload(
@@ -548,7 +741,9 @@ class TestWebAuthnFlows:
             sign_count=2,
         )
         # Forge the signature with a valid base64url DER sequence that has invalid values
-        payload["response"]["signature"] = b64url_encode(b"\x30\x06\x02\x01\x01\x02\x01\x01")
+        payload["response"]["signature"] = b64url_encode(
+            b"\x30\x06\x02\x01\x01\x02\x01\x01"
+        )
 
         verify_url = reverse("auth:webauthn_login_verify")
         verify_resp = unauthenticated_client.post(
@@ -563,10 +758,14 @@ class TestWebAuthnFlows:
         self, unauthenticated_client, test_user, passkey_factory
     ):
         """Assertion missing a signature field is rejected with 400 Bad Request."""
-        cred = passkey_factory(user=test_user, credential_id="missing-sig-cred", sign_count=1)
+        cred = passkey_factory(
+            user=test_user, credential_id="missing-sig-cred", sign_count=1
+        )
 
         opt_url = reverse("auth:webauthn_login_options")
-        opt_resp = unauthenticated_client.post(opt_url, data=json.dumps({}), content_type="application/json")
+        opt_resp = unauthenticated_client.post(
+            opt_url, data=json.dumps({}), content_type="application/json"
+        )
         challenge = opt_resp.json()["challenge"]
 
         payload = build_mock_assertion_payload(
@@ -598,18 +797,38 @@ class TestWebAuthnFlows:
         # Device 1: iPhone
         _, token1 = InviteToken.create_token(user, test_household)
         opt_url = reverse("auth:webauthn_register_options")
-        opt_resp1 = unauthenticated_client.post(opt_url, data=json.dumps({"token": token1}), content_type="application/json")
+        opt_resp1 = unauthenticated_client.post(
+            opt_url, data=json.dumps({"token": token1}), content_type="application/json"
+        )
         challenge1 = opt_resp1.json()["challenge"]
-        payload1 = build_mock_registration_payload(user=user, challenge=challenge1, credential_id="sarah-iphone")
+        payload1 = build_mock_registration_payload(
+            user=user, challenge=challenge1, credential_id="sarah-iphone"
+        )
         verify_url = reverse("auth:webauthn_register_verify")
-        unauthenticated_client.post(verify_url, data=json.dumps({"token": token1, "credential": payload1, "name": "iPhone"}), content_type="application/json")
+        unauthenticated_client.post(
+            verify_url,
+            data=json.dumps(
+                {"token": token1, "credential": payload1, "name": "iPhone"}
+            ),
+            content_type="application/json",
+        )
 
         # Device 2: MacBook
         _, token2 = InviteToken.create_token(user, test_household)
-        opt_resp2 = unauthenticated_client.post(opt_url, data=json.dumps({"token": token2}), content_type="application/json")
+        opt_resp2 = unauthenticated_client.post(
+            opt_url, data=json.dumps({"token": token2}), content_type="application/json"
+        )
         challenge2 = opt_resp2.json()["challenge"]
-        payload2 = build_mock_registration_payload(user=user, challenge=challenge2, credential_id="sarah-macbook")
-        unauthenticated_client.post(verify_url, data=json.dumps({"token": token2, "credential": payload2, "name": "MacBook"}), content_type="application/json")
+        payload2 = build_mock_registration_payload(
+            user=user, challenge=challenge2, credential_id="sarah-macbook"
+        )
+        unauthenticated_client.post(
+            verify_url,
+            data=json.dumps(
+                {"token": token2, "credential": payload2, "name": "MacBook"}
+            ),
+            content_type="application/json",
+        )
 
         # Assert two distinct credentials exist for Sarah
         user_passkeys = PasskeyCredential.objects.filter(user=user)
@@ -623,6 +842,7 @@ class TestWebAuthnFlows:
 # 4. Session Persistence & Attack Surface Elimination Tests
 # ==============================================================================
 
+
 @pytest.mark.django_db
 class TestAttackSurfaceElimination:
     """Validate zero passwords, zero public signups, zero in-app invites, and logout."""
@@ -633,7 +853,9 @@ class TestAttackSurfaceElimination:
         assert settings.SESSION_EXPIRE_AT_BROWSER_CLOSE is False
         assert settings.LOGIN_URL == "/auth/login/"
 
-    def test_login_page_has_zero_password_or_username_fields(self, unauthenticated_client):
+    def test_login_page_has_zero_password_or_username_fields(
+        self, unauthenticated_client
+    ):
         """GET /auth/login/ contains zero password inputs, zero username inputs, and zero signup links."""
         url = reverse("auth:login")
         response = unauthenticated_client.get(url)
@@ -680,3 +902,10 @@ class TestAttackSurfaceElimination:
         assert post_resp.status_code == 302
         assert post_resp.url == reverse("auth:login")
         assert "_auth_user_id" not in client.session
+
+    def test_admin_dashboard_url_returns_404(self, unauthenticated_client):
+        """Django admin dashboard is eliminated from URL routing and returns 404."""
+        resp = unauthenticated_client.get("/admin/")
+        assert resp.status_code == 404
+        login_resp = unauthenticated_client.get("/admin/login/")
+        assert login_resp.status_code == 404
