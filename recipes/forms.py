@@ -7,7 +7,6 @@ from django import forms
 from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
 from .url_utils import find_recipe_by_url, normalize_url
-from .utils import remove_instruction_headers
 
 logger = logging.getLogger(__name__)
 
