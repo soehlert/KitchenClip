@@ -632,7 +632,7 @@ def copy_recipe(request, pk):
     )
 
     if recipe_to_copy.household_id == user_household.id:
-        messages.info(request, f'"{recipe_to_copy.title}" is already in your household recipes.')
+        messages.info(request, f'"{recipe_to_copy.title}" is already in your recipes.')
         return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': recipe_to_copy.pk}))
 
     cloned = RecipeCloningService.clone_recipe(
@@ -641,7 +641,7 @@ def copy_recipe(request, pk):
         target_user=request.user,
     )
 
-    messages.success(request, f'"{cloned.title}" has been successfully copied to your household!')
+    messages.success(request, f'"{cloned.title}" has been successfully copied to your recipes!')
     return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': cloned.pk}))
 
 
@@ -662,7 +662,7 @@ def copy_duplicate_recipe(request, pk):
     recipe_to_copy = get_object_or_404(Recipe, pk=pk)
 
     if recipe_to_copy.household_id == user_household.id:
-        messages.info(request, f'"{recipe_to_copy.title}" is already in your household recipes.')
+        messages.info(request, f'"{recipe_to_copy.title}" is already in your recipes.')
         return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': recipe_to_copy.pk}))
 
     if not recipe_to_copy.original_url:
@@ -692,7 +692,7 @@ def copy_duplicate_recipe(request, pk):
         is_future=is_future,
     )
 
-    messages.success(request, f'"{cloned.title}" has been successfully copied to your household!')
+    messages.success(request, f'"{cloned.title}" has been successfully copied to your recipes!')
     return HttpResponseRedirect(reverse('recipes:detail_recipe', kwargs={'pk': cloned.pk}))
 
 

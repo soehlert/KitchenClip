@@ -315,7 +315,7 @@ class TestTemplatePrivacyEmpirical:
         # Public recipe elements must still be visible
         assert "Shared Spice Cake" in content
         assert "Shared by" in content
-        assert "Copy to My Household" in content
+        assert "Copy to My Recipes" in content
 
     def test_author_household_sees_own_notes_and_ratings(self, client, test_household):
         """Author household viewing its own recipe must see its own notes and rating."""
@@ -337,7 +337,7 @@ class TestTemplatePrivacyEmpirical:
         assert "Your Notes" in content
         assert "Rating:" in content
         assert "4" in content
-        assert "Copy to My Household" not in content
+        assert "Copy to My Recipes" not in content
         assert "Edit" in content
         assert "Delete" in content
 
@@ -527,7 +527,7 @@ class TestBoundaryAndAdversarialDefense:
         assert res_own.status_code == 200
         # No duplicate created
         assert Recipe.objects.filter(household=test_household, title="Own Recipe").count() == 1
-        assert "already in your household" in res_own.content.decode()
+        assert "already in your recipes" in res_own.content.decode()
 
         # Layer 2: Source recipe has no original_url (private manual recipe)
         private_manual = Recipe.objects.create(

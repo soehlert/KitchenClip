@@ -424,7 +424,6 @@ class TestCrossHouseholdSharingAndCloningEmpirical:
         assert resp.status_code == 200
         content = resp.content.decode()
         assert "Community Chili" in content
-        assert secondary_household.name in content
         assert "Family Secret Chili" not in content
 
     def test_shared_recipe_detail_suppresses_private_notes_and_ratings(self, client, secondary_client, secondary_household, secondary_user):

@@ -43,7 +43,7 @@ def test_cross_household_duplicate_triggers_alert(client, test_household, second
     content = html.unescape(response.content.decode())
     assert 'id="duplicate-alert-banner"' in content
     assert "Neighbor's Chili" in content
-    assert "Copy to My Household" in content
+    assert "Copy to My Recipes" in content
     assert "Scrape Fresh Anyway" in content
     assert Recipe.objects.filter(household=test_household).count() == 0
 

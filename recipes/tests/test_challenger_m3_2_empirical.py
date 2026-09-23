@@ -150,7 +150,7 @@ class TestCrossHouseholdSharingCatalogAndAccess:
         assert res.status_code == 200
         content = res.content.decode()
         assert f"Shared by {secondary_household.name}" in content or f"Shared by <strong>{secondary_household.name}</strong>" in content
-        assert "Copy to My Household" in content
+        assert "Copy to My Recipes" in content
         assert reverse("recipes:edit_recipe", kwargs={"pk": foreign_shared.pk}) not in content
         assert reverse("recipes:delete_recipe", kwargs={"pk": foreign_shared.pk}) not in content
 
@@ -159,7 +159,7 @@ class TestCrossHouseholdSharingCatalogAndAccess:
         assert res.status_code == 200
         content = res.content.decode()
         assert "Shared" in content
-        assert "Copy to My Household" not in content
+        assert "Copy to My Recipes" not in content
         assert reverse("recipes:edit_recipe", kwargs={"pk": own_recipe.pk}) in content
         assert reverse("recipes:delete_recipe", kwargs={"pk": own_recipe.pk}) in content
 

@@ -28,7 +28,7 @@
               {% endif %}
             </p>
             <p class="mt-1 text-xs text-gray-500">
-              You can copy the existing recipe directly into your household, or proceed with a fresh scrape from the external website.
+              You can copy the existing recipe directly to your recipes, or proceed with a fresh scrape from the external website.
             </p>
             <div class="mt-4 flex flex-wrap items-center gap-3">
               <form method="post" action="{% url 'recipes:copy_duplicate' duplicate_recipe.id %}" class="inline">
@@ -42,7 +42,7 @@
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                   </svg>
-                  Copy to My Household
+                  Copy to My Recipes
                 </button>
               </form>
               <form method="post" action="{% url 'recipes:add_recipe' %}" class="inline">

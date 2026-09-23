@@ -30,7 +30,7 @@ class TestCrossHouseholdSharingVisibility:
         assert response.status_code == 200
         content = response.content.decode()
         assert "Shared Pasta" in content
-        assert "Copy to My Household" in content
+        assert "Copy to My Recipes" in content
         assert "Edit" not in content
 
     def test_view_private_recipe_from_another_household_returns_404(self, client, secondary_household):

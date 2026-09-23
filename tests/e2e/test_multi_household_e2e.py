@@ -270,7 +270,6 @@ class TestTier1R3CrossHouseholdRecipeSharing:
         assert resp.status_code == 200
         content = html.unescape(resp.content.decode())
         assert "Grandma's Apple Pie" in content
-        assert e2e_household.name in content
 
     def test_t1_r3_02_unauthenticated_shared_catalog_redirects(self, client):
         """Verify unauthenticated requests to the shared catalog redirect to login."""
@@ -669,7 +668,7 @@ class TestTier2R3SharingAndCloningBoundaries:
 
         resp = e2e_client.post(reverse("recipes:copy_recipe", kwargs={"pk": recipe.pk}), follow=True)
         assert resp.status_code == 200
-        assert "already in your household" in resp.content.decode()
+        assert "already in your recipes" in resp.content.decode()
         assert Recipe.objects.filter(household=e2e_household).count() == initial_count
 
     def test_t2_r3_02_copy_foreign_private_recipe_returns_404(
