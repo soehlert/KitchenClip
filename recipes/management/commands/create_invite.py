@@ -272,7 +272,6 @@ class Command(BaseCommand):
         self.stdout.write("=" * 70)
         self.stdout.write(f"Username:    {user.username}")
         self.stdout.write(f"Household:   {household.name}")
-        self.stdout.write(f"Role:        {profile.role}")
         self.stdout.write(
             f"Expires:     {invite.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
         )
