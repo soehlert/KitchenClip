@@ -116,13 +116,25 @@ DANGLING_ENDINGS = (',', ';', '-', '—', '–', '(', '[')
 DANGLING_WORDS = {'and', 'or', 'with', 'in', 'to', 'for', 'of', 'if', 'the', 'a', 'an', 'as', 'at', 'by', 'from'}
 
 
+BOLD_HTML_TAGS_REGEX = re.compile(r'</?(?:strong|b)[^>]*>', re.IGNORECASE)
+
+
+def strip_bold_tags(text: str) -> str:
+    """Remove strong and b HTML tags and collapse whitespace."""
+    if not text:
+        return ""
+    no_bold = BOLD_HTML_TAGS_REGEX.sub('', text)
+    return re.sub(r'[ \t]+', ' ', no_bold).strip()
+
+
 def parse_instruction_steps(text: str) -> list[str]:
     """Parse raw instruction text into a list of coherent steps."""
     if not text or not text.strip():
         return []
 
     cleaned = remove_instruction_headers(text)
-    raw_lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    cleaned = BOLD_HTML_TAGS_REGEX.sub('', cleaned)
+    raw_lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in cleaned.splitlines() if line.strip()]
     if not raw_lines:
         return []
 
@@ -136,8 +148,9 @@ def parse_instruction_steps(text: str) -> list[str]:
         for line in raw_lines:
             if STEP_MARKER_REGEX.match(line):
                 if current_step_parts:
-                    step_text = ' '.join(current_step_parts)
-                    steps.append(re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', step_text))
+                    step_text = re.sub(r'[ \t]+', ' ', ' '.join(current_step_parts)).strip()
+                    if step_text:
+                        steps.append(step_text)
                     current_step_parts = []
                     pending_marker = None
                 elif pending_marker:
@@ -160,8 +173,9 @@ def parse_instruction_steps(text: str) -> list[str]:
                 current_step_parts.append(line)
 
         if current_step_parts:
-            step_text = ' '.join(current_step_parts)
-            steps.append(re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', step_text))
+            step_text = re.sub(r'[ \t]+', ' ', ' '.join(current_step_parts)).strip()
+            if step_text:
+                steps.append(step_text)
         elif pending_marker:
             steps.append(pending_marker)
         return steps
@@ -173,7 +187,7 @@ def parse_instruction_steps(text: str) -> list[str]:
         for p in paragraphs:
             step_text = ' '.join(p.split())
             if step_text:
-                steps.append(re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', step_text))
+                steps.append(step_text)
         return steps
 
     # 3. Sentence-continuation heuristic for unmarked wrapped text
@@ -197,13 +211,15 @@ def parse_instruction_steps(text: str) -> list[str]:
             current_step_parts.append(line)
         else:
             if current_step_parts:
-                step_text = ' '.join(current_step_parts)
-                steps.append(re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', step_text))
+                step_text = re.sub(r'[ \t]+', ' ', ' '.join(current_step_parts)).strip()
+                if step_text:
+                    steps.append(step_text)
             current_step_parts = [line]
 
     if current_step_parts:
-        step_text = ' '.join(current_step_parts)
-        steps.append(re.sub(r'\bTIP:\s*', '<strong>TIP:</strong> ', step_text))
+        step_text = re.sub(r'[ \t]+', ' ', ' '.join(current_step_parts)).strip()
+        if step_text:
+            steps.append(step_text)
 
     return steps
 

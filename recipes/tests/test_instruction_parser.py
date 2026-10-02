@@ -82,17 +82,21 @@ def test_parse_instruction_steps_plain_commands():
     assert steps[2] == "Bake 20 mins"
 
 
-def test_parse_instruction_steps_removes_headers_and_preserves_tips():
-    """Test header removal and TIP styling."""
+def test_parse_instruction_steps_removes_headers_and_strips_html_tags():
+    """Test header removal and complete stripping of HTML tags such as strong and b."""
     text = """
     Instructions:
     • Step one
-    • TIP: Toast almonds before adding
+    • (<strong><strong>TIP:</strong> </strong> If sauce seems too thick, add water.)
+    • <B>Note:</B> Serve hot.
     """
     steps = parse_instruction_steps(text)
-    assert len(steps) == 2
+    assert len(steps) == 3
     assert steps[0] == "Step one"
-    assert "<strong>TIP:</strong>" in steps[1]
+    assert steps[1] == "(TIP: If sauce seems too thick, add water.)"
+    assert "<strong>" not in steps[1] and "<STRONG>" not in steps[1]
+    assert steps[2] == "Note: Serve hot."
+    assert "<B>" not in steps[2] and "<b>" not in steps[2]
 
 
 def test_clean_instruction_line():
