@@ -274,8 +274,8 @@ def test_fraction_parenthesis_reconciliation():
 
 
 def test_redundant_prep_unit_filtering():
-    """Test that parenthetical unit indicators like (tsp) and (tbsp) are stripped from prep."""
-    # Salt with trailing (tsp)
+    """Test that parenthetical unit indicators across culinary units are stripped from prep."""
+    # Teaspoon with trailing (tsp)
     parsed_salt = parse_ingredient_line("1 teaspoon salt (tsp)")
     assert parsed_salt["prep"] == []
     proc_salt = process_ingredients([parsed_salt])[0]
@@ -283,13 +283,37 @@ def test_redundant_prep_unit_filtering():
     assert proc_salt["unit"] == "teaspoon"
     assert proc_salt["prep"] == ""
 
-    # Olive oil with trailing (tbsp)
+    # Tablespoon with trailing (tbsp)
     parsed_oil = parse_ingredient_line("2 tablespoons olive oil (tbsp)")
     assert parsed_oil["prep"] == []
     proc_oil = process_ingredients([parsed_oil])[0]
     assert proc_oil["food"] == "olive oil"
     assert proc_oil["unit"] == "tablespoons"
     assert proc_oil["prep"] == ""
+
+    # Ounce with trailing (oz)
+    parsed_cheese = parse_ingredient_line("8 ounces cheddar cheese (oz)")
+    assert parsed_cheese["prep"] == []
+    proc_cheese = process_ingredients([parsed_cheese])[0]
+    assert proc_cheese["food"] == "cheddar cheese"
+    assert proc_cheese["unit"] == "ounces"
+    assert proc_cheese["prep"] == ""
+
+    # Cup with trailing (cup)
+    parsed_flour = parse_ingredient_line("2 cups all-purpose flour (cup)")
+    assert parsed_flour["prep"] == []
+    proc_flour = process_ingredients([parsed_flour])[0]
+    assert proc_flour["food"] == "flour"
+    assert proc_flour["unit"] == "cups"
+    assert proc_flour["prep"] == ""
+
+    # Packet with trailing (packet)
+    parsed_seasoning = parse_ingredient_line("1 packet chili seasoning (packet)")
+    assert parsed_seasoning["prep"] == []
+    proc_seasoning = process_ingredients([parsed_seasoning])[0]
+    assert proc_seasoning["food"] == "chili seasoning"
+    assert proc_seasoning["unit"] == "packet"
+    assert proc_seasoning["prep"] == ""
 
     # Genuine preparation notes must still be preserved
     parsed_butter = parse_ingredient_line("2 tablespoons butter (melted)")
