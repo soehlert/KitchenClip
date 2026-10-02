@@ -547,28 +547,18 @@ class RecipeScratchForm(forms.ModelForm):
         for s in steps:
             s_clean = str(s).strip() if s is not None else ""
             if s_clean:
-                from recipes.utils import clean_instruction_line
-                for sub_line in s_clean.splitlines():
-                    sub_clean = sub_line.strip()
-                    if sub_clean and not INSTRUCTION_MARKER_REGEX.match(sub_clean):
-                        cleaned_step = clean_instruction_line(sub_clean).strip()
-                        if cleaned_step:
-                            valid_steps.append(cleaned_step)
-                        elif sub_clean:
-                            valid_steps.append(sub_clean)
+                from recipes.utils import parse_instruction_steps
+                for step in parse_instruction_steps(s_clean):
+                    if step and not INSTRUCTION_MARKER_REGEX.match(step):
+                        valid_steps.append(step)
 
         # Fallback to instructions_text if no steps were provided
         instructions_text = cleaned_data.get('instructions_text', '').strip()
         if not valid_steps and instructions_text:
-            from recipes.utils import clean_instruction_line
-            for s in instructions_text.splitlines():
-                s_clean = s.strip()
-                if s_clean and not INSTRUCTION_MARKER_REGEX.match(s_clean):
-                    cleaned_step = clean_instruction_line(s_clean).strip()
-                    if cleaned_step:
-                        valid_steps.append(cleaned_step)
-                    elif s_clean:
-                        valid_steps.append(s_clean)
+            from recipes.utils import parse_instruction_steps
+            for step in parse_instruction_steps(instructions_text):
+                if step and not INSTRUCTION_MARKER_REGEX.match(step):
+                    valid_steps.append(step)
 
         if not valid_steps:
             self.add_error(None, "At least one instruction step is required.")

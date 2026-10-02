@@ -6,6 +6,7 @@ import ingredient_slicer
 from recipes.culinary_units import (
     BAG_PRODUCE,
     BUNCH_HERBS,
+    CULINARY_UNIT_TOKENS,
     HEAD_PRODUCE,
     PACKET_CATEGORIES,
 )
@@ -192,7 +193,24 @@ def parse_ingredient_line(line: str) -> dict:
     prep_list = parsed_item.get("prep") or []
     if not prep_list and parsed_item.get("parenthesis_content"):
         prep_list = parsed_item.get("parenthesis_content")
-    parsed_item["prep"] = prep_list
+    
+    # Filter out redundant unit designations from prep (e.g. "tsp", "tbsp")
+    clean_prep = []
+    current_u = (parsed_item.get("unit") or "").lower().strip()
+    current_std_u = (parsed_item.get("standardized_unit") or "").lower().strip()
+    for p in prep_list:
+        p_clean = str(p).strip()
+        if not p_clean:
+            continue
+        p_lower = p_clean.lower()
+        if p_lower in CULINARY_UNIT_TOKENS:
+            continue
+        if current_u and p_lower == current_u:
+            continue
+        if current_std_u and p_lower == current_std_u:
+            continue
+        clean_prep.append(p_clean)
+    parsed_item["prep"] = clean_prep
     
     # Clean units like "of an onion", "of pepper", etc. and "Unit" string
     u = parsed_item.get("unit") or ""
@@ -369,9 +387,18 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         # Create a unique key for grouping (food + unit + prep)
         prep_val = item.get("prep") or ""
         if isinstance(prep_val, list):
-            prep = ", ".join(prep_val).strip().lower()
+            valid_prep_parts = [
+                str(p).strip() for p in prep_val
+                if str(p).strip().lower() not in CULINARY_UNIT_TOKENS
+                and str(p).strip().lower() != unit.lower()
+            ]
+            prep = ", ".join(valid_prep_parts).strip().lower()
         else:
-            prep = str(prep_val).strip().lower()
+            p_str = str(prep_val).strip()
+            if p_str.lower() in CULINARY_UNIT_TOKENS or (unit and p_str.lower() == unit.lower()):
+                prep = ""
+            else:
+                prep = p_str.lower()
         key = (food, unit, prep)
         
         if key in consolidated:
@@ -412,12 +439,16 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         else:
             u = pluralize_unit(u, q)
 
+        prep_out = data.get("prep", "")
+        if prep_out and (prep_out.lower() in CULINARY_UNIT_TOKENS or (u and prep_out.lower() == u.lower())):
+            prep_out = ""
+
         results.append({
             "food": f,
             "unit": u,
             "quantity": q,
             "display_quantity": display_q,
-            "prep": data.get("prep", "")
+            "prep": prep_out
         })
         
     return results

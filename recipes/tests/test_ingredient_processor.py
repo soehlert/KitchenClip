@@ -273,3 +273,33 @@ def test_fraction_parenthesis_reconciliation():
     assert proc_onion["food"] == "onion"
 
 
+def test_redundant_prep_unit_filtering():
+    """Test that parenthetical unit indicators like (tsp) and (tbsp) are stripped from prep."""
+    # Salt with trailing (tsp)
+    parsed_salt = parse_ingredient_line("1 teaspoon salt (tsp)")
+    assert parsed_salt["prep"] == []
+    proc_salt = process_ingredients([parsed_salt])[0]
+    assert proc_salt["food"] == "salt"
+    assert proc_salt["unit"] == "teaspoon"
+    assert proc_salt["prep"] == ""
+
+    # Olive oil with trailing (tbsp)
+    parsed_oil = parse_ingredient_line("2 tablespoons olive oil (tbsp)")
+    assert parsed_oil["prep"] == []
+    proc_oil = process_ingredients([parsed_oil])[0]
+    assert proc_oil["food"] == "olive oil"
+    assert proc_oil["unit"] == "tablespoons"
+    assert proc_oil["prep"] == ""
+
+    # Genuine preparation notes must still be preserved
+    parsed_butter = parse_ingredient_line("2 tablespoons butter (melted)")
+    assert "melted" in parsed_butter["prep"]
+    proc_butter = process_ingredients([parsed_butter])[0]
+    assert proc_butter["prep"] == "melted"
+
+    # Multi-unit or parenthetical size modifier preserved
+    parsed_beans = parse_ingredient_line("2 cans black beans (15 oz)")
+    proc_beans = process_ingredients([parsed_beans])[0]
+    assert proc_beans["prep"] == "15 oz"
+
+

@@ -212,7 +212,10 @@ class BaseParser(ABC):
         if not instr:
             instr = self._get_scraper_val("instructions", "")
         
-        return instr
+        if instr:
+            from ..utils import clean_instruction_line
+            return clean_instruction_line(instr)
+        return ""
 
     @property
     def description(self) -> str:

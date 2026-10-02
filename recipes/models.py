@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.text import slugify
 
+from .culinary_units import CULINARY_UNIT_TOKENS
 from .ingredient_processor import format_time_h_m
 
 
@@ -361,6 +362,19 @@ class RecipeIngredient(models.Model):
 
     def __str__(self) -> str:
         return f"{self.recipe.title}: {self.raw_text}"
+
+    @property
+    def display_preparation(self) -> str:
+        """Return preparation only if it is not a redundant culinary unit."""
+        if not self.preparation:
+            return ""
+        prep_clean = self.preparation.strip()
+        prep_lower = prep_clean.lower()
+        if prep_lower in CULINARY_UNIT_TOKENS:
+            return ""
+        if self.unit and prep_lower == self.unit.strip().lower():
+            return ""
+        return prep_clean
 
 class RecipeTag(models.Model):
     """Define tags for categorizing recipes. """

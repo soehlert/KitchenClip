@@ -77,3 +77,38 @@ PACKET_CATEGORIES: set[str] = {
     "breadcrumbs",
     "panko",
 }
+
+CULINARY_UNIT_TOKENS: set[str] = {
+    # Spoons
+    "teaspoon", "teaspoons", "tsp", "tsps",
+    "tablespoon", "tablespoons", "tbsp", "tbsps",
+    # Volume
+    "cup", "cups", "c",
+    "fluid ounce", "fluid ounces", "fl oz", "fl. oz.",
+    "pint", "pints", "pt", "pts",
+    "quart", "quarts", "qt", "qts",
+    "gallon", "gallons", "gal", "gals",
+    "milliliter", "milliliters", "ml", "mls",
+    "liter", "liters", "l",
+    # Weight
+    "ounce", "ounces", "oz", "ozs",
+    "pound", "pounds", "lb", "lbs",
+    "gram", "grams", "g",
+    "kilogram", "kilograms", "kg", "kgs",
+    # Produce/Count/Containers
+    "packet", "packets", "pkt", "pkts",
+    "pouch", "pouches",
+    "head", "heads",
+    "bunch", "bunches",
+    "bag", "bags",
+    "can", "cans",
+    "jar", "jars",
+    "bottle", "bottles",
+    "clove", "cloves",
+    "stalk", "stalks",
+    "slice", "slices",
+    "pinch", "pinches",
+    "dash", "dashes",
+    "drop", "drops",
+    "piece", "pieces",
+}

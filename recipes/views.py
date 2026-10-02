@@ -38,7 +38,7 @@ from .models import Ingredient, MealPlan, Recipe, RecipeIngredient, RecipeTag
 from .parsers.registry import ParserRegistry
 from .services import RecipeCloningService, clone_recipe_to_household
 from .url_utils import find_recipe_by_url, normalize_url
-from .utils import clean_instruction_line, is_valid_ingredient
+from .utils import clean_instruction_line, is_valid_ingredient, parse_instruction_steps
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ class RecipeDetailView(HouseholdLoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         recipe = self.object
 
-        context["instructions_list"] = [line for line in recipe.instructions.splitlines() if line.strip()]
+        context["instructions_list"] = parse_instruction_steps(recipe.instructions)
 
         ingredients_with_confidence = []
         for i in recipe.recipe_ingredients.all():

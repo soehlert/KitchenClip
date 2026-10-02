@@ -77,7 +77,7 @@
         {% if item.is_confident %}
         <li>
           {{ item.ingredient.quantity }} {{ item.ingredient.unit }} {{ item.ingredient.ingredient.name }}
-          {% if item.ingredient.preparation %} ({{ item.ingredient.preparation }}){% endif %}
+          {% if item.ingredient.display_preparation %} ({{ item.ingredient.display_preparation }}){% endif %}
         </li>
         {% else %}
         <li>
