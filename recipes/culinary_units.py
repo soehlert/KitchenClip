@@ -98,6 +98,13 @@ CULINARY_UNIT_TOKENS: set[str] = {
     # Produce/Count/Containers
     "packet", "packets", "pkt", "pkts",
     "pouch", "pouches",
+    "block", "blocks",
+    "package", "packages", "pkg", "pkgs",
+    "container", "containers",
+    "box", "boxes",
+    "carton", "cartons",
+    "tub", "tubs",
+    "tin", "tins",
     "head", "heads",
     "bunch", "bunches",
     "bag", "bags",

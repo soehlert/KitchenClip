@@ -54,22 +54,26 @@ class Command(BaseCommand):
             try:
                 parser = ParserRegistry.get_parser(recipe.original_url)
                 ingredient_lines = parser.ingredients
-                metadata = {
-                    'title': parser.title,
-                    'description': parser.description,
-                    'prep_time': parser.prep_time,
-                    'cook_time': parser.cook_time,
-                    'total_time': parser.total_time,
-                    'servings': parser.servings,
-                    'instructions': parser.instructions,
-                    'image_url': parser.image_url,
-                }
+                if parser.title:
+                    metadata = {
+                        'title': parser.title,
+                        'description': parser.description,
+                        'prep_time': parser.prep_time,
+                        'cook_time': parser.cook_time,
+                        'total_time': parser.total_time,
+                        'servings': parser.servings,
+                        'instructions': parser.instructions,
+                        'image_url': parser.image_url,
+                    }
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f"Failed to parse URL, falling back to existing ingredients: {e}"))
                 # Fallback to existing ingredients if URL parsing fails
                 ingredient_lines = list(recipe.recipe_ingredients.values_list('raw_text', flat=True))
         else:
             self.stdout.write("No URL found, re-processing existing ingredients.")
+            ingredient_lines = list(recipe.recipe_ingredients.values_list('raw_text', flat=True))
+
+        if not ingredient_lines:
             ingredient_lines = list(recipe.recipe_ingredients.values_list('raw_text', flat=True))
 
         if not ingredient_lines:

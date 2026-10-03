@@ -66,6 +66,16 @@ UNIT_PLURAL_MAP = {
     "lb": "lbs",
     "packet": "packets",
     "pouch": "pouches",
+    "block": "blocks",
+    "package": "packages",
+    "pkg": "pkgs",
+    "container": "containers",
+    "box": "boxes",
+    "carton": "cartons",
+    "tub": "tubs",
+    "tin": "tins",
+    "jar": "jars",
+    "bottle": "bottles",
     "head": "heads",
     "bunch": "bunches",
     "bag": "bags",
@@ -77,13 +87,42 @@ UNIT_PLURAL_MAP = {
     "dash": "dashes",
 }
 
+_CONTAINER_WORDS = r"(?:cans?|tins?|blocks?|packages?|pkgs?|containers?|tubs?|jars?|bottles?|cartons?|boxes?|pouches?|bags?)"
+_WEIGHT_VOL_UNITS = r"(?:ounces?|oz\.?|grams?|g\b|milliliters?|mls?|fl(?:uid)?\.?\s*oz\.?|pounds?|lbs?)"
+_COUNT_OR_SIZE = rf"(?:\d+(?:\.\d+)?|\d+\s*/\s*\d+|[{_UNI_CHARS}]|(?:(?:\d+)\s+)?\d+/\d+|(?:(?:\d+)\s*)?[{_UNI_CHARS}])"
+
+_CONTAINER_SIZE_PATTERN = re.compile(
+    rf"^\s*(?:(?:\(\s*({_COUNT_OR_SIZE})\s*\))|({_COUNT_OR_SIZE}))\s+({_COUNT_OR_SIZE})\s*[-–—]?\s*({_WEIGHT_VOL_UNITS})\s+({_CONTAINER_WORDS})\b\s*(.*)$",
+    re.IGNORECASE,
+)
+
+_LEADING_PAREN_COUNT = re.compile(
+    rf"^\s*\(\s*({_COUNT_OR_SIZE})\s*\)\s*"
+)
+
+
+def normalize_ingredient_text(line: str) -> str:
+    """Normalize ingredient line before passing to ingredient_slicer."""
+    m_container = _CONTAINER_SIZE_PATTERN.match(line)
+    if m_container:
+        count = m_container.group(1) or m_container.group(2)
+        size = m_container.group(3)
+        unit = m_container.group(4)
+        container = m_container.group(5)
+        rest = m_container.group(6)
+        return f"{count} ({size} {unit}) {container} {rest}".strip()
+
+    m_lead = _LEADING_PAREN_COUNT.match(line)
+    if m_lead:
+        count = m_lead.group(1)
+        rest = line[m_lead.end():]
+        return f"{count} {rest}".strip()
+
+    return line
+
 
 def parse_ingredient_line(line: str) -> dict:
-    """
-    Centralized parsing for a single ingredient line.
-    """
-    
-    # TODO fix this comment
+    """Centralized parsing for a single ingredient line."""
     # If the line contains "or", we only parse the first half so the slicer
     or_split = re.split(r'(?:\s+|,)\s*or\s+', line, maxsplit=1, flags=re.IGNORECASE)
     if len(or_split) > 1:
@@ -93,7 +132,9 @@ def parse_ingredient_line(line: str) -> dict:
         line_to_parse = line
         or_remainder = ""
 
-    slicer = ingredient_slicer.IngredientSlicer(line_to_parse)
+    normalized_line = normalize_ingredient_text(line_to_parse)
+
+    slicer = ingredient_slicer.IngredientSlicer(normalized_line)
     parsed_item = slicer.to_json()
 
     # IngredientSlicer often gets confused by weights in parentheses:
@@ -103,11 +144,11 @@ def parse_ingredient_line(line: str) -> dict:
     sec_qty = _safe_float(parsed_item.get("secondary_quantity"))
     
     # Extract "Safe" numbers (outside parentheses) from the parsed half
-    line_no_parens = re.sub(r'\(.*?\)', '', line_to_parse)
+    line_no_parens = re.sub(r'\(.*?\)', '', normalized_line)
     safe_nums = _extract_numbers(line_no_parens)
     
     # Extract "Danger" numbers (inside parentheses) from the parsed half
-    paren_matches = re.findall(r'\((.*?)\)', line_to_parse)
+    paren_matches = re.findall(r'\((.*?)\)', normalized_line)
     danger_nums = []
     for p_content in paren_matches:
         danger_nums.extend(_extract_numbers(p_content))
@@ -191,8 +232,14 @@ def parse_ingredient_line(line: str) -> dict:
     # 3. Prep Extraction/Heuristic
     # If prep is empty, try pulling from parentheses (common for "chopped", etc.)
     prep_list = parsed_item.get("prep") or []
-    if not prep_list and parsed_item.get("parenthesis_content"):
-        prep_list = parsed_item.get("parenthesis_content")
+    paren_contents = parsed_item.get("parenthesis_content") or []
+    if not prep_list and paren_contents:
+        prep_list = paren_contents
+    elif paren_contents:
+        for pc in paren_contents:
+            if any(re.search(rf"\b{u}\b", pc, re.IGNORECASE) for u in ["oz", "ounce", "g", "gram", "ml", "fl oz", "lb", "pound"]):
+                if pc not in prep_list:
+                    prep_list.append(pc)
     
     # Filter out redundant unit designations from prep (e.g. "tsp", "tbsp")
     clean_prep = []
@@ -204,6 +251,8 @@ def parse_ingredient_line(line: str) -> dict:
             continue
         p_lower = p_clean.lower()
         if p_lower in CULINARY_UNIT_TOKENS:
+            continue
+        if re.fullmatch(rf"[\d\./\s{_UNI_CHARS}-]+", p_clean):
             continue
         if current_u and p_lower == current_u:
             continue
@@ -217,7 +266,7 @@ def parse_ingredient_line(line: str) -> dict:
     if u:
         parsed_item["unit"] = re.sub(r'\b(of|an|a|the|of an|of a|unit)\b', '', u, flags=re.IGNORECASE).strip()
 
-    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can", "clove")
+    # 3.5 Recognize units often absorbed into the food name (e.g., "pouch", "packet", "head", "bunch", "bag", "can", "clove", "block")
     u_current = (parsed_item.get("unit") or "").lower().strip()
     food_current = (parsed_item.get("food") or "").strip()
     if not u_current and food_current:
@@ -228,6 +277,16 @@ def parse_ingredient_line(line: str) -> dict:
             ("bunches", "bunches"), ("bunch", "bunch"),
             ("bags", "bags"), ("bag", "bag"),
             ("cans", "cans"), ("can", "can"),
+            ("blocks", "blocks"), ("block", "block"),
+            ("packages", "packages"), ("package", "package"),
+            ("pkgs", "pkgs"), ("pkg", "pkg"),
+            ("containers", "containers"), ("container", "container"),
+            ("tubs", "tubs"), ("tub", "tub"),
+            ("cartons", "cartons"), ("carton", "carton"),
+            ("boxes", "boxes"), ("box", "box"),
+            ("tins", "tins"), ("tin", "tin"),
+            ("jars", "jars"), ("jar", "jar"),
+            ("bottles", "bottles"), ("bottle", "bottle"),
             ("stalks", "stalks"), ("stalk", "stalk"),
             ("cloves", "cloves"), ("clove", "clove"),
         ]:
@@ -239,6 +298,21 @@ def parse_ingredient_line(line: str) -> dict:
                 parsed_item["food"] = food_current
                 u_current = norm_unit
                 break
+
+    # Fix tofu firmness variety (ingredient_slicer extracts 'firm' into prep)
+    tofu_m = re.search(r"\b((?:extra|super|medium)[- ]firm|firm)\s+tofu\b", line_to_parse, re.IGNORECASE)
+    if tofu_m:
+        firm_variety = tofu_m.group(1).lower().replace(" ", "-")
+        full_tofu = f"{firm_variety} tofu"
+        current_food = parsed_item.get("food", "").lower()
+        if "tofu" in current_food:
+            parsed_item["food"] = re.sub(
+                r"\b(?:extra\s+|super\s+|medium\s+)?tofu\b",
+                full_tofu,
+                parsed_item["food"],
+                flags=re.IGNORECASE,
+            )
+            parsed_item["prep"] = [p for p in parsed_item.get("prep", []) if p.lower() != "firm"]
 
     # Resolve meal-kit 'unit' into sensible culinary units
     if not u_current and re.search(r'\bunit\b', line_to_parse, flags=re.IGNORECASE):

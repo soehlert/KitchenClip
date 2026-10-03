@@ -327,3 +327,47 @@ def test_redundant_prep_unit_filtering():
     assert proc_beans["prep"] == "15 oz"
 
 
+def test_container_count_and_variety_parsing():
+    """Test parsing container counts, container weights/sizes, and food variety descriptors."""
+    # Parenthesized count with container size and block container unit
+    parsed_tofu = parse_ingredient_line("(2) 14.5 ounce blocks extra-firm tofu")
+    proc_tofu = process_ingredients([parsed_tofu])[0]
+    assert proc_tofu["display_quantity"] == "2"
+    assert proc_tofu["unit"] == "blocks"
+    assert proc_tofu["food"] == "extra-firm tofu"
+    assert proc_tofu["prep"] == "14.5 ounce"
+
+    # Multi-container without parentheses
+    parsed_cans = parse_ingredient_line("2 15 oz cans black beans")
+    proc_cans = process_ingredients([parsed_cans])[0]
+    assert proc_cans["display_quantity"] == "2"
+    assert proc_cans["unit"] == "cans"
+    assert proc_cans["food"] == "black beans"
+    assert proc_cans["prep"] == "15 oz"
+
+    # Package container with parenthesized count
+    parsed_cheese = parse_ingredient_line("(2) 8 oz packages cream cheese")
+    proc_cheese = process_ingredients([parsed_cheese])[0]
+    assert proc_cheese["display_quantity"] == "2"
+    assert proc_cheese["unit"] == "packages"
+    assert proc_cheese["food"] == "cream cheese"
+    assert proc_cheese["prep"] == "8 oz"
+
+    # Single container block
+    parsed_single_block = parse_ingredient_line("1 block extra-firm tofu")
+    proc_single_block = process_ingredients([parsed_single_block])[0]
+    assert proc_single_block["display_quantity"] == "1"
+    assert proc_single_block["unit"] == "block"
+    assert proc_single_block["food"] == "extra-firm tofu"
+
+    # Genuine preparation methods preserved alongside variety descriptor
+    parsed_pressed = parse_ingredient_line("14.5 oz extra-firm tofu, drained and pressed")
+    proc_pressed = process_ingredients([parsed_pressed])[0]
+    assert proc_pressed["display_quantity"] == "14½"
+    assert proc_pressed["unit"] == "oz"
+    assert proc_pressed["food"] == "extra-firm tofu"
+    assert "drained" in proc_pressed["prep"]
+    assert "pressed" in proc_pressed["prep"]
+    assert "firm" not in proc_pressed["prep"].split(", ")
+
+
