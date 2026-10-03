@@ -19,11 +19,15 @@ class Command(BaseCommand):
         parser.add_argument('--recipe-id', type=int, help='ID of the recipe to re-parse')
         parser.add_argument('--all', action='store_true', help='Re-parse all recipes')
         parser.add_argument('--dry-run', action='store_true', help='Show changes without saving')
+        parser.add_argument('--instructions-only', action='store_true', help='Only re-parse instructions without modifying ingredients')
+        parser.add_argument('--no-fetch', action='store_true', help='Do not fetch from external URLs; process stored database text only')
 
     def handle(self, *args, **options):
         recipe_id = options.get('recipe_id')
         reparse_all = options.get('all')
         dry_run = options.get('dry_run')
+        instructions_only = options.get('instructions_only')
+        no_fetch = options.get('no_fetch')
 
         if not recipe_id and not reparse_all:
             self.stderr.write(self.style.ERROR('Please specify --recipe-id or --all'))
@@ -40,16 +44,46 @@ class Command(BaseCommand):
         for recipe in recipes:
             self.stdout.write(f"Processing recipe: {recipe.title} (ID: {recipe.id})")
             try:
-                self.reparse_recipe(recipe, dry_run)
+                if instructions_only:
+                    self.reparse_instructions(recipe, dry_run, no_fetch)
+                else:
+                    self.reparse_recipe(recipe, dry_run, no_fetch)
             except Exception as e:
                 self.stderr.write(self.style.ERROR(f"Error processing recipe {recipe.id}: {e}"))
                 logger.exception(f"Failed to re-parse recipe {recipe.id}")
 
-    def reparse_recipe(self, recipe, dry_run):
+    def reparse_instructions(self, recipe, dry_run, no_fetch=False):
+        new_instructions = None
+        if recipe.original_url and not no_fetch:
+            self.stdout.write(f"  Fetching from URL: {recipe.original_url}")
+            try:
+                parser = ParserRegistry.get_parser(recipe.original_url)
+                if parser.instructions:
+                    new_instructions = parser.instructions
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"  Failed to fetch URL, falling back to existing instructions: {e}"))
+
+        if not new_instructions and recipe.instructions:
+            new_instructions = clean_instruction_line(recipe.instructions)
+
+        if not new_instructions or new_instructions == recipe.instructions:
+            self.stdout.write("  Instructions unchanged.")
+            return
+
+        old_count = len(recipe.instructions.splitlines()) if recipe.instructions else 0
+        new_count = len(new_instructions.splitlines())
+        if dry_run:
+            self.stdout.write(f"  [Dry Run] Instructions step count: {old_count} -> {new_count}")
+        else:
+            recipe.instructions = new_instructions
+            recipe.save(update_fields=['instructions'])
+            self.stdout.write(self.style.SUCCESS(f"  Successfully updated instructions ({old_count} -> {new_count} steps)"))
+
+    def reparse_recipe(self, recipe, dry_run, no_fetch=False):
         ingredient_lines = []
         metadata = {}
 
-        if recipe.original_url:
+        if recipe.original_url and not no_fetch:
             self.stdout.write(f"Fetching from URL: {recipe.original_url}")
             try:
                 parser = ParserRegistry.get_parser(recipe.original_url)

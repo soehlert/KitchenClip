@@ -4,13 +4,12 @@ from recipes.utils import clean_instruction_line, parse_instruction_steps
 
 
 def test_parse_instruction_steps_bullet_markers():
-    """Test marker-based grouping on wrapped lines with varied bullet types."""
+    """Test marker-based grouping on multiline and inline bullet formats."""
     text = """
     • Adjust rack to top position and
     preheat oven to 450 degrees.
     - Toss vegetables on a baking sheet with
-    olive oil and seasonings.
-    * Roast on top rack until tender,
+    olive oil and seasonings. • Roast on top rack until tender,
     12-15 minutes.
     """
     steps = parse_instruction_steps(text)
@@ -52,12 +51,13 @@ def test_parse_instruction_steps_paragraph_blocks():
 
 
 def test_parse_instruction_steps_unmarked_wrapped_prose():
-    """Test sentence-continuation heuristic on unmarked wrapped text with dangling prepositions and parentheticals."""
+    """Test unmarked wrapped text breaking across lines, parentheticals, and numeric durations."""
     text = """
     Heat olive oil in a skillet over
     medium-high heat. Add garlic and
     cook until fragrant.
-    Transfer to a serving bowl with a
+    Roast vegetables in the oven for
+    20 minutes, then transfer to a serving bowl with a
     sprinkle of fresh herbs
     (use more if desired) and
     flaky sea salt.
@@ -65,7 +65,10 @@ def test_parse_instruction_steps_unmarked_wrapped_prose():
     steps = parse_instruction_steps(text)
     assert len(steps) == 2
     assert steps[0] == "Heat olive oil in a skillet over medium-high heat. Add garlic and cook until fragrant."
-    assert steps[1] == "Transfer to a serving bowl with a sprinkle of fresh herbs (use more if desired) and flaky sea salt."
+    assert steps[1] == (
+        "Roast vegetables in the oven for 20 minutes, then transfer to a serving bowl "
+        "with a sprinkle of fresh herbs (use more if desired) and flaky sea salt."
+    )
 
 
 def test_parse_instruction_steps_plain_commands():

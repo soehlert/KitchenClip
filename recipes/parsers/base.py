@@ -195,27 +195,24 @@ class BaseParser(ABC):
     @property
     def instructions(self) -> str:
         """Return instructions from JSON-LD or scraper fallback, cleaned of HTML."""
-        instr = ""
+        from ..utils import parse_instruction_steps
+
+        parsed_steps = []
         if self._recipe_data and 'recipeInstructions' in self._recipe_data:
             instructions = self._recipe_data['recipeInstructions']
             steps = self._extract_steps(instructions)
-            
-            result = []
             for text in steps:
                 if text:
-                    # Remove HTML tags and extra whitespace
                     clean_text = re.sub('<.*?>', '', text).strip()
                     if clean_text:
-                        result.append(clean_text)
-            instr = "\n".join(result)
+                        parsed_steps.extend(parse_instruction_steps(clean_text))
 
-        if not instr:
+        if not parsed_steps:
             instr = self._get_scraper_val("instructions", "")
-        
-        if instr:
-            from ..utils import clean_instruction_line
-            return clean_instruction_line(instr)
-        return ""
+            if instr:
+                parsed_steps = parse_instruction_steps(instr)
+
+        return "\n".join(parsed_steps)
 
     @property
     def description(self) -> str:

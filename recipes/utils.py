@@ -112,10 +112,6 @@ STEP_MARKER_REGEX = re.compile(
     r'^(?:(?:Step\s+\d+[:.)\-]*\s*)|(?:\(?\d+[.)\]]\s*)|(?:\(?\d+\s*[:-]\s+)|(?:[•◦▪▫*–—\-]\s+))',
     re.IGNORECASE,
 )
-DANGLING_ENDINGS = (',', ';', '-', '—', '–', '(', '[')
-DANGLING_WORDS = {'and', 'or', 'with', 'in', 'to', 'for', 'of', 'if', 'the', 'a', 'an', 'as', 'at', 'by', 'from'}
-
-
 BOLD_HTML_TAGS_REGEX = re.compile(r'</?(?:strong|b)[^>]*>', re.IGNORECASE)
 
 
@@ -127,6 +123,12 @@ def strip_bold_tags(text: str) -> str:
     return re.sub(r'[ \t]+', ' ', no_bold).strip()
 
 
+def is_terminal_sentence_line(text: str) -> bool:
+    """Return True if text ends with sentence-terminating punctuation."""
+    stripped = re.sub(r'[\'\"\)\}\]\s]+$', '', text.strip())
+    return bool(stripped and stripped[-1] in '.!?:')
+
+
 def parse_instruction_steps(text: str) -> list[str]:
     """Parse raw instruction text into a list of coherent steps."""
     if not text or not text.strip():
@@ -134,6 +136,12 @@ def parse_instruction_steps(text: str) -> list[str]:
 
     cleaned = remove_instruction_headers(text)
     cleaned = BOLD_HTML_TAGS_REGEX.sub('', cleaned)
+
+    # Normalize inline bullet characters into newlines
+    cleaned = re.sub(r'(?<=\S)\s+[•◦▪▫*–—]\s+', '\n• ', cleaned)
+    # Normalize inline numbered steps following sentence-ending punctuation
+    cleaned = re.sub(r'(?<=[.!?])\s+(?=(?:\(?\d+[.)\]]\s*)|(?:Step\s+\d+[:.)\-]*\s*))', '\n', cleaned)
+
     raw_lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in cleaned.splitlines() if line.strip()]
     if not raw_lines:
         return []
@@ -190,21 +198,20 @@ def parse_instruction_steps(text: str) -> list[str]:
                 steps.append(step_text)
         return steps
 
-    # 3. Sentence-continuation heuristic for unmarked wrapped text
+    # 3. Sentence-continuation for unmarked wrapped text
     steps = []
     current_step_parts = []
     for line in raw_lines:
         is_continuation = False
         if current_step_parts:
             prev_line = current_step_parts[-1]
-            if line[0].islower() or line[0] in '([{}])':
+            if prev_line.rstrip().endswith((',', ';', '-', '—', '–')):
                 is_continuation = True
-            elif prev_line.endswith(DANGLING_ENDINGS):
+            elif line[0].islower() or line[0] in '([{':
                 is_continuation = True
-            else:
-                last_word = prev_line.split()[-1].lower() if prev_line.split() else ''
-                last_word = re.sub(r'[^a-z]', '', last_word)
-                if last_word in DANGLING_WORDS:
+            elif not is_terminal_sentence_line(prev_line):
+                # Wrapped lines breaking before numbers, symbols, or uncapitalized text continue the step
+                if not line[0].isupper():
                     is_continuation = True
 
         if is_continuation:
