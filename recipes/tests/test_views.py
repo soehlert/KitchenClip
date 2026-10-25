@@ -76,6 +76,61 @@ def test_recipe_edit(client):
     assert recipe.title == 'New Title'
     assert recipe.total_time == 20
 
+
+@pytest.mark.django_db
+def test_recipe_edit_preserves_container_size_and_tofu_variety(client):
+    """Verify editing a recipe does not mangle container sizes or extra-firm tofu."""
+    from recipes.models import Ingredient, RecipeIngredient
+
+    recipe = Recipe.objects.create(title="Kung Pao Tofu", instructions="Stir fry.")
+    tofu_ing = Ingredient.objects.create(name="extra-firm tofu")
+    RecipeIngredient.objects.create(
+        recipe=recipe,
+        ingredient=tofu_ing,
+        raw_text="2 blocks extra-firm tofu (14.5 ounce)",
+        quantity="2",
+        unit="blocks",
+        preparation="14.5 ounce",
+        order=0,
+    )
+
+    url = reverse("recipes:edit_recipe", args=[recipe.pk])
+    # 1. Edit without changing ingredients_text
+    resp1 = client.post(
+        url,
+        {
+            "title": "Kung Pao Tofu Updated",
+            "instructions": "Stir fry.",
+            "ingredients_text": "2 blocks extra-firm tofu (14.5 ounce)",
+        },
+    )
+    assert resp1.status_code == 302
+    ri1 = recipe.recipe_ingredients.first()
+    assert ri1.quantity == "2"
+    assert ri1.unit == "blocks"
+    assert ri1.ingredient.name == "extra-firm tofu"
+    assert ri1.preparation == "14.5 ounce"
+
+    # 2. Edit with modified ingredients_text using checkbox and parenthetical count
+    resp2 = client.post(
+        url,
+        {
+            "title": "Kung Pao Tofu Updated",
+            "instructions": "Stir fry.",
+            "ingredients_text": "▢(2) 14.5 ounce blocks extra-firm tofu\n5 cloves garlic",
+        },
+    )
+    assert resp2.status_code == 302
+    items = list(recipe.recipe_ingredients.order_by("order"))
+    assert len(items) == 2
+    assert items[0].quantity == "2"
+    assert items[0].unit == "blocks"
+    assert items[0].ingredient.name == "extra-firm tofu"
+    assert items[0].preparation == "14.5 ounce"
+    assert items[1].quantity == "5"
+    assert items[1].unit == "cloves"
+    assert items[1].ingredient.name == "garlic"
+
 @pytest.mark.django_db
 def test_meal_plan_api_update(client):
     # Tests the /api/meal-plan/update/ endpoint utilized by javascript 'Apply All'

@@ -99,10 +99,14 @@ _CONTAINER_SIZE_PATTERN = re.compile(
 _LEADING_PAREN_COUNT = re.compile(
     rf"^\s*\(\s*({_COUNT_OR_SIZE})\s*\)\s*"
 )
+_LEADING_BULLET_PATTERN = re.compile(
+    r"^\s*[▢□■☑✓✔•◦▪▫*–—\-]+\s*"
+)
 
 
 def normalize_ingredient_text(line: str) -> str:
     """Normalize ingredient line before passing to ingredient_slicer."""
+    line = _LEADING_BULLET_PATTERN.sub("", line)
     m_container = _CONTAINER_SIZE_PATTERN.match(line)
     if m_container:
         count = m_container.group(1) or m_container.group(2)
@@ -158,14 +162,15 @@ def parse_ingredient_line(line: str) -> dict:
     # in the 'Danger' zone (either directly or as a product), we revert.
     reverted = False
     if qty > 0 and not any(abs(qty - sn) < 0.01 for sn in safe_nums):
-        # Check Case A: Multiplication (6 * 305 = 1830)
-        if any(abs(sec_qty - sn) < 0.01 for sn in safe_nums) and danger_nums:
+        # Check Case A: Multiplication (e.g. 6 * 305 = 1830 or 2 * 14.5 = 29)
+        for sn in safe_nums:
             for dn in danger_nums:
-                if abs(sec_qty * dn - qty) < 0.1:
-                    matching_safe = next((sn for sn in safe_nums if abs(sec_qty - sn) < 0.01), sec_qty)
-                    qty = matching_safe
+                if abs(sn * dn - qty) < 0.1:
+                    qty = sn
                     reverted = True
                     break
+            if reverted:
+                break
         
         # Check Case B: Pure Hijacking (4 scallions (60g) -> 60)
         if not reverted and any(abs(qty - dn) < 0.01 for dn in danger_nums) and safe_nums:
@@ -175,8 +180,10 @@ def parse_ingredient_line(line: str) -> dict:
 
     # If we reverted, we should also clear any unit that was likely hijacked from the parens
     if reverted:
-        u_temp = (parsed_item.get("unit") or "").lower()
-        if u_temp and any(u_temp in p_c.lower() for p_c in paren_matches):
+        u_temp = (parsed_item.get("unit") or "").lower().strip()
+        u_in_parens = any(u_temp in p_c.lower() for p_c in paren_matches) if u_temp else False
+        u_in_safe = bool(re.search(rf"\b{re.escape(u_temp)}s?\b", line_no_parens.lower())) if u_temp else False
+        if u_temp and (u_in_parens or not u_in_safe):
             sec_u = (parsed_item.get("secondary_unit") or "").lower().strip()
             if sec_u and not any(sec_u in p_c.lower() for p_c in paren_matches):
                 parsed_item["unit"] = sec_u

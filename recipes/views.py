@@ -358,13 +358,17 @@ class RecipeCreateView(HouseholdLoginRequiredMixin, CreateView):
             for idx, item in enumerate(processed_ingredients):
                 name = item["food"]
                 ingredient, _ = Ingredient.objects.get_or_create(name=name)
+                prep = f" ({item['prep']})" if item.get('prep') else ""
+                parts = [str(item['display_quantity']), str(item['unit']), name]
+                raw_text = f"{' '.join(p for p in parts if p).strip()}{prep}"
 
                 RecipeIngredient.objects.create(
                     recipe=self.object,
                     ingredient=ingredient,
-                    raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
+                    raw_text=raw_text[:200],
                     quantity=item["display_quantity"],
                     unit=item["unit"],
+                    preparation=item.get("prep", "")[:100],
                     order=idx
                 )
         except Exception:

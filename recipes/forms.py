@@ -1,7 +1,6 @@
 import logging
 import re
 
-import ingredient_slicer
 from django import forms
 
 from .image_utils import process_uploaded_recipe_image
@@ -221,7 +220,9 @@ class RecipeUpdateForm(forms.ModelForm):
 
         recipe = super().save(commit=commit)
 
-        if commit and 'ingredients_text' in self.cleaned_data:
+        if commit and 'ingredients_text' in self.cleaned_data and (
+            'ingredients_text' in self.changed_data or not recipe.recipe_ingredients.exists()
+        ):
             recipe.recipe_ingredients.all().delete()
 
             ingredients_text = self.cleaned_data.get('ingredients_text', '')
@@ -231,8 +232,9 @@ class RecipeUpdateForm(forms.ModelForm):
                 for line in ingredients_text.split('\n'):
                     line = line.strip()
                     if line:
-                        slicer = ingredient_slicer.IngredientSlicer(line)
-                        parsed_list.append(slicer.to_json())
+                        parsed_item = parse_ingredient_line(line)
+                        if parsed_item.get("food"):
+                            parsed_list.append(parsed_item)
                 
                 # Consolidate and format
                 processed = process_ingredients(parsed_list)
@@ -240,13 +242,17 @@ class RecipeUpdateForm(forms.ModelForm):
                 for idx, item in enumerate(processed):
                     name = item["food"]
                     ingredient, _ = Ingredient.objects.get_or_create(name=name)
+                    prep = f" ({item['prep']})" if item.get('prep') else ""
+                    parts = [str(item['display_quantity']), str(item['unit']), name]
+                    raw_text = f"{' '.join(p for p in parts if p).strip()}{prep}"
                     
                     RecipeIngredient.objects.create(
                         recipe=recipe,
                         ingredient=ingredient,
-                        raw_text=f"{item['display_quantity']} {item['unit']} {name}".strip(),
+                        raw_text=raw_text[:200],
                         quantity=item["display_quantity"],
                         unit=item["unit"],
+                        preparation=item.get("prep", "")[:100],
                         order=idx
                     )
             except Exception as e:

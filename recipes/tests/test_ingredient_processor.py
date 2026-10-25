@@ -329,13 +329,18 @@ def test_redundant_prep_unit_filtering():
 
 def test_container_count_and_variety_parsing():
     """Test parsing container counts, container weights/sizes, and food variety descriptors."""
-    # Parenthesized count with container size and block container unit
-    parsed_tofu = parse_ingredient_line("(2) 14.5 ounce blocks extra-firm tofu")
-    proc_tofu = process_ingredients([parsed_tofu])[0]
-    assert proc_tofu["display_quantity"] == "2"
-    assert proc_tofu["unit"] == "blocks"
-    assert proc_tofu["food"] == "extra-firm tofu"
-    assert proc_tofu["prep"] == "14.5 ounce"
+    # Parenthesized count with container size and block container unit (including leading checkbox bullet)
+    for raw_tofu in [
+        "(2) 14.5 ounce blocks extra-firm tofu",
+        "▢(2) 14.5 ounce blocks extra-firm tofu",
+        "2 blocks extra-firm tofu (14.5 ounce)",
+    ]:
+        parsed_tofu = parse_ingredient_line(raw_tofu)
+        proc_tofu = process_ingredients([parsed_tofu])[0]
+        assert proc_tofu["display_quantity"] == "2"
+        assert proc_tofu["unit"] == "blocks"
+        assert proc_tofu["food"] == "extra-firm tofu"
+        assert proc_tofu["prep"] == "14.5 ounce"
 
     # Multi-container without parentheses
     parsed_cans = parse_ingredient_line("2 15 oz cans black beans")
