@@ -202,3 +202,15 @@ def test_clone_recipe_preserves_uploaded_image(test_household):
     )
     assert cloned.uploaded_image == source_recipe.uploaded_image
     assert cloned.display_image_url == source_recipe.uploaded_image
+
+
+@pytest.mark.django_db
+def test_dev_auto_login_when_debug_enabled(settings):
+    """Verify unauthenticated requests auto-login when DEBUG=True."""
+    from django.test import Client
+
+    settings.DEBUG = True
+    anon_client = Client()
+    response = anon_client.get(reverse("recipes:list_recipe"))
+    assert response.status_code == 200
+    assert response.wsgi_request.user.is_authenticated

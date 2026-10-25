@@ -13,6 +13,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from recipes.mixins import _auto_login_dev_user
 from recipes.models import InviteToken, PasskeyCredential
 from recipes.webauthn_service import (
     generate_authentication_options,
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 @require_GET
 def login_view(request: HttpRequest) -> HttpResponse:
     """Passkey-only login interface. Redirects to / (or safe ?next=) if already authenticated."""
+    _auto_login_dev_user(request)
     next_url = request.GET.get("next") or "/"
     if not next_url.startswith("/") or next_url.startswith("//"):
         next_url = "/"
