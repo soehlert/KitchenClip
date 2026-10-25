@@ -17,7 +17,7 @@
 
   <div class="bg-[#F7F9FA] rounded-xl border border-[#D7EEF2] shadow-sm p-8">
     {% if recipe.display_image_url %}
-    <img src="{{ recipe.display_image_url }}" alt="{{ recipe.title }}" class="rounded-lg mb-6 w-full object-cover max-h-96">
+    <img src="{{ recipe.display_image_url }}" alt="{{ recipe.title }}" class="rounded-lg mb-6 max-h-[32rem] w-auto max-w-full mx-auto object-contain">
     {% endif %}
     <div class="grid grid-cols-2 gap-x-4 gap-y-2 mb-6 text-sm sm:text-base">
       {% if recipe.prep_time_display %}
