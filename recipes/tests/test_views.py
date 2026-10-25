@@ -760,7 +760,7 @@ def test_parse_ingredients_api_json(client):
     assert len(ings) == 4
     # Olive oil
     assert ings[0]['quantity'] == '1'
-    assert ings[0]['unit'] == 'tablespoon'
+    assert ings[0]['unit'] == 'tbsp'
     assert 'olive oil' in ings[0]['food'].lower()
     # Baby lettuce (unit -> head)
     assert ings[1]['quantity'] == '1'
@@ -770,9 +770,9 @@ def test_parse_ingredients_api_json(client):
     assert ings[2]['quantity'] == '1'
     assert ings[2]['unit'] == 'packet'
     assert 'beef stock concentrate' in ings[2]['food'].lower()
-    # Mayonnaise (pluralized)
+    # Mayonnaise (abbreviated to tbsp)
     assert ings[3]['quantity'] == '2'
-    assert ings[3]['unit'] == 'tablespoons'
+    assert ings[3]['unit'] == 'tbsp'
     assert 'mayonnaise' in ings[3]['food'].lower()
 
 
@@ -802,7 +802,7 @@ def test_scratch_create_fallback_parses_full_line_in_quantity_field(client):
     ingredients = list(recipe.recipe_ingredients.all())
     assert len(ingredients) == 1
     assert ingredients[0].quantity == '1'
-    assert ingredients[0].unit == 'tablespoon'
+    assert ingredients[0].unit == 'tbsp'
     assert 'olive oil' in ingredients[0].ingredient.name.lower()
 
 

@@ -54,10 +54,21 @@ def _extract_numbers(text: str) -> list[float]:
     return extracted_floats
 
 
-UNIT_PLURAL_MAP = {
-    "tablespoon": "tablespoons",
+UNIT_ABBREVIATION_MAP = {
+    "tablespoon": "tbsp",
+    "tablespoons": "tbsp",
     "tbsp": "tbsp",
-    "teaspoon": "teaspoons",
+    "tbsps": "tbsp",
+    "teaspoon": "tsp",
+    "teaspoons": "tsp",
+    "tsp": "tsp",
+    "tsps": "tsp",
+}
+
+UNIT_PLURAL_MAP = {
+    "tablespoon": "tbsp",
+    "tbsp": "tbsp",
+    "teaspoon": "tsp",
     "tsp": "tsp",
     "ounce": "ounces",
     "oz": "oz",
@@ -336,14 +347,19 @@ def parse_ingredient_line(line: str) -> dict:
     if qty == 0.0 and food in {"ingredients", "finish", "sauce", "garnish", "for the", "serve with", "to serve", "marinade", "dressing"}:
         parsed_item["food"] = ""
         
-    parsed_item["unit"] = parsed_item.get("unit") or ""
+    raw_unit = (parsed_item.get("unit") or "").strip()
+    parsed_item["unit"] = UNIT_ABBREVIATION_MAP.get(raw_unit.lower(), raw_unit)
     return parsed_item
 
 def pluralize_unit(unit: str, quantity: float) -> str:
-    """Return plural form of unit if quantity > 1."""
-    if not unit or quantity <= 1.0:
+    """Return plural form of unit if quantity > 1 (or abbreviated form for tbsp/tsp)."""
+    if not unit:
         return unit
     u_lower = unit.lower()
+    if u_lower in UNIT_ABBREVIATION_MAP:
+        return UNIT_ABBREVIATION_MAP[u_lower]
+    if quantity <= 1.0:
+        return unit
     return UNIT_PLURAL_MAP.get(u_lower, u_lower)
 
 
@@ -452,6 +468,7 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             continue
             
         unit = (item.get("unit") or "").strip().lower()
+        unit = UNIT_ABBREVIATION_MAP.get(unit, unit)
         if unit == "unit":
             unit = resolve_meal_kit_unit(food)
         

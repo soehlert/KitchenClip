@@ -211,7 +211,7 @@ def test_pouch_and_packet_recognition():
 
 
 def test_unit_pluralization_in_process_ingredients():
-    """Test that units are pluralized when quantity > 1."""
+    """Test that units are pluralized when quantity > 1 and tbsp/tsp are abbreviated."""
     items = [
         {"food": "mayonnaise", "unit": "tablespoon", "quantity": 2.0},
         {"food": "beef", "unit": "ounce", "quantity": 10.0},
@@ -219,9 +219,9 @@ def test_unit_pluralization_in_process_ingredients():
     ]
     processed = process_ingredients(items)
     by_food = {p["food"].lower(): p for p in processed}
-    assert by_food["mayonnaise"]["unit"] == "tablespoons"
+    assert by_food["mayonnaise"]["unit"] == "tbsp"
     assert by_food["beef"]["unit"] == "ounces"
-    assert by_food["fry seasoning"]["unit"] == "tablespoon"
+    assert by_food["fry seasoning"]["unit"] == "tbsp"
 
 
 def test_fraction_parenthesis_reconciliation():
@@ -280,7 +280,7 @@ def test_redundant_prep_unit_filtering():
     assert parsed_salt["prep"] == []
     proc_salt = process_ingredients([parsed_salt])[0]
     assert proc_salt["food"] == "salt"
-    assert proc_salt["unit"] == "teaspoon"
+    assert proc_salt["unit"] == "tsp"
     assert proc_salt["prep"] == ""
 
     # Tablespoon with trailing (tbsp)
@@ -288,7 +288,7 @@ def test_redundant_prep_unit_filtering():
     assert parsed_oil["prep"] == []
     proc_oil = process_ingredients([parsed_oil])[0]
     assert proc_oil["food"] == "olive oil"
-    assert proc_oil["unit"] == "tablespoons"
+    assert proc_oil["unit"] == "tbsp"
     assert proc_oil["prep"] == ""
 
     # Ounce with trailing (oz)
