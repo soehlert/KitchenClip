@@ -128,6 +128,7 @@ class RecipeCloningService:
             servings=source_recipe.servings,
             instructions=source_recipe.instructions,
             image_url=source_recipe.image_url,
+            uploaded_image=source_recipe.uploaded_image,
             user_notes=user_notes or "",
             rating=rating,
             is_future=is_future,

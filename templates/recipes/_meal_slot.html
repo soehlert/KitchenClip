@@ -7,8 +7,8 @@ Usage: {% with meal=day.lunch %}{% include "recipes/_meal_slot.html" %}{% endwit
     data-custom="{{ meal.custom_meal }}"
     data-title="{% if meal.recipe %}{{ meal.recipe.title }}{% else %}{{ meal.custom_meal }}{% endif %}">
 
-    {% if meal.recipe.image_url %}
-    <img src="{{ meal.recipe.image_url }}" class="w-full h-12 object-cover rounded-lg mb-1.5">
+    {% if meal.recipe.display_image_url %}
+    <img src="{{ meal.recipe.display_image_url }}" class="w-full h-12 object-cover rounded-lg mb-1.5">
     {% endif %}
 
     <div class="flex justify-between items-start gap-1 mb-1">

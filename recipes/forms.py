@@ -4,6 +4,7 @@ import re
 import ingredient_slicer
 from django import forms
 
+from .image_utils import process_uploaded_recipe_image
 from .ingredient_processor import parse_ingredient_line, process_ingredients
 from .models import Ingredient, Recipe, RecipeIngredient
 from .url_utils import find_recipe_by_url, normalize_url
@@ -124,6 +125,22 @@ class RecipeUpdateForm(forms.ModelForm):
         label="Ingredients",
         help_text="Enter each ingredient on a separate line"
     )
+    image_file = forms.FileField(
+        required=False,
+        label="Recipe Photo",
+        help_text="Upload an image or take a photo with your camera",
+        widget=forms.FileInput(attrs={
+            "accept": "image/*",
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769] file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#194769] file:text-white hover:file:bg-[#5B8E7D] file:cursor-pointer",
+        }),
+    )
+    clear_uploaded_image = forms.BooleanField(
+        required=False,
+        label="Remove current uploaded photo",
+        widget=forms.CheckboxInput(attrs={
+            "class": "w-4 h-4 text-[#194769] border-[#5B8E7D] rounded focus:ring-[#194769]"
+        }),
+    )
 
     class Meta:
         model = Recipe
@@ -131,7 +148,7 @@ class RecipeUpdateForm(forms.ModelForm):
             "title", "description", "original_url",
             "prep_time", "cook_time", "total_time", "servings",
             "rating", "instructions", "user_notes",
-            "image_url", "is_future"
+            "image_file", "image_url", "is_future"
         ]
         labels = {
             "is_future": "Save for later",
@@ -196,6 +213,12 @@ class RecipeUpdateForm(forms.ModelForm):
             self.initial['ingredients_text'] = '\n'.join(ingredients_list)
 
     def save(self, commit=True):
+        processed_image = self.cleaned_data.get("image_file")
+        if processed_image:
+            self.instance.uploaded_image = processed_image
+        elif self.cleaned_data.get("clear_uploaded_image"):
+            self.instance.uploaded_image = ""
+
         recipe = super().save(commit=commit)
 
         if commit and 'ingredients_text' in self.cleaned_data:
@@ -253,6 +276,13 @@ class RecipeUpdateForm(forms.ModelForm):
         tags = self.cleaned_data.get("tags", "")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         return tag_list
+
+    def clean_image_file(self) -> str | None:
+        """Validate and compress an uploaded recipe image file."""
+        uploaded = self.cleaned_data.get("image_file")
+        if not uploaded:
+            return None
+        return process_uploaded_recipe_image(uploaded)
 
 
 class RecipeScratchForm(forms.ModelForm):
@@ -340,6 +370,14 @@ class RecipeScratchForm(forms.ModelForm):
             "id": "id_tags",
         })
     )
+    image_file = forms.FileField(
+        required=False,
+        label="Recipe Photo (optional)",
+        widget=forms.FileInput(attrs={
+            "accept": "image/*",
+            "class": "w-full px-3 py-2 border border-[#5B8E7D] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#194769] text-[#194769] file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#194769] file:text-white hover:file:bg-[#5B8E7D] file:cursor-pointer",
+        }),
+    )
     image_url = forms.URLField(
         max_length=300,
         required=False,
@@ -414,11 +452,21 @@ class RecipeScratchForm(forms.ModelForm):
 
     def save(self, commit=True):
         recipe = super().save(commit=False)
+        processed_image = self.cleaned_data.get("image_file")
+        if processed_image:
+            recipe.uploaded_image = processed_image
         valid_steps = self.cleaned_data.get('valid_steps', [])
         recipe.instructions = "\n".join(valid_steps)
         if commit:
             recipe.save()
         return recipe
+
+    def clean_image_file(self) -> str | None:
+        """Validate and compress an uploaded recipe image file."""
+        uploaded = self.cleaned_data.get("image_file")
+        if not uploaded:
+            return None
+        return process_uploaded_recipe_image(uploaded)
 
     def clean_original_url(self):
         url = self.cleaned_data.get('original_url')

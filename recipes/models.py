@@ -297,6 +297,7 @@ class Recipe(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     image_url = models.URLField(blank=True, null=True, max_length=300)
+    uploaded_image = models.TextField(blank=True, default="", help_text="Compressed WebP data URI for uploaded recipe photo")
     tags = models.ManyToManyField('RecipeTag', blank=True, related_name='recipes')
     ingredients = models.ManyToManyField(
         Ingredient,
@@ -322,6 +323,11 @@ class Recipe(models.Model):
 
     def get_absolute_url(self) -> str:
         return reverse('recipes:detail_recipe', kwargs={'pk': self.pk})
+
+    @property
+    def display_image_url(self) -> str | None:
+        """Return uploaded photo data URI if present, otherwise external image URL."""
+        return self.uploaded_image or self.image_url
 
     @property
     def prep_time_display(self) -> str | None:

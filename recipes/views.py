@@ -918,7 +918,7 @@ def search_recipes_api(request):
             'title': r.title,
             'is_future': r.is_future,
             'is_on_menu': r.is_on_menu,
-            'image_url': r.image_url
+            'image_url': r.display_image_url
         })
 
     return JsonResponse({'recipes': data})

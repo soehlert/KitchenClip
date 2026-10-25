@@ -132,9 +132,9 @@
         <div
           class="bg-[#F7F9FA] p-4 sm:p-6 rounded-xl border border-[#D7EEF2] shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
           <a href="{% url 'recipes:detail_recipe' recipe.pk %}" class="flex flex-col flex-grow">
-            {% if recipe.image_url %}
+            {% if recipe.display_image_url %}
             <div class="mb-4 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
-              <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" class="w-full h-48 object-cover rounded-t-xl">
+              <img src="{{ recipe.display_image_url }}" alt="{{ recipe.title }}" class="w-full h-48 object-cover rounded-t-xl">
             </div>
             {% endif %}
             <div class="mb-2">

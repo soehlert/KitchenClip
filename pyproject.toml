@@ -20,6 +20,8 @@ dependencies = [
     "celery>=5.4.0",
     "redis>=5.2.1",
     "flower>=2.0.1",
+    "pillow>=11.0.0",
+    "pillow-heif>=0.21.0",
 ]
 
 [tool.hatch.build.targets.wheel]

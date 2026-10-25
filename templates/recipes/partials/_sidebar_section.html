@@ -3,10 +3,10 @@
         {% for recipe in recipes %}
         <div class="recipe-card p-2 bg-gray-50 rounded-xl flex items-center gap-3 cursor-grab hover:bg-white border border-transparent hover:border-gray-100 transition-all group"
             draggable="true" data-id="{{ recipe.id }}" data-title="{{ recipe.title }}"
-            data-image="{{ recipe.image_url|default:'' }}">
+            data-image="{{ recipe.display_image_url|default:'' }}">
 
-            {% if recipe.image_url %}
-            <img src="{{ recipe.image_url }}" class="w-10 h-10 rounded-lg object-cover">
+            {% if recipe.display_image_url %}
+            <img src="{{ recipe.display_image_url }}" class="w-10 h-10 rounded-lg object-cover">
             {% else %}
             <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-[10px] font-black">
                 {{ recipe.title|slice:":1" }}

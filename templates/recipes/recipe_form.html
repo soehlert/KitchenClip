@@ -71,7 +71,7 @@
       </div>
       {% endif %}
 
-      <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
+      <form method="post" enctype="multipart/form-data" class="space-y-6" autocomplete="off" id="recipe-form">
         {% csrf_token %}
         {{ form.non_field_errors }}
         {% if form.is_future %}
@@ -97,15 +97,31 @@
         </div>
         {% endif %}
         {% for field in form %}
-          {% if field.name != "tags" and field.name != "is_future" %}
+          {% if field.name != "tags" and field.name != "is_future" and field.name != "clear_uploaded_image" %}
             <div>
               <label for="{{ field.id_for_label }}" class="block text-[#194769] font-semibold mb-1">
                 {{ field.label }}
                 {% if field.field.required %}<span class="text-[#F2855E]">*</span>{% endif %}
               </label>
+              {% if field.name == "image_file" and recipe and recipe.uploaded_image %}
+                <div class="mb-3 p-3 bg-white border border-[#D7EEF2] rounded-lg flex flex-wrap items-center gap-4">
+                  <img src="{{ recipe.uploaded_image }}" alt="Current uploaded photo" class="h-24 w-24 object-cover rounded-lg border border-[#5B8E7D]">
+                  {% if form.clear_uploaded_image %}
+                  <label for="{{ form.clear_uploaded_image.id_for_label }}" class="inline-flex items-center gap-2 text-sm text-[#194769] font-medium cursor-pointer">
+                    {{ form.clear_uploaded_image }}
+                    <span>{{ form.clear_uploaded_image.label }}</span>
+                  </label>
+                  {% endif %}
+                </div>
+              {% endif %}
               {{ field }}
+              {% if field.name == "image_file" %}
+                <div id="image-file-preview-wrapper" class="hidden mt-3">
+                  <img id="image-file-preview" src="" alt="Selected photo preview" class="h-40 w-auto rounded-lg object-cover border border-[#5B8E7D] shadow-sm">
+                </div>
+              {% endif %}
               {% if field.help_text and field.name != "user_notes" %}
-                <p class="text-sm text-gray-500">{{ field.help_text }}</p>
+                <p class="text-sm text-gray-500 mt-1">{{ field.help_text }}</p>
               {% endif %}
               {% for error in field.errors %}
                 <p class="text-sm text-[#F2855E]">{{ error }}</p>
@@ -148,5 +164,21 @@
       window.availableTags = {{ all_tags_json|safe }};
       window.initialTags = {{ initial_tags_json|default:"[]"|safe }};
       window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
+
+      const imageInput = document.getElementById("id_image_file");
+      const previewWrapper = document.getElementById("image-file-preview-wrapper");
+      const previewImg = document.getElementById("image-file-preview");
+      if (imageInput && previewWrapper && previewImg) {
+        imageInput.addEventListener("change", function () {
+          const file = this.files && this.files[0];
+          if (file && file.type.startsWith("image/")) {
+            previewImg.src = URL.createObjectURL(file);
+            previewWrapper.classList.remove("hidden");
+          } else {
+            previewImg.src = "";
+            previewWrapper.classList.add("hidden");
+          }
+        });
+      }
     </script>
 {% endblock %}

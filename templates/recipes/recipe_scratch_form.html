@@ -10,7 +10,7 @@
   </div>
 
   <div class="bg-[#F7F9FA] p-6 sm:p-8 rounded-xl border border-[#D7EEF2] shadow-sm relative">
-    <form method="post" class="space-y-6" autocomplete="off" id="recipe-form">
+    <form method="post" enctype="multipart/form-data" class="space-y-6" autocomplete="off" id="recipe-form">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
@@ -117,25 +117,41 @@
         {% endif %}
       </div>
 
-      <!-- Optional URLs -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Photo Upload & Optional URLs -->
+      <div class="space-y-4">
         <div>
-          <label for="{{ form.image_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
-            Image URL (optional)
+          <label for="{{ form.image_file.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+            Recipe Photo (Upload or Take Photo)
           </label>
-          {{ form.image_url }}
-          {% for error in form.image_url.errors %}
+          {{ form.image_file }}
+          <p class="text-xs text-gray-500 mt-1">Take a photo with your phone's camera or choose an image from your gallery.</p>
+          <div id="image-file-preview-wrapper" class="hidden mt-3">
+            <img id="image-file-preview" src="" alt="Selected photo preview" class="h-40 w-auto rounded-lg object-cover border border-[#5B8E7D] shadow-sm">
+          </div>
+          {% for error in form.image_file.errors %}
             <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
           {% endfor %}
         </div>
-        <div>
-          <label for="{{ form.original_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
-            Original URL (optional)
-          </label>
-          {{ form.original_url }}
-          {% for error in form.original_url.errors %}
-            <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
-          {% endfor %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="{{ form.image_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+              Or Image URL (optional)
+            </label>
+            {{ form.image_url }}
+            {% for error in form.image_url.errors %}
+              <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div>
+            <label for="{{ form.original_url.id_for_label }}" class="block text-[#194769] font-semibold mb-1 text-sm">
+              Original URL (optional)
+            </label>
+            {{ form.original_url }}
+            {% for error in form.original_url.errors %}
+              <p class="text-sm text-[#F2855E] mt-1">{{ error }}</p>
+            {% endfor %}
+          </div>
         </div>
       </div>
 
@@ -248,6 +264,22 @@
     window.initialTags = {{ initial_tags_json|default:"[]"|safe }};
     window.tagAutocompleteUrl = "{% url 'recipes:tag_autocomplete' %}";
     window.parseIngredientsUrl = "{% url 'recipes:parse_ingredients_api' %}";
+
+    const imageInput = document.getElementById("{{ form.image_file.id_for_label }}");
+    const previewWrapper = document.getElementById("image-file-preview-wrapper");
+    const previewImg = document.getElementById("image-file-preview");
+    if (imageInput && previewWrapper && previewImg) {
+      imageInput.addEventListener("change", function () {
+        const file = this.files && this.files[0];
+        if (file && file.type.startsWith("image/")) {
+          previewImg.src = URL.createObjectURL(file);
+          previewWrapper.classList.remove("hidden");
+        } else {
+          previewImg.src = "";
+          previewWrapper.classList.add("hidden");
+        }
+      });
+    }
   </script>
   <script src="{% static 'js/recipe_scratch.js' %}"></script>
 {% endblock %}
