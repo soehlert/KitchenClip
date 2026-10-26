@@ -29,7 +29,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version-file: "pyproject.toml"
+        python-version: "3.13"
 
     - name: Install System Dependencies for lxml
       run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxslt1-dev python3-dev
