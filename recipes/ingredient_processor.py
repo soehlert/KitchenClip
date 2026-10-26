@@ -113,6 +113,20 @@ _LEADING_PAREN_COUNT = re.compile(
 _LEADING_BULLET_PATTERN = re.compile(
     r"^\s*[▢□■☑✓✔•◦▪▫*–—\-]+\s*"
 )
+_DESCRIPTIVE_PREP_PATTERN = re.compile(
+    r"\b("
+    r"(?:(?:finely|thinly|roughly|coarsely|freshly|lightly)\s+)?"
+    r"(?:cut|sliced|diced|chopped|minced|torn|broken|halved|quartered)"
+    r"\s+(?:into|in)\s+[^,;()]+"
+    r"|"
+    r"(?:(?:finely|thinly|roughly|coarsely|freshly|lightly)\s+)?"
+    r"(?:cut|sliced|halved|quartered)\s+(?:lengthwise|crosswise|diagonally|on the bias)\b"
+    r"|"
+    r"(?:finely|thinly|roughly|coarsely|freshly|lightly)\s+"
+    r"(?:cut|sliced|diced|chopped|minced|grated|ground|crushed|peeled|shredded)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def normalize_ingredient_text(line: str) -> str:
@@ -149,7 +163,23 @@ def parse_ingredient_line(line: str) -> dict:
 
     normalized_line = normalize_ingredient_text(line_to_parse)
 
-    slicer = ingredient_slicer.IngredientSlicer(normalized_line)
+    extracted_prep_phrases: list[str] = []
+    slicer_parts: list[str] = []
+    last_idx = 0
+    for m in _DESCRIPTIVE_PREP_PATTERN.finditer(normalized_line):
+        prefix = normalized_line[:m.start()]
+        if prefix.count("(") == prefix.count(")"):
+            extracted_prep_phrases.append(m.group(1).strip())
+            slicer_parts.append(normalized_line[last_idx:m.start()])
+            last_idx = m.end()
+    slicer_parts.append(normalized_line[last_idx:])
+    slicer_line = "".join(slicer_parts)
+    if extracted_prep_phrases:
+        slicer_line = re.sub(r",\s*,", ",", slicer_line)
+        slicer_line = re.sub(r"(?:,\s*|\s+and\s*)+$", "", slicer_line, flags=re.IGNORECASE).strip()
+        slicer_line = re.sub(r"\s{2,}", " ", slicer_line).strip()
+
+    slicer = ingredient_slicer.IngredientSlicer(slicer_line)
     parsed_item = slicer.to_json()
 
     # IngredientSlicer often gets confused by weights in parentheses:
@@ -159,11 +189,11 @@ def parse_ingredient_line(line: str) -> dict:
     sec_qty = _safe_float(parsed_item.get("secondary_quantity"))
     
     # Extract "Safe" numbers (outside parentheses) from the parsed half
-    line_no_parens = re.sub(r'\(.*?\)', '', normalized_line)
+    line_no_parens = re.sub(r'\(.*?\)', '', slicer_line)
     safe_nums = _extract_numbers(line_no_parens)
     
     # Extract "Danger" numbers (inside parentheses) from the parsed half
-    paren_matches = re.findall(r'\((.*?)\)', normalized_line)
+    paren_matches = re.findall(r'\((.*?)\)', slicer_line)
     danger_nums = []
     for p_content in paren_matches:
         danger_nums.extend(_extract_numbers(p_content))
@@ -253,11 +283,24 @@ def parse_ingredient_line(line: str) -> dict:
     paren_contents = parsed_item.get("parenthesis_content") or []
     if not prep_list and paren_contents:
         prep_list = paren_contents
-    elif paren_contents:
+    elif paren_contents or paren_matches:
+        for raw_pc in paren_matches:
+            pc_clean = raw_pc.strip()
+            matching_prep = [
+                p for p in prep_list
+                if re.search(rf"\b{re.escape(str(p).strip())}\b", pc_clean, re.IGNORECASE)
+            ]
+            if matching_prep:
+                prep_list = [p for p in prep_list if p not in matching_prep]
+                if pc_clean not in prep_list:
+                    prep_list.append(pc_clean)
         for pc in paren_contents:
             if any(re.search(rf"\b{u}\b", pc, re.IGNORECASE) for u in ["oz", "ounce", "g", "gram", "ml", "fl oz", "lb", "pound"]):
-                if pc not in prep_list:
+                if pc not in prep_list and not any(pc.lower() in existing.lower() for existing in prep_list):
                     prep_list.append(pc)
+    for ep in extracted_prep_phrases:
+        if ep not in prep_list:
+            prep_list.append(ep)
     
     # Filter out redundant unit designations from prep (e.g. "tsp", "tbsp")
     clean_prep = []
@@ -316,6 +359,20 @@ def parse_ingredient_line(line: str) -> dict:
                 parsed_item["food"] = food_current
                 u_current = norm_unit
                 break
+
+    # Restore size modifiers (e.g., 'large', 'medium', 'small') when they directly precede the food name
+    size_mods = parsed_item.get("size_modifiers") or []
+    food_current = (parsed_item.get("food") or "").strip()
+    if size_mods and food_current:
+        for sm in reversed(size_mods):
+            sm_clean = str(sm).strip()
+            if (
+                sm_clean
+                and sm_clean.lower() not in food_current.lower().split()
+                and re.search(rf"\b{re.escape(sm_clean)}\s+{re.escape(food_current)}\b", slicer_line, re.IGNORECASE)
+            ):
+                food_current = f"{sm_clean} {food_current}"
+        parsed_item["food"] = food_current
 
     # Fix tofu firmness variety (ingredient_slicer extracts 'firm' into prep)
     tofu_m = re.search(r"\b((?:extra|super|medium)[- ]firm|firm)\s+tofu\b", line_to_parse, re.IGNORECASE)

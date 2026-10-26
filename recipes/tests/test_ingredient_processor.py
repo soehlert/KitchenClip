@@ -94,7 +94,7 @@ def test_parse_ingredient_line_metric_multiplier_fix():
     assert float(parsed["quantity"]) == 6.0
     # Unit should be cleared since 'g' was from the parens
     assert parsed["unit"] == ""
-    assert parsed["food"] == "eggs"
+    assert parsed["food"] == "large eggs"
 
 def test_parse_ingredient_line_clove_fix():
     """Test cloves with metric mass in parentheses."""
@@ -374,5 +374,58 @@ def test_container_count_and_variety_parsing():
     assert "drained" in proc_pressed["prep"]
     assert "pressed" in proc_pressed["prep"]
     assert "firm" not in proc_pressed["prep"].split(", ")
+
+
+def test_size_modifiers_and_descriptive_prep_phrases():
+    """Test preserving size modifiers in food names and full descriptive prep phrases."""
+    for raw_pepper in [
+        "1 large green bell pepper cut into 1-inch pieces",
+        "1 large green bell pepper, cut into 1-inch pieces",
+        "1 large green bell pepper (cut into 1-inch pieces)",
+    ]:
+        parsed_pepper = parse_ingredient_line(raw_pepper)
+        proc_pepper = process_ingredients([parsed_pepper])[0]
+        assert proc_pepper["display_quantity"] == "1"
+        assert proc_pepper["unit"] == ""
+        assert proc_pepper["food"] == "large green bell pepper"
+        assert proc_pepper["prep"] == "cut into 1-inch pieces"
+
+    parsed_onions = parse_ingredient_line("4 green onions, cut into 1-inch pieces")
+    proc_onions = process_ingredients([parsed_onions])[0]
+    assert proc_onions["display_quantity"] == "4"
+    assert proc_onions["unit"] == ""
+    assert proc_onions["food"] == "green onions"
+    assert proc_onions["prep"] == "cut into 1-inch pieces"
+
+    parsed_onions_paren = parse_ingredient_line(
+        "4 green onions (white separated from green and cut into 1-inch pieces)"
+    )
+    proc_onions_paren = process_ingredients([parsed_onions_paren])[0]
+    assert proc_onions_paren["display_quantity"] == "4"
+    assert proc_onions_paren["unit"] == ""
+    assert proc_onions_paren["food"] == "green onions"
+    assert proc_onions_paren["prep"] == "white separated from green and cut into 1-inch pieces"
+
+    parsed_chilies = parse_ingredient_line("8 dried red chilies, cut in half")
+    proc_chilies = process_ingredients([parsed_chilies])[0]
+    assert proc_chilies["display_quantity"] == "8"
+    assert proc_chilies["unit"] == ""
+    assert proc_chilies["food"] == "dried red chilies"
+    assert proc_chilies["prep"] == "cut in half"
+
+    parsed_chilies_paren = parse_ingredient_line("6-10 whole dried red chilies (cut smaller if needed)")
+    proc_chilies_paren = process_ingredients([parsed_chilies_paren])[0]
+    assert proc_chilies_paren["display_quantity"] == "8"
+    assert proc_chilies_paren["unit"] == ""
+    assert proc_chilies_paren["food"] == "dried red chilies"
+    assert proc_chilies_paren["prep"] == "cut smaller if needed"
+
+    parsed_onion_diced = parse_ingredient_line("1 medium yellow onion, finely diced")
+    proc_onion_diced = process_ingredients([parsed_onion_diced])[0]
+    assert proc_onion_diced["display_quantity"] == "1"
+    assert proc_onion_diced["unit"] == ""
+    assert proc_onion_diced["food"] == "medium yellow onion"
+    assert proc_onion_diced["prep"] == "finely diced"
+
 
 
