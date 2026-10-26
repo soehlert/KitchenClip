@@ -428,4 +428,27 @@ def test_size_modifiers_and_descriptive_prep_phrases():
     assert proc_onion_diced["prep"] == "finely diced"
 
 
+def test_single_container_size_unit_preserved():
+    """Test that '<size> <weight_unit> <container>' preserves the compound container unit."""
+    for raw_tomatoes in [
+        "14 oz can tomatoes (diced)",
+        "14 oz can diced tomatoes",
+        "14 oz can of diced tomatoes",
+    ]:
+        parsed_tom = parse_ingredient_line(raw_tomatoes)
+        proc_tom = process_ingredients([parsed_tom])[0]
+        assert proc_tom["display_quantity"] == "14"
+        assert proc_tom["unit"] == "oz can"
+        assert proc_tom["food"] == "tomatoes"
+        assert proc_tom["prep"] == "diced"
+
+    parsed_crushed = parse_ingredient_line("28 oz can crushed tomatoes")
+    proc_crushed = process_ingredients([parsed_crushed])[0]
+    assert proc_crushed["display_quantity"] == "28"
+    assert proc_crushed["unit"] == "oz can"
+    assert proc_crushed["food"] == "tomatoes"
+    assert proc_crushed["prep"] == "crushed"
+
+
+
 
