@@ -333,30 +333,30 @@ def test_container_count_and_variety_parsing():
     for raw_tofu in [
         "(2) 14.5 ounce blocks extra-firm tofu",
         "▢(2) 14.5 ounce blocks extra-firm tofu",
-        "2 blocks extra-firm tofu (14.5 ounce)",
+        "2 14.5 ounce blocks of extra-firm tofu",
     ]:
         parsed_tofu = parse_ingredient_line(raw_tofu)
         proc_tofu = process_ingredients([parsed_tofu])[0]
         assert proc_tofu["display_quantity"] == "2"
-        assert proc_tofu["unit"] == "blocks"
+        assert proc_tofu["unit"] == "14.5 ounce blocks of"
         assert proc_tofu["food"] == "extra-firm tofu"
-        assert proc_tofu["prep"] == "14.5 ounce"
+        assert proc_tofu["prep"] == ""
 
     # Multi-container without parentheses
     parsed_cans = parse_ingredient_line("2 15 oz cans black beans")
     proc_cans = process_ingredients([parsed_cans])[0]
     assert proc_cans["display_quantity"] == "2"
-    assert proc_cans["unit"] == "cans"
+    assert proc_cans["unit"] == "15 oz cans of"
     assert proc_cans["food"] == "black beans"
-    assert proc_cans["prep"] == "15 oz"
+    assert proc_cans["prep"] == ""
 
     # Package container with parenthesized count
     parsed_cheese = parse_ingredient_line("(2) 8 oz packages cream cheese")
     proc_cheese = process_ingredients([parsed_cheese])[0]
     assert proc_cheese["display_quantity"] == "2"
-    assert proc_cheese["unit"] == "packages"
+    assert proc_cheese["unit"] == "8 oz packages of"
     assert proc_cheese["food"] == "cream cheese"
-    assert proc_cheese["prep"] == "8 oz"
+    assert proc_cheese["prep"] == ""
 
     # Single container block
     parsed_single_block = parse_ingredient_line("1 block extra-firm tofu")
@@ -429,23 +429,36 @@ def test_size_modifiers_and_descriptive_prep_phrases():
 
 
 def test_single_container_size_unit_preserved():
-    """Test that '<size> <weight_unit> <container>' preserves the compound container unit."""
+    """Test that '<size> <weight_unit> <container>' formats as '<count> <size> <unit> <container> of <food>'."""
     for raw_tomatoes in [
         "14 oz can tomatoes (diced)",
         "14 oz can diced tomatoes",
         "14 oz can of diced tomatoes",
+        "1 14 oz can of tomatoes (diced)",
     ]:
         parsed_tom = parse_ingredient_line(raw_tomatoes)
         proc_tom = process_ingredients([parsed_tom])[0]
-        assert proc_tom["display_quantity"] == "14"
-        assert proc_tom["unit"] == "oz can"
+        assert proc_tom["display_quantity"] == "1"
+        assert proc_tom["unit"] == "14 oz can of"
         assert proc_tom["food"] == "tomatoes"
         assert proc_tom["prep"] == "diced"
 
+    for raw_two_cans in [
+        "2 14 oz cans tomatoes (diced)",
+        "2 14 oz cans of tomatoes (diced)",
+        "2 14 oz cans diced tomatoes",
+    ]:
+        parsed_two = parse_ingredient_line(raw_two_cans)
+        proc_two = process_ingredients([parsed_two])[0]
+        assert proc_two["display_quantity"] == "2"
+        assert proc_two["unit"] == "14 oz cans of"
+        assert proc_two["food"] == "tomatoes"
+        assert proc_two["prep"] == "diced"
+
     parsed_crushed = parse_ingredient_line("28 oz can crushed tomatoes")
     proc_crushed = process_ingredients([parsed_crushed])[0]
-    assert proc_crushed["display_quantity"] == "28"
-    assert proc_crushed["unit"] == "oz can"
+    assert proc_crushed["display_quantity"] == "1"
+    assert proc_crushed["unit"] == "28 oz can of"
     assert proc_crushed["food"] == "tomatoes"
     assert proc_crushed["prep"] == "crushed"
 

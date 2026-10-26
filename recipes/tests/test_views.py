@@ -124,9 +124,9 @@ def test_recipe_edit_preserves_container_size_and_tofu_variety(client):
     items = list(recipe.recipe_ingredients.order_by("order"))
     assert len(items) == 2
     assert items[0].quantity == "2"
-    assert items[0].unit == "blocks"
+    assert items[0].unit == "14.5 ounce blocks of"
     assert items[0].ingredient.name == "extra-firm tofu"
-    assert items[0].preparation == "14.5 ounce"
+    assert items[0].preparation == ""
     assert items[1].quantity == "5"
     assert items[1].unit == "cloves"
     assert items[1].ingredient.name == "garlic"

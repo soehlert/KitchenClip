@@ -102,8 +102,24 @@ _CONTAINER_WORDS = r"(?:cans?|tins?|blocks?|packages?|pkgs?|containers?|tubs?|ja
 _WEIGHT_VOL_UNITS = r"(?:ounces?|oz\.?|grams?|g\b|milliliters?|mls?|fl(?:uid)?\.?\s*oz\.?|pounds?|lbs?)"
 _COUNT_OR_SIZE = rf"(?:\d+(?:\.\d+)?|\d+\s*/\s*\d+|[{_UNI_CHARS}]|(?:(?:\d+)\s+)?\d+/\d+|(?:(?:\d+)\s*)?[{_UNI_CHARS}])"
 
+CONTAINER_SINGULAR_MAP = {
+    "cans": "can", "can": "can",
+    "tins": "tin", "tin": "tin",
+    "blocks": "block", "block": "block",
+    "packages": "package", "package": "package",
+    "pkgs": "pkg", "pkg": "pkg",
+    "containers": "container", "container": "container",
+    "tubs": "tub", "tub": "tub",
+    "jars": "jar", "jar": "jar",
+    "bottles": "bottle", "bottle": "bottle",
+    "cartons": "carton", "carton": "carton",
+    "boxes": "box", "box": "box",
+    "pouches": "pouch", "pouch": "pouch",
+    "bags": "bag", "bag": "bag",
+}
+
 _CONTAINER_SIZE_PATTERN = re.compile(
-    rf"^\s*(?:(?:\(\s*({_COUNT_OR_SIZE})\s*\))|({_COUNT_OR_SIZE}))\s+({_COUNT_OR_SIZE})\s*[-–—]?\s*({_WEIGHT_VOL_UNITS})\s+({_CONTAINER_WORDS})\b\s*(.*)$",
+    rf"^\s*(?:(?:\(\s*({_COUNT_OR_SIZE})\s*\))|({_COUNT_OR_SIZE}))\s+({_COUNT_OR_SIZE})\s*[-–—]?\s*({_WEIGHT_VOL_UNITS})\s+({_CONTAINER_WORDS})\b\s*(?:of\s+)?(.*)$",
     re.IGNORECASE,
 )
 _SINGLE_CONTAINER_SIZE_PATTERN = re.compile(
@@ -136,14 +152,8 @@ _DESCRIPTIVE_PREP_PATTERN = re.compile(
 def normalize_ingredient_text(line: str) -> str:
     """Normalize ingredient line before passing to ingredient_slicer."""
     line = _LEADING_BULLET_PATTERN.sub("", line)
-    m_container = _CONTAINER_SIZE_PATTERN.match(line)
-    if m_container:
-        count = m_container.group(1) or m_container.group(2)
-        size = m_container.group(3)
-        unit = m_container.group(4)
-        container = m_container.group(5)
-        rest = m_container.group(6)
-        return f"{count} ({size} {unit}) {container} {rest}".strip()
+    if _CONTAINER_SIZE_PATTERN.match(line):
+        return line
 
     m_lead = _LEADING_PAREN_COUNT.match(line)
     if m_lead:
@@ -168,14 +178,25 @@ def parse_ingredient_line(line: str) -> dict:
     normalized_line = normalize_ingredient_text(line_to_parse)
 
     compound_container_unit = ""
-    m_single_container = _SINGLE_CONTAINER_SIZE_PATTERN.match(normalized_line)
-    if m_single_container:
+    m_container = _CONTAINER_SIZE_PATTERN.match(normalized_line)
+    m_single_container = None if m_container else _SINGLE_CONTAINER_SIZE_PATTERN.match(normalized_line)
+    if m_container:
+        sc_count = m_container.group(1) or m_container.group(2)
+        sc_size = m_container.group(3)
+        sc_weight_unit = re.sub(r"\.$", "", m_container.group(4).strip().lower())
+        sc_container_raw = m_container.group(5).strip().lower()
+        sc_rest = m_container.group(6)
+        sc_container_sing = CONTAINER_SINGULAR_MAP.get(sc_container_raw, sc_container_raw)
+        compound_container_unit = f"{sc_size} {sc_weight_unit} {sc_container_sing} of"
+        normalized_line = f"{sc_count} {sc_container_sing} {sc_rest}".strip()
+    elif m_single_container:
         sc_size = m_single_container.group(1)
         sc_weight_unit = re.sub(r"\.$", "", m_single_container.group(2).strip().lower())
-        sc_container = m_single_container.group(3).strip().lower()
+        sc_container_raw = m_single_container.group(3).strip().lower()
         sc_rest = m_single_container.group(4)
-        compound_container_unit = f"{sc_weight_unit} {sc_container}"
-        normalized_line = f"{sc_size} {sc_weight_unit} {sc_rest}".strip()
+        sc_container_sing = CONTAINER_SINGULAR_MAP.get(sc_container_raw, sc_container_raw)
+        compound_container_unit = f"{sc_size} {sc_weight_unit} {sc_container_sing} of"
+        normalized_line = f"1 {sc_container_sing} {sc_rest}".strip()
 
     extracted_prep_phrases: list[str] = []
     slicer_parts: list[str] = []
@@ -419,7 +440,7 @@ def parse_ingredient_line(line: str) -> dict:
         parsed_item["food"] = ""
         
     if compound_container_unit:
-        parsed_item["unit"] = compound_container_unit
+        parsed_item["unit"] = pluralize_unit(compound_container_unit, qty)
     else:
         raw_unit = (parsed_item.get("unit") or "").strip()
         parsed_item["unit"] = UNIT_ABBREVIATION_MAP.get(raw_unit.lower(), raw_unit)
@@ -430,6 +451,15 @@ def pluralize_unit(unit: str, quantity: float) -> str:
     if not unit:
         return unit
     u_lower = unit.lower()
+    if u_lower.endswith(" of"):
+        parts = unit.split()
+        if len(parts) >= 3:
+            container_sing = CONTAINER_SINGULAR_MAP.get(parts[-2].lower(), parts[-2].lower())
+            if quantity <= 1.0:
+                parts[-2] = container_sing
+            else:
+                parts[-2] = UNIT_PLURAL_MAP.get(container_sing, container_sing)
+            return " ".join(parts)
     if u_lower in UNIT_ABBREVIATION_MAP:
         return UNIT_ABBREVIATION_MAP[u_lower]
     if quantity <= 1.0:
@@ -543,6 +573,8 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
             
         unit = (item.get("unit") or "").strip().lower()
         unit = UNIT_ABBREVIATION_MAP.get(unit, unit)
+        if unit.endswith(" of"):
+            unit = pluralize_unit(unit, 1.0)
         if unit == "unit":
             unit = resolve_meal_kit_unit(food)
         
@@ -591,7 +623,9 @@ def process_ingredients(parsed_ingredients: list[dict[str, any]]) -> list[dict[s
         f = data["food"]
         
         # Prevent unit/food redundancy (e.g., unit "onion" & food "yellow onion")
-        if u and f and (set(u.split()) & set(f.split())):
+        u_words = set(u.split()) - {"of", "a", "an", "the"}
+        f_words = set(f.split()) - {"of", "a", "an", "the"}
+        if u_words and f_words and (u_words & f_words):
             u = ""
         
         display_q = format_quantity(q)
